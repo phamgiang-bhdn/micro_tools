@@ -16,23 +16,23 @@ const SITE_URL = process.env.SITE_URL ?? "http://localhost:3100";
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: {
-    default: "dealvault — So sánh, săn deal affiliate thông minh",
+    default: "dealvault — So sánh & săn deal mỗi ngày",
     template: "%s | dealvault"
   },
   description:
-    "dealvault tổng hợp ưu đãi affiliate, dùng AI trích dữ liệu sản phẩm và đo conversion theo từng click. So sánh nhanh, mua đúng giá.",
+    "So sánh giá hàng đầu Việt Nam: thẻ tín dụng, công nghệ, gia dụng, du lịch, mỹ phẩm. Cập nhật ưu đãi mỗi ngày.",
   applicationName: "dealvault",
-  keywords: ["affiliate", "so sánh giá", "deal", "săn sale", "voucher", "micro-tool"],
+  keywords: ["so sánh giá", "săn deal", "giảm giá", "khuyến mãi", "voucher", "mua sắm thông minh"],
   openGraph: {
     type: "website",
     siteName: "dealvault",
-    title: "dealvault — So sánh, săn deal affiliate thông minh",
-    description: "AI extract + tracking chuẩn xác để bạn chọn deal tốt nhất."
+    title: "dealvault — So sánh & săn deal mỗi ngày",
+    description: "Giá tốt, ưu đãi mới, gọn trong một trang."
   },
   twitter: {
     card: "summary_large_image",
     title: "dealvault",
-    description: "So sánh, săn deal affiliate thông minh"
+    description: "So sánh & săn deal mỗi ngày"
   },
   robots: { index: true, follow: true },
   icons: {

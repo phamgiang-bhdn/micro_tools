@@ -14,6 +14,7 @@ export interface ProductItem {
   toolId: string;
   network: string;
   name: string;
+  slug?: string | null;
   affiliateUrl: string;
   scrapedData: Record<string, unknown>;
 }

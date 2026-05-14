@@ -35,6 +35,7 @@ model Product {
   toolId       String     @db.Uuid
   network      String     @default("ACCESSTRADE")
   name         String
+  slug         String?
   affiliateUrl String
   scrapedData  Json       @db.JsonB
   createdAt    DateTime   @default(now())
@@ -43,6 +44,7 @@ model Product {
   clickLogs    ClickLog[]
   extractions  ProductExtraction[]
 
+  @@unique([toolId, slug])
   @@index([toolId])
 }
 

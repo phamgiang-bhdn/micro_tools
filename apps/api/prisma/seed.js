@@ -3,11 +3,25 @@ const { PrismaClient, ParseStatus, Prisma } = require("@prisma/client");
 const prisma = new PrismaClient();
 
 const IMG = (id) => `https://picsum.photos/seed/${id}/600/450`;
+const GO = (id) => `https://example.com/go?id=${id}`;
+
+function slugify(input) {
+  return input
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .replace(/đ/g, "d")
+    .replace(/Đ/g, "d")
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 80);
+}
 
 const TOOLS = [
   {
     slug: "credit-card-compare",
-    name: "So sánh thẻ tín dụng",
+    name: "Thẻ tín dụng",
     schemaConfig: {
       bank: "string",
       annualFee: "number",
@@ -17,8 +31,8 @@ const TOOLS = [
     products: [
       {
         id: "3a571fa4-08f5-4ea6-b101-9c39658b2469",
-        name: "Example Bank Platinum Card",
-        affiliateUrl: "https://example.com/affiliate?offer=platinum",
+        name: "Thẻ Example Bank Platinum",
+        affiliateUrl: GO("platinum"),
         scrapedData: {
           bank: "Example Bank",
           brand: "Example Bank",
@@ -27,7 +41,8 @@ const TOOLS = [
           price: 499000,
           originalPrice: 990000,
           currency: "VND",
-          description: "Hoàn tiền 5% cho mọi chi tiêu online. Miễn phí năm đầu cho hồ sơ thu nhập từ 15 triệu.",
+          description:
+            "Hoàn tiền 5% cho mọi chi tiêu online. Miễn phí năm đầu cho hồ sơ thu nhập từ 15 triệu.",
           rating: 4.6,
           reviewCount: 312,
           badge: "Phổ biến nhất",
@@ -38,8 +53,8 @@ const TOOLS = [
       },
       {
         id: "c1c1aa18-e3a1-4bcd-9d8a-1a2c0b6f4111",
-        name: "Neo Bank Cashback World",
-        affiliateUrl: "https://example.com/affiliate?offer=neo-cashback",
+        name: "Thẻ Neo Bank Cashback World",
+        affiliateUrl: GO("neo-cashback"),
         scrapedData: {
           bank: "Neo Bank",
           brand: "Neo Bank",
@@ -48,7 +63,7 @@ const TOOLS = [
           price: 299000,
           originalPrice: 599000,
           currency: "VND",
-          description: "Tỉ lệ hoàn tiền 8% cho siêu thị và ăn uống cuối tuần.",
+          description: "Hoàn tiền 8% cho siêu thị và F&B cuối tuần.",
           rating: 4.8,
           reviewCount: 528,
           cashbackPercent: "8%",
@@ -58,8 +73,8 @@ const TOOLS = [
       },
       {
         id: "9b6f4a23-13ee-46d3-9a8c-2f3d5e87cd02",
-        name: "Skyline Travel Visa Signature",
-        affiliateUrl: "https://example.com/affiliate?offer=skyline-travel",
+        name: "Thẻ Skyline Travel Visa Signature",
+        affiliateUrl: GO("skyline-travel"),
         scrapedData: {
           bank: "Skyline",
           brand: "Skyline Bank",
@@ -73,14 +88,14 @@ const TOOLS = [
           badge: "Cho dân du lịch",
           cashbackPercent: "3%",
           minIncome: 25000000,
-          highlights: ["Đổi điểm thưởng → vé máy bay", "Bảo hiểm chuyến bay tới 5 tỉ"]
+          highlights: ["Đổi điểm thưởng → vé máy bay", "Bảo hiểm chuyến bay tới 5 tỷ"]
         }
       }
     ]
   },
   {
     slug: "tech-gadgets",
-    name: "Đồ công nghệ giảm giá",
+    name: "Đồ công nghệ",
     schemaConfig: {
       category: "string",
       price: "number",
@@ -91,7 +106,7 @@ const TOOLS = [
       {
         id: "11111111-aaaa-bbbb-cccc-000000000001",
         name: "Tai nghe Sony WH-1000XM5",
-        affiliateUrl: "https://example.com/affiliate?offer=sony-xm5",
+        affiliateUrl: GO("sony-xm5"),
         scrapedData: {
           brand: "Sony",
           store: "Shopee Mall",
@@ -102,7 +117,7 @@ const TOOLS = [
           description: "Chống ồn chủ động tốt nhất phân khúc, pin 30h, micro thoại đa hướng.",
           rating: 4.9,
           reviewCount: 2140,
-          badge: "Best seller",
+          badge: "Bán chạy",
           category: "Audio",
           highlights: ["ANC đỉnh phân khúc", "Pin 30 giờ", "LDAC Hi-Res"]
         }
@@ -110,7 +125,7 @@ const TOOLS = [
       {
         id: "11111111-aaaa-bbbb-cccc-000000000002",
         name: "iPad Air M2 11\" 128GB",
-        affiliateUrl: "https://example.com/affiliate?offer=ipad-air-m2",
+        affiliateUrl: GO("ipad-air-m2"),
         scrapedData: {
           brand: "Apple",
           store: "Tiki Trading",
@@ -121,14 +136,14 @@ const TOOLS = [
           description: "Chip Apple M2, màn hình Liquid Retina 11 inch, hỗ trợ Apple Pencil Pro.",
           rating: 4.8,
           reviewCount: 612,
-          category: "Tablet",
+          category: "Máy tính bảng",
           highlights: ["Chip M2", "Hỗ trợ Apple Pencil Pro"]
         }
       },
       {
         id: "11111111-aaaa-bbbb-cccc-000000000003",
-        name: "Samsung Galaxy Buds3 Pro",
-        affiliateUrl: "https://example.com/affiliate?offer=buds3-pro",
+        name: "Tai nghe Samsung Galaxy Buds3 Pro",
+        affiliateUrl: GO("buds3-pro"),
         scrapedData: {
           brand: "Samsung",
           store: "Lazada",
@@ -140,13 +155,13 @@ const TOOLS = [
           reviewCount: 318,
           badge: "Mới ra mắt",
           category: "Audio",
-          highlights: ["Hi-Fi 24-bit", "ANC + Voice detect"]
+          highlights: ["Hi-Fi 24-bit", "ANC + nhận diện giọng"]
         }
       },
       {
         id: "11111111-aaaa-bbbb-cccc-000000000004",
         name: "Robot hút bụi Roborock Q7 Max+",
-        affiliateUrl: "https://example.com/affiliate?offer=roborock-q7",
+        affiliateUrl: GO("roborock-q7"),
         scrapedData: {
           brand: "Roborock",
           store: "Shopee Mall",
@@ -156,14 +171,14 @@ const TOOLS = [
           currency: "VND",
           rating: 4.7,
           reviewCount: 456,
-          category: "Smart home",
+          category: "Nhà thông minh",
           highlights: ["Lực hút 4200Pa", "Tự đổ rác"]
         }
       },
       {
         id: "11111111-aaaa-bbbb-cccc-000000000005",
         name: "Màn hình LG UltraGear 27GP850",
-        affiliateUrl: "https://example.com/affiliate?offer=lg-27gp850",
+        affiliateUrl: GO("lg-27gp850"),
         scrapedData: {
           brand: "LG",
           store: "Tiki Trading",
@@ -173,14 +188,14 @@ const TOOLS = [
           currency: "VND",
           rating: 4.8,
           reviewCount: 274,
-          category: "Monitor",
+          category: "Màn hình",
           highlights: ["165Hz Nano IPS", "1ms GtG"]
         }
       },
       {
         id: "11111111-aaaa-bbbb-cccc-000000000006",
         name: "Bàn phím Keychron K2 Pro",
-        affiliateUrl: "https://example.com/affiliate?offer=keychron-k2-pro",
+        affiliateUrl: GO("keychron-k2-pro"),
         scrapedData: {
           brand: "Keychron",
           store: "Hà Nội Computer",
@@ -191,14 +206,14 @@ const TOOLS = [
           rating: 4.7,
           reviewCount: 198,
           category: "Phụ kiện",
-          highlights: ["Hot-swap", "QMK/VIA"]
+          highlights: ["Hot-swap", "QMK / VIA"]
         }
       }
     ]
   },
   {
     slug: "home-appliances",
-    name: "Gia dụng thông minh",
+    name: "Gia dụng",
     schemaConfig: {
       category: "string",
       price: "number",
@@ -208,10 +223,10 @@ const TOOLS = [
       {
         id: "22222222-aaaa-bbbb-cccc-000000000001",
         name: "Nồi chiên không dầu Philips HD9870",
-        affiliateUrl: "https://example.com/affiliate?offer=philips-hd9870",
+        affiliateUrl: GO("philips-hd9870"),
         scrapedData: {
           brand: "Philips",
-          store: "Điện máy Xanh",
+          store: "Điện Máy Xanh",
           image: IMG("philips-airfryer"),
           price: 4490000,
           originalPrice: 6990000,
@@ -220,13 +235,13 @@ const TOOLS = [
           reviewCount: 845,
           badge: "Top doanh số",
           category: "Bếp",
-          highlights: ["7.3L", "Hơi nước + chiên"]
+          highlights: ["Dung tích 7.3L", "Hơi nước + chiên"]
         }
       },
       {
         id: "22222222-aaaa-bbbb-cccc-000000000002",
         name: "Máy lọc không khí Xiaomi Pro 4",
-        affiliateUrl: "https://example.com/affiliate?offer=mi-pro-4",
+        affiliateUrl: GO("mi-pro-4"),
         scrapedData: {
           brand: "Xiaomi",
           store: "Shopee Mall",
@@ -237,13 +252,13 @@ const TOOLS = [
           rating: 4.6,
           reviewCount: 412,
           category: "Sức khỏe",
-          highlights: ["Lọc HEPA H13", "Phòng 60m²"]
+          highlights: ["Lọc HEPA H13", "Phòng tới 60m²"]
         }
       },
       {
         id: "22222222-aaaa-bbbb-cccc-000000000003",
-        name: "Máy pha cafe Delonghi Dedica EC685",
-        affiliateUrl: "https://example.com/affiliate?offer=delonghi-ec685",
+        name: "Máy pha cafe DeLonghi Dedica EC685",
+        affiliateUrl: GO("delonghi-ec685"),
         scrapedData: {
           brand: "DeLonghi",
           store: "Tiki Trading",
@@ -260,7 +275,7 @@ const TOOLS = [
       {
         id: "22222222-aaaa-bbbb-cccc-000000000004",
         name: "Robot lau nhà Dreame L20 Ultra",
-        affiliateUrl: "https://example.com/affiliate?offer=dreame-l20",
+        affiliateUrl: GO("dreame-l20"),
         scrapedData: {
           brand: "Dreame",
           store: "Lazada Mall",
@@ -271,7 +286,7 @@ const TOOLS = [
           rating: 4.8,
           reviewCount: 156,
           badge: "Flagship",
-          category: "Smart home",
+          category: "Nhà thông minh",
           highlights: ["Tự nâng giẻ lau", "Tự rửa & sấy"]
         }
       }
@@ -279,7 +294,7 @@ const TOOLS = [
   },
   {
     slug: "travel-deals",
-    name: "Ưu đãi du lịch",
+    name: "Du lịch",
     schemaConfig: {
       destination: "string",
       pricePerNight: "number",
@@ -289,7 +304,7 @@ const TOOLS = [
       {
         id: "33333333-aaaa-bbbb-cccc-000000000001",
         name: "InterContinental Đà Nẵng — 2N1Đ",
-        affiliateUrl: "https://example.com/affiliate?offer=intercon-danang",
+        affiliateUrl: GO("intercon-danang"),
         scrapedData: {
           brand: "InterContinental",
           store: "Agoda",
@@ -307,7 +322,7 @@ const TOOLS = [
       {
         id: "33333333-aaaa-bbbb-cccc-000000000002",
         name: "Vinpearl Phú Quốc Combo 3N2Đ",
-        affiliateUrl: "https://example.com/affiliate?offer=vinpearl-phuquoc",
+        affiliateUrl: GO("vinpearl-phuquoc"),
         scrapedData: {
           brand: "Vinpearl",
           store: "Booking.com",
@@ -324,7 +339,7 @@ const TOOLS = [
       {
         id: "33333333-aaaa-bbbb-cccc-000000000003",
         name: "Bay khứ hồi SGN ↔ ICN — Vietjet Skyboss",
-        affiliateUrl: "https://example.com/affiliate?offer=vj-skyboss-icn",
+        affiliateUrl: GO("vj-skyboss-icn"),
         scrapedData: {
           brand: "Vietjet Air",
           store: "Traveloka",
@@ -334,7 +349,7 @@ const TOOLS = [
           currency: "VND",
           rating: 4.3,
           reviewCount: 412,
-          badge: "Hot route",
+          badge: "Chặng hot",
           category: "Quốc tế"
         }
       }
@@ -342,7 +357,7 @@ const TOOLS = [
   },
   {
     slug: "beauty-skincare",
-    name: "Mỹ phẩm chính hãng",
+    name: "Mỹ phẩm",
     schemaConfig: {
       brand: "string",
       price: "number"
@@ -351,7 +366,7 @@ const TOOLS = [
       {
         id: "44444444-aaaa-bbbb-cccc-000000000001",
         name: "Serum SK-II Facial Treatment Essence 230ml",
-        affiliateUrl: "https://example.com/affiliate?offer=skii-230",
+        affiliateUrl: GO("skii-230"),
         scrapedData: {
           brand: "SK-II",
           store: "Sephora",
@@ -361,14 +376,14 @@ const TOOLS = [
           currency: "VND",
           rating: 4.9,
           reviewCount: 712,
-          badge: "Best seller",
+          badge: "Bán chạy",
           category: "Serum"
         }
       },
       {
         id: "44444444-aaaa-bbbb-cccc-000000000002",
         name: "Kem chống nắng Anessa Perfect UV 60ml",
-        affiliateUrl: "https://example.com/affiliate?offer=anessa-60",
+        affiliateUrl: GO("anessa-60"),
         scrapedData: {
           brand: "Anessa",
           store: "Hasaki",
@@ -378,13 +393,13 @@ const TOOLS = [
           currency: "VND",
           rating: 4.8,
           reviewCount: 3240,
-          category: "Sunscreen"
+          category: "Chống nắng"
         }
       },
       {
         id: "44444444-aaaa-bbbb-cccc-000000000003",
         name: "Son Dior Rouge 999 Velvet",
-        affiliateUrl: "https://example.com/affiliate?offer=dior-999",
+        affiliateUrl: GO("dior-999"),
         scrapedData: {
           brand: "Dior",
           store: "Lazmall",
@@ -415,10 +430,12 @@ async function main() {
     });
 
     for (const productSpec of toolSpec.products) {
+      const slug = slugify(productSpec.name);
       await prisma.product.upsert({
         where: { id: productSpec.id },
         update: {
           name: productSpec.name,
+          slug,
           affiliateUrl: productSpec.affiliateUrl,
           scrapedData: productSpec.scrapedData
         },
@@ -427,6 +444,7 @@ async function main() {
           toolId: tool.id,
           network: "ACCESSTRADE",
           name: productSpec.name,
+          slug,
           affiliateUrl: productSpec.affiliateUrl,
           scrapedData: productSpec.scrapedData
         }
@@ -434,7 +452,6 @@ async function main() {
     }
   }
 
-  // 1 extraction PENDING_REVIEW để admin có cái để duyệt.
   const sampleProduct = await prisma.product.findUnique({
     where: { id: "3a571fa4-08f5-4ea6-b101-9c39658b2469" }
   });
@@ -481,7 +498,6 @@ async function main() {
     }
   });
 
-  // Sample tracking + conversion để Money trail có data.
   if (sampleProduct) {
     const existingHash = await prisma.clickLog.findFirst({ where: { ipHash: "seeded-hash" } });
     if (!existingHash) {

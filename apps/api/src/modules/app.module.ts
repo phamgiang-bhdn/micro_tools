@@ -4,6 +4,7 @@ import { PrismaService } from "../prisma/prisma.service";
 import { AiService } from "../services/ai.service";
 import { ScraperService } from "../services/scraper.service";
 import { AdminController } from "./admin/admin.controller";
+import { CrawlerModule } from "./crawler/crawler.module";
 import { ToolsController } from "./tools/tools.controller";
 import { TrackingController } from "./tracking/tracking.controller";
 import { WebhooksController } from "./webhooks/webhooks.controller";
@@ -12,7 +13,8 @@ import { WebhooksController } from "./webhooks/webhooks.controller";
   imports: [
     ConfigModule.forRoot({
       isGlobal: true
-    })
+    }),
+    CrawlerModule
   ],
   controllers: [WebhooksController, ToolsController, TrackingController, AdminController],
   providers: [PrismaService, ScraperService, AiService]

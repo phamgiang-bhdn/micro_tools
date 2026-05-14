@@ -4,36 +4,44 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { fetchToolBySlug } from "../../../../lib/api";
 import { formatMoney, formatNumber, normalizeProduct } from "../../../../lib/format";
+import { slugify } from "../../../../lib/slug";
 import { createTrackingRedirect } from "../../../actions/tracking";
 import { Breadcrumb } from "../../../../components/ui/breadcrumb";
 import { Badge } from "../../../../components/ui/badge";
 import { Button } from "../../../../components/ui/button";
+import type { ProductItem } from "../../../../lib/types";
 
 export const revalidate = 300;
 
 interface ProductPageProps {
   params: Promise<{
     slug: string;
-    productId: string;
+    productSlug: string;
   }>;
 }
 
+/**
+ * Tìm product theo slug (ưu tiên), fallback theo id (cho URL cũ trước khi có slug field).
+ */
+function findProduct(products: ProductItem[], key: string): ProductItem | undefined {
+  return products.find((p) => p.slug === key) ?? products.find((p) => p.id === key);
+}
+
 export async function generateMetadata({ params }: ProductPageProps): Promise<Metadata> {
-  const { slug, productId } = await params;
+  const { slug, productSlug } = await params;
   const tool = await fetchToolBySlug(slug);
-  const product = tool?.products.find((entry) => entry.id === productId);
+  const product = tool ? findProduct(tool.products, productSlug) : undefined;
   if (!tool || !product) {
-    return { title: "Không tìm thấy sản phẩm", robots: { index: false } };
+    return { title: "Không tìm thấy", robots: { index: false } };
   }
   const view = normalizeProduct(product);
   const priceText = view.price ? ` — ${formatMoney(view.price, view.currency)}` : "";
   const title = `${product.name}${priceText} | ${tool.name}`;
-  const description =
-    view.description ?? `Xem giá, ưu đãi và link mua ${product.name} thuộc danh mục ${tool.name}.`;
+  const description = view.description ?? `Xem giá và mua ${product.name} thuộc ${tool.name}.`;
   return {
     title,
     description,
-    alternates: { canonical: `/tools/${slug}/${productId}` },
+    alternates: { canonical: `/tools/${slug}/${product.slug ?? slugify(product.name)}` },
     openGraph: {
       title,
       description,
@@ -44,16 +52,15 @@ export async function generateMetadata({ params }: ProductPageProps): Promise<Me
 }
 
 export default async function ProductDetailPage({ params }: ProductPageProps): Promise<React.ReactElement> {
-  const { slug, productId } = await params;
+  const { slug, productSlug } = await params;
   const tool = await fetchToolBySlug(slug);
-  const productRaw = tool?.products.find((entry) => entry.id === productId);
+  const productRaw = tool ? findProduct(tool.products, productSlug) : undefined;
 
   if (!tool || !productRaw) {
     notFound();
   }
 
   const product = normalizeProduct(productRaw);
-
   const jsonLd = buildProductJsonLd(product, tool.name);
 
   return (
@@ -75,7 +82,15 @@ export default async function ProductDetailPage({ params }: ProductPageProps): P
           <div className="relative aspect-[4/3] w-full bg-canvas">
             {product.image ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={product.image} alt={product.name} className="size-full object-cover" />
+              <img
+                src={product.image}
+                alt={product.name}
+                width={1200}
+                height={900}
+                loading="eager"
+                decoding="async"
+                className="size-full object-cover"
+              />
             ) : (
               <div className="flex size-full items-center justify-center bg-gradient-to-br from-brand-50 via-white to-accent-50 text-5xl font-bold text-brand-700">
                 {product.name.slice(0, 2).toUpperCase()}
@@ -83,28 +98,26 @@ export default async function ProductDetailPage({ params }: ProductPageProps): P
             )}
             <div className="absolute left-4 top-4 flex flex-col items-start gap-2">
               {product.discountPercent && product.discountPercent > 0 ? (
-                <Badge tone="brand" size="md">
-                  -{product.discountPercent}%
-                </Badge>
+                <Badge tone="brand" size="md">-{product.discountPercent}%</Badge>
               ) : null}
-              {product.badge ? (
-                <Badge tone="ink" size="md">
-                  {product.badge}
-                </Badge>
-              ) : null}
+              {product.badge ? <Badge tone="ink" size="md">{product.badge}</Badge> : null}
             </div>
           </div>
         </section>
 
         <section className="flex flex-col gap-5">
           <div>
-            {product.brand ? <p className="text-xs font-medium uppercase tracking-wider text-ink-mute">{product.brand}</p> : null}
+            {product.brand ? (
+              <p className="text-xs font-medium uppercase tracking-wider text-ink-mute">{product.brand}</p>
+            ) : null}
             <h1 className="mt-1 text-2xl font-semibold tracking-tight text-ink sm:text-3xl">{product.name}</h1>
             {product.rating !== undefined ? (
               <p className="mt-2 flex items-center gap-2 text-sm text-ink-soft">
                 <span aria-hidden className="text-amber-500">{"★".repeat(Math.round(product.rating))}</span>
                 <span className="font-medium text-ink">{product.rating.toFixed(1)}</span>
-                {product.reviewCount ? <span className="text-ink-mute">({formatNumber(product.reviewCount)} đánh giá)</span> : null}
+                {product.reviewCount ? (
+                  <span className="text-ink-mute">({formatNumber(product.reviewCount)} đánh giá)</span>
+                ) : null}
               </p>
             ) : null}
           </div>
@@ -120,10 +133,10 @@ export default async function ProductDetailPage({ params }: ProductPageProps): P
                     {formatMoney(product.originalPrice, product.currency)}
                   </span>
                 ) : null}
-                {product.store ? <Badge tone="neutral">Bán tại {product.store}</Badge> : null}
+                {product.store ? <Badge tone="neutral">Bán bởi {product.store}</Badge> : null}
               </div>
             ) : (
-              <p className="text-base font-medium text-ink-soft">Giá liên hệ đối tác</p>
+              <p className="text-base font-medium text-ink-soft">Liên hệ shop</p>
             )}
             {product.description ? (
               <p className="mt-3 text-sm leading-relaxed text-ink-soft">{product.description}</p>
@@ -141,10 +154,10 @@ export default async function ProductDetailPage({ params }: ProductPageProps): P
             }}
           >
             <Button type="submit" variant="brand" size="lg" className="w-full sm:w-auto">
-              Đi tới ưu đãi affiliate →
+              Mua ngay →
             </Button>
             <p className="mt-2 text-xs text-ink-mute">
-              Liên kết có tracking. Bạn sẽ được chuyển sang website của {product.store ?? "đối tác"}.
+              Bạn sẽ được chuyển sang website của {product.store ?? "shop"} để hoàn tất đơn hàng.
             </p>
           </form>
 
@@ -167,11 +180,11 @@ export default async function ProductDetailPage({ params }: ProductPageProps): P
       <SpecTable raw={product.raw} />
 
       <div className="rounded-2xl border border-line bg-card p-5 text-sm text-ink-soft">
-        Quay lại{" "}
+        Xem thêm sản phẩm{" "}
         <Link href={`/tools/${tool.slug}`} className="font-medium text-brand-700 hover:underline">
           {tool.name}
         </Link>{" "}
-        để so sánh thêm các sản phẩm cùng nhóm.
+        →
       </div>
     </div>
   );
@@ -187,7 +200,7 @@ function SpecTable({ raw }: { raw: Record<string, unknown> }): React.ReactElemen
   return (
     <section className="overflow-hidden rounded-2xl border border-line bg-card shadow-card">
       <div className="border-b border-line px-5 py-3">
-        <p className="text-sm font-semibold text-ink">Thông số chi tiết</p>
+        <p className="text-sm font-semibold text-ink">Thông số</p>
       </div>
       <dl className="divide-y divide-line">
         {entries.map(([key, value]) => (

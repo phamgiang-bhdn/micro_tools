@@ -16,17 +16,17 @@ export function Navbar(): React.ReactElement {
         </Link>
 
         <nav className="hidden items-center gap-1 md:flex">
-          <NavLink href="/#tools">Micro-tools</NavLink>
-          <NavLink href="/#deals">Deal hot</NavLink>
+          <NavLink href="/">Khám phá</NavLink>
+          <NavLink href="/?sort=top">Deal hot</NavLink>
           <NavLink href="/admin">Admin</NavLink>
         </nav>
 
         <div className="flex items-center gap-2">
           <Button asChild variant="brand" size="sm" className="hidden sm:inline-flex">
-            <Link href="/#deals">Săn deal</Link>
+            <Link href="/">Săn deal</Link>
           </Button>
           <Button asChild variant="outline" size="sm" className="sm:hidden">
-            <Link href="/#deals">Deal</Link>
+            <Link href="/">Deal</Link>
           </Button>
         </div>
       </div>

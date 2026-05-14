@@ -15,27 +15,38 @@ export function Footer(): React.ReactElement {
             </span>
           </div>
           <p className="mt-3 text-xs leading-relaxed text-ink-soft">
-            Nền tảng so sánh & săn deal affiliate. Dữ liệu sản phẩm được trích xuất tự động bằng AI và được người duyệt
-            kiểm chứng trước khi hiển thị.
+            Tổng hợp ưu đãi từ các shop uy tín. Dữ liệu sản phẩm được cập nhật mỗi ngày để bạn chọn deal tốt nhất.
           </p>
         </div>
-        <FooterColumn title="Khám phá" items={[
-          { label: "Tất cả micro-tool", href: "/#tools" },
-          { label: "Deal hot", href: "/#deals" }
-        ]} />
-        <FooterColumn title="Dành cho đối tác" items={[
-          { label: "Bảng điều khiển", href: "/admin" },
-          { label: "Tracking webhook", href: "/admin?tab=money-trail" }
-        ]} />
-        <FooterColumn title="Pháp lý" items={[
-          { label: "Chính sách affiliate", href: "#" },
-          { label: "Liên hệ", href: "#" }
-        ]} />
+        <FooterColumn
+          title="Khám phá"
+          items={[
+            { label: "Tất cả danh mục", href: "/" },
+            { label: "Deal hot", href: "/?sort=top" }
+          ]}
+        />
+        <FooterColumn
+          title="Về chúng tôi"
+          items={[
+            { label: "Giới thiệu", href: "#" },
+            { label: "Liên hệ", href: "#" }
+          ]}
+        />
+        <FooterColumn
+          title="Pháp lý"
+          items={[
+            { label: "Tuyên bố minh bạch", href: "#" },
+            { label: "Chính sách bảo mật", href: "#" }
+          ]}
+        />
       </div>
       <div className="border-t border-line">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-2 px-4 py-4 text-xs text-ink-mute sm:px-6">
-          <p>© {new Date().getFullYear()} dealvault — Affiliate micro-tool platform</p>
-          <p>Một số liên kết có thể là affiliate. Giá đã hiển thị chỉ mang tính tham khảo tại thời điểm crawl.</p>
+          <p>© {new Date().getFullYear()} dealvault. Mọi quyền được bảo lưu.</p>
+          <p>
+            Một số liên kết trên trang có thể giúp chúng tôi nhận hoa hồng. Giá hiển thị tại thời điểm cập nhật dữ
+            liệu.
+          </p>
         </div>
       </div>
     </footer>

@@ -18,7 +18,6 @@ async function safeFetch<T>(path: string): Promise<T> {
 
 export type FetchToolsResult = {
   tools: ToolItem[];
-  /** API unreachable / 5xx — không giống "DB rỗng". */
   loadError: string | null;
 };
 
@@ -42,34 +41,23 @@ export async function fetchToolBySlug(slug: string): Promise<ToolDetail | null> 
   }
 }
 
-/**
- * Trộn sản phẩm từ N tool đầu để hiển thị "Deal hot" trên homepage.
- * Sắp theo discountPercent desc, ưu tiên item có ảnh + giá.
- */
-export async function fetchFeaturedProducts(
-  tools: ToolItem[],
-  limit = 8
-): Promise<Array<ProductView & { toolSlug: string; toolName: string }>> {
+export type FlatProduct = ProductView & {
+  slug?: string | null;
+  toolSlug: string;
+  toolName: string;
+};
+
+export async function fetchAllProductsFlat(tools: ToolItem[]): Promise<FlatProduct[]> {
   if (tools.length === 0) return [];
-
-  const topTools = tools.slice(0, 5);
-  const details = await Promise.all(topTools.map((tool) => fetchToolBySlug(tool.slug)));
-
-  const merged = details
+  const details = await Promise.all(tools.map((tool) => fetchToolBySlug(tool.slug)));
+  return details
     .filter((tool): tool is ToolDetail => tool !== null)
     .flatMap((tool) =>
       tool.products.map((product) => ({
         ...normalizeProduct(product),
+        slug: product.slug ?? null,
         toolSlug: tool.slug,
         toolName: tool.name
       }))
     );
-
-  return merged
-    .sort((a, b) => {
-      const scoreA = (a.image ? 2 : 0) + (a.price ? 1 : 0) + (a.discountPercent ?? 0) / 10;
-      const scoreB = (b.image ? 2 : 0) + (b.price ? 1 : 0) + (b.discountPercent ?? 0) / 10;
-      return scoreB - scoreA;
-    })
-    .slice(0, limit);
 }

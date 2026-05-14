@@ -1,25 +1,33 @@
 import type React from "react";
 import Link from "next/link";
-import { fetchFeaturedProducts, fetchTools } from "../lib/api";
-import { Hero } from "../components/hero";
-import { ToolCard } from "../components/tool-card";
+import { fetchAllProductsFlat, fetchTools } from "../lib/api";
 import { ProductCard } from "../components/product-card";
-import { SectionHeading } from "../components/ui/section-heading";
 import { EmptyState } from "../components/ui/empty-state";
-import { Button } from "../components/ui/button";
 
 export const revalidate = 300;
 
+interface HomeProps {
+  searchParams: Promise<{ tool?: string }>;
+}
+
 const CODE = "rounded bg-canvas px-1.5 py-0.5 font-mono text-[12px] text-ink";
 
-export default async function HomePage(): Promise<React.ReactElement> {
+export default async function HomePage({ searchParams }: HomeProps): Promise<React.ReactElement> {
+  const { tool: activeSlug } = await searchParams;
   const { tools, loadError } = await fetchTools();
-  const featured = loadError ? [] : await fetchFeaturedProducts(tools, 8);
-  const totalProducts = tools.reduce((acc, tool) => acc + (tool._count?.products ?? 0), 0);
+  const allProducts = loadError ? [] : await fetchAllProductsFlat(tools);
+
+  const filtered = activeSlug ? allProducts.filter((p) => p.toolSlug === activeSlug) : allProducts;
+  const sorted = filtered.sort((a, b) => (b.discountPercent ?? 0) - (a.discountPercent ?? 0));
 
   return (
-    <div className="space-y-16">
-      <Hero toolCount={tools.length} productCount={totalProducts} />
+    <div className="space-y-6">
+      <section className="space-y-1">
+        <h1 className="text-2xl font-semibold tracking-tight text-ink sm:text-3xl">
+          Deal hôm nay
+        </h1>
+        <p className="text-sm text-ink-soft">Giá cập nhật từ các shop uy tín. Chạm vào sản phẩm để mua.</p>
+      </section>
 
       {loadError ? (
         <EmptyState
@@ -28,90 +36,75 @@ export default async function HomePage(): Promise<React.ReactElement> {
           description={
             <div className="space-y-2 text-left">
               <p className="font-mono text-[11px] text-red-700">{loadError}</p>
-              <ul className="list-inside list-disc space-y-1">
-                <li>
-                  Khởi động backend: <code className={CODE}>npm run dev:api</code> (cổng 4000).
-                </li>
-                <li>
-                  Kiểm tra <code className={CODE}>apps/web/.env</code> →{" "}
-                  <code className={CODE}>API_BASE_URL=http://localhost:4000/api/v1</code>.
-                </li>
-                <li>
-                  Nếu API đã chạy mà vẫn trống: <code className={CODE}>npm run db:seed</code> rồi F5.
-                </li>
-              </ul>
+              <p>
+                Bật backend: <code className={CODE}>npm run dev:api</code>, kiểm tra{" "}
+                <code className={CODE}>API_BASE_URL</code> trong <code className={CODE}>apps/web/.env</code>.
+              </p>
             </div>
           }
         />
       ) : null}
 
-      <section id="tools" className="space-y-6 scroll-mt-24">
-        <SectionHeading
-          eyebrow="Micro-tools"
-          title="Chọn cuộc chiến của bạn"
-          description="Mỗi micro-tool tập trung vào một thị trường: thẻ tín dụng, đồ điện tử, du lịch… Càng chuyên — càng dễ chuyển đổi."
-        />
-        {!loadError && tools.length === 0 ? (
-          <EmptyState
-            tone="warning"
-            title="Chưa có tool ACTIVE"
-            description={
-              <p>
-                Chạy <code className={CODE}>npm run db:seed</code> rồi reload trang.
-              </p>
-            }
-          />
-        ) : (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {tools.map((tool) => (
-              <ToolCard key={tool.id} tool={tool} />
-            ))}
-          </div>
-        )}
-      </section>
+      {tools.length > 0 ? (
+        <nav aria-label="Lọc theo danh mục" className="scrollbar-thin -mx-1 flex gap-2 overflow-x-auto px-1 pb-2">
+          <ChipLink href="/" active={!activeSlug} label="Tất cả" count={allProducts.length} />
+          {tools.map((tool) => (
+            <ChipLink
+              key={tool.id}
+              href={`/?tool=${tool.slug}`}
+              active={activeSlug === tool.slug}
+              label={tool.name}
+              count={tool._count?.products ?? 0}
+            />
+          ))}
+        </nav>
+      ) : null}
 
-      <section id="deals" className="space-y-6 scroll-mt-24">
-        <SectionHeading
-          eyebrow="Deal hot"
-          title="Giảm sâu nhất hôm nay"
-          description="Tổng hợp sản phẩm giảm giá mạnh nhất từ các micro-tool. Cập nhật mỗi 5 phút."
-          action={
-            <Button asChild variant="ghost" size="sm">
-              <Link href="#tools">Xem tất cả →</Link>
-            </Button>
+      {!loadError && sorted.length === 0 ? (
+        <EmptyState
+          tone="warning"
+          title="Chưa có sản phẩm"
+          description={
+            <p>
+              Chạy <code className={CODE}>npm run db:seed</code> rồi tải lại trang.
+            </p>
           }
         />
-        {featured.length === 0 ? (
-          <EmptyState
-            tone="info"
-            title="Chưa có deal nổi bật"
-            description="Hãy chạy lại seed hoặc đợi cron crawl bổ sung dữ liệu."
-          />
-        ) : (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {featured.map((product) => (
-              <ProductCard key={product.id} product={product} toolSlug={product.toolSlug} />
-            ))}
-          </div>
-        )}
-      </section>
+      ) : null}
 
-      <section className="rounded-3xl border border-line bg-card p-8 shadow-card sm:p-12">
-        <div className="mx-auto grid max-w-4xl gap-8 sm:grid-cols-3">
-          <Trust title="AI extract" body="Bóc tách giá, voucher, tính năng từ trang gốc — không phải copy tay." />
-          <Trust title="Tracking chính xác" body="Mỗi click sinh ra một mã duy nhất + webhook đối soát đơn hàng." />
-          <Trust title="Human review" body="Mọi dữ liệu AI đều qua bước duyệt để chống giá ảo, voucher hết hạn." />
+      {sorted.length > 0 ? (
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-5">
+          {sorted.map((product) => (
+            <ProductCard key={product.id} product={product} toolSlug={product.toolSlug} />
+          ))}
         </div>
-      </section>
+      ) : null}
     </div>
   );
 }
 
-function Trust({ title, body }: { title: string; body: string }): React.ReactElement {
+function ChipLink({
+  href,
+  active,
+  label,
+  count
+}: {
+  href: string;
+  active: boolean;
+  label: string;
+  count: number;
+}): React.ReactElement {
   return (
-    <div>
-      <p className="text-sm font-semibold text-brand-700">{title}</p>
-      <p className="mt-1.5 text-sm text-ink-soft">{body}</p>
-    </div>
+    <Link
+      href={href}
+      className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-3.5 py-1.5 text-sm font-medium transition ${
+        active
+          ? "bg-ink text-white shadow-card"
+          : "border border-line bg-card text-ink-soft hover:border-brand-300 hover:text-brand-700"
+      }`}
+    >
+      <span>{label}</span>
+      <span className={`text-xs ${active ? "text-white/70" : "text-ink-mute"}`}>{count}</span>
+    </Link>
   );
 }

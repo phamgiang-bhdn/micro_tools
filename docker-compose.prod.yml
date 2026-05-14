@@ -1,0 +1,83 @@
+name: dealvault
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://${DB_USER}:${DB_PASSWORD}@postgres:5432/${DB_NAME}?schema=public
+      PORT: 4000
+      GEMINI_API_KEY: ${GEMINI_API_KEY}
+      ADMIN_API_KEY: ${ADMIN_API_KEY}
+      ACCESSTRADE_API_BASE: ${ACCESSTRADE_API_BASE:-https://api.accesstrade.vn/v1}
+      ACCESSTRADE_ACCESS_TOKEN: ${ACCESSTRADE_ACCESS_TOKEN}
+      ACCESSTRADE_PUBLISHER_ID: ${ACCESSTRADE_PUBLISHER_ID}
+      SHOPEE_AFFILIATE_APP_ID: ${SHOPEE_AFFILIATE_APP_ID}
+      SHOPEE_AFFILIATE_APP_SECRET: ${SHOPEE_AFFILIATE_APP_SECRET}
+      CRAWLER_ENABLED: ${CRAWLER_ENABLED:-true}
+      CRAWLER_CRON: ${CRAWLER_CRON:-0 */6 * * *}
+      CRAWLER_MIN_DISCOUNT_PERCENT: ${CRAWLER_MIN_DISCOUNT_PERCENT:-20}
+      CRAWLER_AI_ENRICH: ${CRAWLER_AI_ENRICH:-true}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    expose:
+      - "4000"
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    restart: unless-stopped
+    environment:
+      API_BASE_URL: http://api:4000/api/v1
+      ADMIN_ROLE: admin
+      ADMIN_API_KEY: ${ADMIN_API_KEY}
+      SITE_URL: ${SITE_URL}
+      PORT: 3100
+    depends_on:
+      - api
+    expose:
+      - "3100"
+
+  nginx:
+    image: nginx:alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./deploy/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./deploy/certbot/conf:/etc/letsencrypt:ro
+      - ./deploy/certbot/www:/var/www/certbot:ro
+    depends_on:
+      - api
+      - web
+
+  certbot:
+    image: certbot/certbot
+    restart: unless-stopped
+    volumes:
+      - ./deploy/certbot/conf:/etc/letsencrypt
+      - ./deploy/certbot/www:/var/www/certbot
+    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
+
+volumes:
+  pg_data:

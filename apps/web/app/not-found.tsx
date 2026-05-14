@@ -9,7 +9,7 @@ export default function NotFound(): React.ReactElement {
         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-brand-600">404</p>
         <h1 className="mt-2 text-2xl font-semibold tracking-tight text-ink">Không tìm thấy trang</h1>
         <p className="mt-2 text-sm text-ink-soft">
-          Có thể đường dẫn đã đổi hoặc sản phẩm không còn được niêm yết. Quay về trang chủ để tìm deal khác.
+          Trang này có thể đã bị gỡ hoặc đường dẫn không còn đúng. Quay về trang chủ để xem các deal khác.
         </p>
         <div className="mt-6">
           <Button asChild variant="brand">
