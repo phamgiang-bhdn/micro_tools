@@ -20,403 +20,296 @@ function slugify(input) {
 
 const TOOLS = [
   {
-    slug: "credit-card-compare",
-    name: "Thẻ tín dụng",
+    slug: "robot-hut-bui-lau-nha",
+    name: "Robot hút bụi - lau nhà",
     schemaConfig: {
-      bank: "string",
-      annualFee: "number",
-      cashbackPercent: "string",
-      minIncome: "number"
+      suctionPower: "number",
+      batteryMinutes: "number",
+      maxArea: "number",
+      mopFunction: "boolean",
+      selfEmpty: "boolean",
+      mapping: "string",
+      appControl: "boolean"
     },
     products: [
       {
-        id: "3a571fa4-08f5-4ea6-b101-9c39658b2469",
-        name: "Thẻ Example Bank Platinum",
-        affiliateUrl: GO("platinum"),
-        scrapedData: {
-          bank: "Example Bank",
-          brand: "Example Bank",
-          store: "Example Bank",
-          image: IMG("card-platinum"),
-          price: 499000,
-          originalPrice: 990000,
-          currency: "VND",
-          description:
-            "Hoàn tiền 5% cho mọi chi tiêu online. Miễn phí năm đầu cho hồ sơ thu nhập từ 15 triệu.",
-          rating: 4.6,
-          reviewCount: 312,
-          badge: "Phổ biến nhất",
-          cashbackPercent: "5%",
-          minIncome: 15000000,
-          highlights: ["Hoàn tiền 5% online", "Miễn phí năm đầu", "Bảo hiểm du lịch"]
-        }
-      },
-      {
-        id: "c1c1aa18-e3a1-4bcd-9d8a-1a2c0b6f4111",
-        name: "Thẻ Neo Bank Cashback World",
-        affiliateUrl: GO("neo-cashback"),
-        scrapedData: {
-          bank: "Neo Bank",
-          brand: "Neo Bank",
-          store: "Neo Bank",
-          image: IMG("card-neo"),
-          price: 299000,
-          originalPrice: 599000,
-          currency: "VND",
-          description: "Hoàn tiền 8% cho siêu thị và F&B cuối tuần.",
-          rating: 4.8,
-          reviewCount: 528,
-          cashbackPercent: "8%",
-          minIncome: 12000000,
-          highlights: ["Hoàn tiền 8% F&B", "Phòng chờ sân bay 4 lượt/năm"]
-        }
-      },
-      {
-        id: "9b6f4a23-13ee-46d3-9a8c-2f3d5e87cd02",
-        name: "Thẻ Skyline Travel Visa Signature",
-        affiliateUrl: GO("skyline-travel"),
-        scrapedData: {
-          bank: "Skyline",
-          brand: "Skyline Bank",
-          store: "Skyline Bank",
-          image: IMG("card-skyline"),
-          price: 1200000,
-          originalPrice: 1500000,
-          currency: "VND",
-          rating: 4.4,
-          reviewCount: 187,
-          badge: "Cho dân du lịch",
-          cashbackPercent: "3%",
-          minIncome: 25000000,
-          highlights: ["Đổi điểm thưởng → vé máy bay", "Bảo hiểm chuyến bay tới 5 tỷ"]
-        }
-      }
-    ]
-  },
-  {
-    slug: "tech-gadgets",
-    name: "Đồ công nghệ",
-    schemaConfig: {
-      category: "string",
-      price: "number",
-      originalPrice: "number",
-      store: "string"
-    },
-    products: [
-      {
-        id: "11111111-aaaa-bbbb-cccc-000000000001",
-        name: "Tai nghe Sony WH-1000XM5",
-        affiliateUrl: GO("sony-xm5"),
-        scrapedData: {
-          brand: "Sony",
-          store: "Shopee Mall",
-          image: IMG("sony-xm5"),
-          price: 7290000,
-          originalPrice: 9990000,
-          currency: "VND",
-          description: "Chống ồn chủ động tốt nhất phân khúc, pin 30h, micro thoại đa hướng.",
-          rating: 4.9,
-          reviewCount: 2140,
-          badge: "Bán chạy",
-          category: "Audio",
-          highlights: ["ANC đỉnh phân khúc", "Pin 30 giờ", "LDAC Hi-Res"]
-        }
-      },
-      {
-        id: "11111111-aaaa-bbbb-cccc-000000000002",
-        name: "iPad Air M2 11\" 128GB",
-        affiliateUrl: GO("ipad-air-m2"),
-        scrapedData: {
-          brand: "Apple",
-          store: "Tiki Trading",
-          image: IMG("ipad-air-m2"),
-          price: 15490000,
-          originalPrice: 17990000,
-          currency: "VND",
-          description: "Chip Apple M2, màn hình Liquid Retina 11 inch, hỗ trợ Apple Pencil Pro.",
-          rating: 4.8,
-          reviewCount: 612,
-          category: "Máy tính bảng",
-          highlights: ["Chip M2", "Hỗ trợ Apple Pencil Pro"]
-        }
-      },
-      {
-        id: "11111111-aaaa-bbbb-cccc-000000000003",
-        name: "Tai nghe Samsung Galaxy Buds3 Pro",
-        affiliateUrl: GO("buds3-pro"),
-        scrapedData: {
-          brand: "Samsung",
-          store: "Lazada",
-          image: IMG("buds3-pro"),
-          price: 3990000,
-          originalPrice: 5490000,
-          currency: "VND",
-          rating: 4.6,
-          reviewCount: 318,
-          badge: "Mới ra mắt",
-          category: "Audio",
-          highlights: ["Hi-Fi 24-bit", "ANC + nhận diện giọng"]
-        }
-      },
-      {
-        id: "11111111-aaaa-bbbb-cccc-000000000004",
-        name: "Robot hút bụi Roborock Q7 Max+",
-        affiliateUrl: GO("roborock-q7"),
-        scrapedData: {
-          brand: "Roborock",
-          store: "Shopee Mall",
-          image: IMG("roborock-q7"),
-          price: 8990000,
-          originalPrice: 12990000,
-          currency: "VND",
-          rating: 4.7,
-          reviewCount: 456,
-          category: "Nhà thông minh",
-          highlights: ["Lực hút 4200Pa", "Tự đổ rác"]
-        }
-      },
-      {
-        id: "11111111-aaaa-bbbb-cccc-000000000005",
-        name: "Màn hình LG UltraGear 27GP850",
-        affiliateUrl: GO("lg-27gp850"),
-        scrapedData: {
-          brand: "LG",
-          store: "Tiki Trading",
-          image: IMG("lg-27gp850"),
-          price: 8290000,
-          originalPrice: 9990000,
-          currency: "VND",
-          rating: 4.8,
-          reviewCount: 274,
-          category: "Màn hình",
-          highlights: ["165Hz Nano IPS", "1ms GtG"]
-        }
-      },
-      {
-        id: "11111111-aaaa-bbbb-cccc-000000000006",
-        name: "Bàn phím Keychron K2 Pro",
-        affiliateUrl: GO("keychron-k2-pro"),
-        scrapedData: {
-          brand: "Keychron",
-          store: "Hà Nội Computer",
-          image: IMG("keychron-k2-pro"),
-          price: 2890000,
-          originalPrice: 3490000,
-          currency: "VND",
-          rating: 4.7,
-          reviewCount: 198,
-          category: "Phụ kiện",
-          highlights: ["Hot-swap", "QMK / VIA"]
-        }
-      }
-    ]
-  },
-  {
-    slug: "home-appliances",
-    name: "Gia dụng",
-    schemaConfig: {
-      category: "string",
-      price: "number",
-      store: "string"
-    },
-    products: [
-      {
-        id: "22222222-aaaa-bbbb-cccc-000000000001",
-        name: "Nồi chiên không dầu Philips HD9870",
-        affiliateUrl: GO("philips-hd9870"),
-        scrapedData: {
-          brand: "Philips",
-          store: "Điện Máy Xanh",
-          image: IMG("philips-airfryer"),
-          price: 4490000,
-          originalPrice: 6990000,
-          currency: "VND",
-          rating: 4.7,
-          reviewCount: 845,
-          badge: "Top doanh số",
-          category: "Bếp",
-          highlights: ["Dung tích 7.3L", "Hơi nước + chiên"]
-        }
-      },
-      {
-        id: "22222222-aaaa-bbbb-cccc-000000000002",
-        name: "Máy lọc không khí Xiaomi Pro 4",
-        affiliateUrl: GO("mi-pro-4"),
-        scrapedData: {
-          brand: "Xiaomi",
-          store: "Shopee Mall",
-          image: IMG("mi-pro4"),
-          price: 4290000,
-          originalPrice: 5790000,
-          currency: "VND",
-          rating: 4.6,
-          reviewCount: 412,
-          category: "Sức khỏe",
-          highlights: ["Lọc HEPA H13", "Phòng tới 60m²"]
-        }
-      },
-      {
-        id: "22222222-aaaa-bbbb-cccc-000000000003",
-        name: "Máy pha cafe DeLonghi Dedica EC685",
-        affiliateUrl: GO("delonghi-ec685"),
-        scrapedData: {
-          brand: "DeLonghi",
-          store: "Tiki Trading",
-          image: IMG("delonghi-ec685"),
-          price: 6990000,
-          originalPrice: 8490000,
-          currency: "VND",
-          rating: 4.8,
-          reviewCount: 232,
-          category: "Bếp",
-          highlights: ["Áp suất 15 bar", "Hâm tách cafe"]
-        }
-      },
-      {
-        id: "22222222-aaaa-bbbb-cccc-000000000004",
-        name: "Robot lau nhà Dreame L20 Ultra",
-        affiliateUrl: GO("dreame-l20"),
+        id: "a1000001-0000-0000-0000-000000000001",
+        name: "Robot hút bụi lau nhà Dreame L20 Ultra",
+        affiliateUrl: GO("dreame-l20-ultra"),
         scrapedData: {
           brand: "Dreame",
           store: "Lazada Mall",
-          image: IMG("dreame-l20"),
+          image: IMG("dreame-l20-ultra"),
           price: 19990000,
           originalPrice: 26990000,
           currency: "VND",
           rating: 4.8,
-          reviewCount: 156,
+          reviewCount: 412,
           badge: "Flagship",
-          category: "Nhà thông minh",
-          highlights: ["Tự nâng giẻ lau", "Tự rửa & sấy"]
-        }
-      }
-    ]
-  },
-  {
-    slug: "travel-deals",
-    name: "Du lịch",
-    schemaConfig: {
-      destination: "string",
-      pricePerNight: "number",
-      stars: "number"
-    },
-    products: [
-      {
-        id: "33333333-aaaa-bbbb-cccc-000000000001",
-        name: "InterContinental Đà Nẵng — 2N1Đ",
-        affiliateUrl: GO("intercon-danang"),
-        scrapedData: {
-          brand: "InterContinental",
-          store: "Agoda",
-          image: IMG("intercon-danang"),
-          price: 6900000,
-          originalPrice: 9900000,
-          currency: "VND",
-          rating: 4.9,
-          reviewCount: 1240,
-          badge: "Resort 5★",
-          category: "Đà Nẵng",
-          highlights: ["Buffet sáng 2 người", "Đưa đón sân bay"]
+          category: "Robot lau nhà",
+          suctionPower: 7000,
+          batteryMinutes: 260,
+          maxArea: 350,
+          mopFunction: true,
+          selfEmpty: true,
+          mapping: "LiDAR",
+          appControl: true,
+          highlights: [
+            "Tự nâng giẻ lau khi gặp thảm",
+            "Trạm đa năng: tự rửa & sấy giẻ",
+            "Bản đồ 3D LiDAR + AI tránh vật cản"
+          ]
         }
       },
       {
-        id: "33333333-aaaa-bbbb-cccc-000000000002",
-        name: "Vinpearl Phú Quốc Combo 3N2Đ",
-        affiliateUrl: GO("vinpearl-phuquoc"),
+        id: "a1000001-0000-0000-0000-000000000002",
+        name: "Robot hút bụi Roborock Q7 Max+",
+        affiliateUrl: GO("roborock-q7-max-plus"),
         scrapedData: {
-          brand: "Vinpearl",
-          store: "Booking.com",
-          image: IMG("vinpearl-phuquoc"),
-          price: 4990000,
-          originalPrice: 7490000,
+          brand: "Roborock",
+          store: "Shopee Mall",
+          image: IMG("roborock-q7-max-plus"),
+          price: 8990000,
+          originalPrice: 12990000,
           currency: "VND",
           rating: 4.7,
-          reviewCount: 980,
-          category: "Phú Quốc",
-          highlights: ["Vé VinWonders", "Vé Safari"]
+          reviewCount: 1245,
+          badge: "Best seller",
+          category: "Robot hút bụi",
+          suctionPower: 4200,
+          batteryMinutes: 180,
+          maxArea: 240,
+          mopFunction: true,
+          selfEmpty: true,
+          mapping: "LiDAR",
+          appControl: true,
+          highlights: [
+            "Trạm tự đổ rác 7 tuần",
+            "Lực hút 4200Pa",
+            "Bản đồ đa tầng"
+          ]
         }
       },
       {
-        id: "33333333-aaaa-bbbb-cccc-000000000003",
-        name: "Bay khứ hồi SGN ↔ ICN — Vietjet Skyboss",
-        affiliateUrl: GO("vj-skyboss-icn"),
+        id: "a1000001-0000-0000-0000-000000000003",
+        name: "Robot hút bụi Xiaomi Robot Vacuum X10+",
+        affiliateUrl: GO("xiaomi-x10-plus"),
         scrapedData: {
-          brand: "Vietjet Air",
-          store: "Traveloka",
-          image: IMG("vj-skyboss-icn"),
-          price: 8990000,
-          originalPrice: 12490000,
+          brand: "Xiaomi",
+          store: "Tiki Trading",
+          image: IMG("xiaomi-x10-plus"),
+          price: 11990000,
+          originalPrice: 14990000,
           currency: "VND",
-          rating: 4.3,
-          reviewCount: 412,
-          badge: "Chặng hot",
-          category: "Quốc tế"
+          rating: 4.6,
+          reviewCount: 528,
+          category: "Robot hút bụi",
+          suctionPower: 4000,
+          batteryMinutes: 180,
+          maxArea: 250,
+          mopFunction: true,
+          selfEmpty: true,
+          mapping: "LiDAR",
+          appControl: true,
+          highlights: [
+            "Trạm tự rửa giẻ + nước nóng",
+            "Tích hợp Mi Home",
+            "AI nhận diện vật cản"
+          ]
+        }
+      },
+      {
+        id: "a1000001-0000-0000-0000-000000000004",
+        name: "Robot lau nhà Ecovacs Deebot T20 Omni",
+        affiliateUrl: GO("deebot-t20-omni"),
+        scrapedData: {
+          brand: "Ecovacs",
+          store: "Shopee Mall",
+          image: IMG("deebot-t20-omni"),
+          price: 17990000,
+          originalPrice: 22990000,
+          currency: "VND",
+          rating: 4.7,
+          reviewCount: 312,
+          badge: "Mới",
+          category: "Robot lau nhà",
+          suctionPower: 6000,
+          batteryMinutes: 260,
+          maxArea: 320,
+          mopFunction: true,
+          selfEmpty: true,
+          mapping: "LiDAR",
+          appControl: true,
+          highlights: [
+            "Giẻ lau nước nóng 55°C",
+            "Trạm Omni 4-trong-1",
+            "Tự nâng giẻ khi gặp thảm"
+          ]
         }
       }
     ]
   },
   {
-    slug: "beauty-skincare",
-    name: "Mỹ phẩm",
+    slug: "may-loc-khong-khi",
+    name: "Máy lọc không khí",
     schemaConfig: {
-      brand: "string",
-      price: "number"
+      coverageArea: "number",
+      cadr: "number",
+      filterType: "string",
+      noiseDbMax: "number",
+      smartControl: "boolean",
+      sensors: "string"
     },
     products: [
       {
-        id: "44444444-aaaa-bbbb-cccc-000000000001",
-        name: "Serum SK-II Facial Treatment Essence 230ml",
-        affiliateUrl: GO("skii-230"),
+        id: "b2000001-0000-0000-0000-000000000001",
+        name: "Máy lọc không khí Xiaomi Smart Air Purifier 4 Pro",
+        affiliateUrl: GO("xiaomi-air-4-pro"),
         scrapedData: {
-          brand: "SK-II",
-          store: "Sephora",
-          image: IMG("skii-230"),
-          price: 5490000,
-          originalPrice: 6990000,
+          brand: "Xiaomi",
+          store: "Shopee Mall",
+          image: IMG("xiaomi-air-4-pro"),
+          price: 5990000,
+          originalPrice: 7990000,
           currency: "VND",
-          rating: 4.9,
-          reviewCount: 712,
+          rating: 4.7,
+          reviewCount: 845,
           badge: "Bán chạy",
-          category: "Serum"
+          category: "Máy lọc không khí",
+          coverageArea: 60,
+          cadr: 500,
+          filterType: "HEPA H13",
+          noiseDbMax: 66,
+          smartControl: true,
+          sensors: "PM2.5, nhiệt độ, độ ẩm",
+          highlights: [
+            "CADR 500 m³/h, phòng tới 60m²",
+            "HEPA H13 + than hoạt tính",
+            "OLED hiển thị PM2.5 realtime",
+            "Tích hợp Mi Home + Google Home"
+          ]
         }
       },
       {
-        id: "44444444-aaaa-bbbb-cccc-000000000002",
-        name: "Kem chống nắng Anessa Perfect UV 60ml",
-        affiliateUrl: GO("anessa-60"),
+        id: "b2000001-0000-0000-0000-000000000002",
+        name: "Máy lọc không khí Sharp FP-J60E-W",
+        affiliateUrl: GO("sharp-fp-j60e"),
         scrapedData: {
-          brand: "Anessa",
-          store: "Hasaki",
-          image: IMG("anessa-60"),
-          price: 549000,
-          originalPrice: 720000,
+          brand: "Sharp",
+          store: "Điện Máy Xanh",
+          image: IMG("sharp-fp-j60e"),
+          price: 6490000,
+          originalPrice: 8990000,
           currency: "VND",
-          rating: 4.8,
-          reviewCount: 3240,
-          category: "Chống nắng"
+          rating: 4.6,
+          reviewCount: 412,
+          category: "Máy lọc không khí",
+          coverageArea: 50,
+          cadr: 396,
+          filterType: "HEPA + Plasmacluster",
+          noiseDbMax: 51,
+          smartControl: false,
+          sensors: "PM2.5, mùi",
+          highlights: [
+            "Công nghệ ion Plasmacluster diệt khuẩn",
+            "Vận hành êm 21 dB ở mức thấp",
+            "Phòng tới 50m²"
+          ]
         }
       },
       {
-        id: "44444444-aaaa-bbbb-cccc-000000000003",
-        name: "Son Dior Rouge 999 Velvet",
-        affiliateUrl: GO("dior-999"),
+        id: "b2000001-0000-0000-0000-000000000003",
+        name: "Máy lọc không khí Coway AP-1512HH",
+        affiliateUrl: GO("coway-ap-1512hh"),
         scrapedData: {
-          brand: "Dior",
-          store: "Lazmall",
-          image: IMG("dior-999"),
-          price: 990000,
-          originalPrice: 1290000,
+          brand: "Coway",
+          store: "Lazada Mall",
+          image: IMG("coway-ap-1512hh"),
+          price: 7490000,
+          originalPrice: 9990000,
           currency: "VND",
           rating: 4.8,
-          reviewCount: 945,
-          category: "Son"
+          reviewCount: 1024,
+          badge: "Top Wirecutter",
+          category: "Máy lọc không khí",
+          coverageArea: 33,
+          cadr: 416,
+          filterType: "HEPA H13 + Carbon",
+          noiseDbMax: 53,
+          smartControl: false,
+          sensors: "PM2.5, đèn báo chất lượng",
+          highlights: [
+            "Bestseller Mỹ nhiều năm",
+            "Auto eco mode tiết kiệm điện",
+            "Đèn báo chất lượng không khí 4 màu"
+          ]
+        }
+      },
+      {
+        id: "b2000001-0000-0000-0000-000000000004",
+        name: "Máy lọc không khí Levoit Core 300S",
+        affiliateUrl: GO("levoit-core-300s"),
+        scrapedData: {
+          brand: "Levoit",
+          store: "Tiki Trading",
+          image: IMG("levoit-core-300s"),
+          price: 3290000,
+          originalPrice: 4290000,
+          currency: "VND",
+          rating: 4.7,
+          reviewCount: 678,
+          badge: "Giá tốt",
+          category: "Máy lọc không khí",
+          coverageArea: 20,
+          cadr: 230,
+          filterType: "HEPA H13",
+          noiseDbMax: 50,
+          smartControl: true,
+          sensors: "PM2.5",
+          highlights: [
+            "App VeSync + Alexa/Google",
+            "Hợp phòng ngủ ≤ 20m²",
+            "Chế độ Sleep 24 dB"
+          ]
         }
       }
     ]
   }
 ];
 
+async function cleanupRemovedTools(keepSlugs) {
+  const stale = await prisma.tool.findMany({
+    where: { slug: { notIn: keepSlugs } },
+    select: { id: true, slug: true }
+  });
+  if (stale.length === 0) return;
+  const staleIds = stale.map((t) => t.id);
+  const staleProducts = await prisma.product.findMany({
+    where: { toolId: { in: staleIds } },
+    select: { id: true }
+  });
+  const staleProductIds = staleProducts.map((p) => p.id);
+  if (staleProductIds.length > 0) {
+    const staleClickIds = await prisma.clickLog.findMany({
+      where: { productId: { in: staleProductIds } },
+      select: { trackingCode: true }
+    });
+    const trackingCodes = staleClickIds.map((c) => c.trackingCode);
+    if (trackingCodes.length > 0) {
+      await prisma.conversionWebhook.deleteMany({
+        where: { trackingCode: { in: trackingCodes } }
+      });
+    }
+  }
+  const result = await prisma.tool.deleteMany({ where: { id: { in: staleIds } } });
+  console.log(
+    `[seed] Removed ${result.count} stale tool(s): ${stale.map((t) => t.slug).join(", ")}`
+  );
+}
+
 async function main() {
+  await cleanupRemovedTools(TOOLS.map((t) => t.slug));
+
   for (const toolSpec of TOOLS) {
     const tool = await prisma.tool.upsert({
       where: { slug: toolSpec.slug },
@@ -452,9 +345,8 @@ async function main() {
     }
   }
 
-  const sampleProduct = await prisma.product.findUnique({
-    where: { id: "3a571fa4-08f5-4ea6-b101-9c39658b2469" }
-  });
+  const sampleProductId = "a1000001-0000-0000-0000-000000000001";
+  const sampleProduct = await prisma.product.findUnique({ where: { id: sampleProductId } });
   if (sampleProduct) {
     const existing = await prisma.productExtraction.findFirst({
       where: { productId: sampleProduct.id, status: ParseStatus.PENDING_REVIEW }
@@ -464,15 +356,18 @@ async function main() {
         data: {
           productId: sampleProduct.id,
           rawContent:
-            "Example Bank Platinum Card. Annual fee 499000 VND. Cashback 5% for shopping. Minimum salary 15,000,000 VND.",
+            "Dreame L20 Ultra robot vacuum, suction 7000Pa, battery 260 minutes, mop function with self-rinse station, LiDAR mapping, supports app control. Coverage up to 350m².",
           aiOutput: {
-            bank: "Example Bank",
-            annualFee: 499000,
-            cashbackPercent: "5%",
-            minIncome: 15000000
+            suctionPower: 7000,
+            batteryMinutes: 260,
+            maxArea: 350,
+            mopFunction: true,
+            selfEmpty: true,
+            mapping: "LiDAR",
+            appControl: true
           },
           status: ParseStatus.PENDING_REVIEW,
-          sourceUrl: "https://example.com/card/platinum"
+          sourceUrl: "https://example.com/robot/dreame-l20-ultra"
         }
       });
     }
@@ -512,7 +407,7 @@ async function main() {
       await prisma.conversionWebhook.create({
         data: {
           trackingCode: click.trackingCode,
-          revenue: new Prisma.Decimal("125000.00"),
+          revenue: new Prisma.Decimal("899000.00"),
           status: "success",
           payload: { source: "seed" }
         }
