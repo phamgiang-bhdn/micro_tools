@@ -1,12 +1,8 @@
 import type React from "react";
 import Link from "next/link";
-import {
-  approveExtractionAction,
-  rejectExtractionAction,
-  retryExtractionAction,
-  savePromptAction
-} from "./actions";
+import { savePromptAction } from "./actions";
 import { PromptTestClient } from "./prompt-test-client";
+import { RefineryItem } from "./refinery-item";
 
 export const dynamic = "force-dynamic";
 
@@ -72,7 +68,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps): Promi
         aiOutput: Record<string, unknown> | null;
         status: string;
         createdAt: string;
-        product: { name: string; network: string };
+        product: { id: string; name: string; network: string };
       }>
     >("/admin/refinery?status=PENDING_REVIEW"),
     getJson<{ name: string; version: number; content: string } | null>("/admin/prompts/active"),
@@ -143,61 +139,15 @@ export default async function AdminPage({ searchParams }: AdminPageProps): Promi
             </div>
           ) : (
             refinery.map((item) => (
-              <div
+              <RefineryItem
                 key={item.id}
-                className="grid gap-6 rounded-2xl border border-google-outline bg-google-surface p-6 shadow-google-md lg:grid-cols-2"
-              >
-                <div>
-                  <p className="mb-2 text-xs font-medium uppercase tracking-wide text-google-ink-secondary">
-                    Raw content · {item.product.name} · {item.product.network}
-                  </p>
-                  <pre className="max-h-80 overflow-auto whitespace-pre-wrap rounded-xl border border-google-outline bg-google-surface-tint p-4 text-xs leading-relaxed text-google-ink">
-                    {item.rawContent}
-                  </pre>
-                </div>
-                <div className="space-y-4">
-                  <p className="text-xs font-medium uppercase tracking-wide text-google-ink-secondary">
-                    AI output (JSON, editable)
-                  </p>
-                  <form action={approveExtractionAction} className="space-y-3">
-                    <input type="hidden" name="extractionId" value={item.id} />
-                    <input type="hidden" name="reviewer" value="admin" />
-                    <textarea
-                      name="aiOutput"
-                      defaultValue={JSON.stringify(item.aiOutput ?? {}, null, 2)}
-                      className={`${field} h-56 font-mono text-xs`}
-                    />
-                    <button
-                      type="submit"
-                      className="inline-flex h-10 items-center rounded-full bg-google-success px-5 text-sm font-medium text-white shadow-google hover:opacity-95"
-                    >
-                      Approve &amp; sync
-                    </button>
-                  </form>
-                  <div className="flex flex-wrap gap-2">
-                    <form action={retryExtractionAction}>
-                      <input type="hidden" name="extractionId" value={item.id} />
-                      <button
-                        type="submit"
-                        className="inline-flex h-10 items-center rounded-full border border-google-warning bg-white px-5 text-sm font-medium text-google-ink hover:bg-amber-50"
-                      >
-                        Reject &amp; retry
-                      </button>
-                    </form>
-                    <form action={rejectExtractionAction}>
-                      <input type="hidden" name="extractionId" value={item.id} />
-                      <input type="hidden" name="reviewer" value="admin" />
-                      <input type="hidden" name="reason" value="Manual rejection from admin panel" />
-                      <button
-                        type="submit"
-                        className="inline-flex h-10 items-center rounded-full border border-red-200 bg-white px-5 text-sm font-medium text-google-error hover:bg-red-50"
-                      >
-                        Reject
-                      </button>
-                    </form>
-                  </div>
-                </div>
-              </div>
+                extractionId={item.id}
+                productId={item.product.id}
+                productName={item.product.name}
+                productNetwork={item.product.network}
+                rawContent={item.rawContent}
+                initialAiOutput={item.aiOutput}
+              />
             ))
           )}
         </section>
