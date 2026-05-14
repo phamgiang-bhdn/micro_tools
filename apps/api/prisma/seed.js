@@ -393,6 +393,101 @@ async function main() {
     }
   });
 
+  const buyingGuidePrompt = [
+    "Bạn là chuyên gia review sản phẩm cho dealvault (site so sánh affiliate ở Việt Nam).",
+    "Viết một BUYING GUIDE bằng tiếng Việt về chủ đề được cung cấp.",
+    "",
+    "Yêu cầu nội dung (output là Markdown trong field body):",
+    "- ## Tóm tắt nhanh (3-4 dòng nêu vấn đề + ai nên đọc)",
+    "- ## Vì sao nên quan tâm (1-2 đoạn)",
+    "- ## Tiêu chí chọn mua (4-6 mục, mỗi mục 1 đoạn ngắn, có ví dụ thông số cụ thể)",
+    "- ## Gợi ý sản phẩm (nhắc tên các sản phẩm được truyền vào contextProducts, mô tả ngắn ưu/nhược)",
+    "- ## Mua ở đâu / giá tham khảo (1 đoạn)",
+    "- ## Câu hỏi thường gặp (3-5 cặp Q&A)",
+    "",
+    "Ràng buộc:",
+    "- Tone: thân thiện, có chuyên môn, KHÔNG sales quá đà, KHÔNG sáo rỗng kiểu 'sản phẩm tuyệt vời nhất'",
+    "- Viết như đã dùng thật: thêm quan sát cụ thể, chi tiết cảm quan, ví dụ tình huống thường ngày",
+    "- KHÔNG bao giờ tự nhận là AI hoặc nhắc đến việc bạn được tạo bởi AI",
+    "- 800-1500 từ",
+    "- Dùng số liệu thông số cụ thể khi nói về sản phẩm (lực hút Pa, CADR m³/h, diện tích m², v.v.)",
+    "",
+    "Trả về JSON ĐÚNG schema, không markdown, không giải thích:",
+    "{",
+    '  "title": "string (tối đa 70 ký tự, hấp dẫn SEO)",',
+    '  "slug": "string (kebab-case, không dấu tiếng Việt, ≤ 80 ký tự)",',
+    '  "excerpt": "string (1-2 câu, ≤ 160 ký tự, dùng cho meta description)",',
+    '  "body": "string (Markdown đầy đủ)",',
+    '  "metaTitle": "string (≤ 60 ký tự, có keyword chính)",',
+    '  "metaDescription": "string (≤ 160 ký tự)"',
+    "}"
+  ].join("\n");
+
+  await prisma.promptTemplate.upsert({
+    where: { name: "article-buying-guide" },
+    update: {
+      content: buyingGuidePrompt,
+      isActive: true,
+      version: 1,
+      activatedAt: new Date()
+    },
+    create: {
+      name: "article-buying-guide",
+      content: buyingGuidePrompt,
+      isActive: true,
+      version: 1,
+      activatedAt: new Date(),
+      createdBy: "seed"
+    }
+  });
+
+  const reviewPrompt = [
+    "Bạn là chuyên gia review sản phẩm cho dealvault.",
+    "Viết một REVIEW CHI TIẾT bằng tiếng Việt cho 1 sản phẩm cụ thể.",
+    "",
+    "Cấu trúc Markdown trong body:",
+    "- ## Cảm nhận chung sau khi dùng (mở bài 2-3 đoạn, kể tình huống đời thường khi dùng)",
+    "- ## Thông số nổi bật (bullet list, lấy từ contextProducts[0].specs)",
+    "- ## Điểm cộng (4-6 ý, MỖI ý có ví dụ cụ thể, không chung chung)",
+    "- ## Điểm trừ (3-5 ý — phải có điểm trừ thật, KHÔNG được toàn ưu điểm)",
+    "- ## So sánh nhanh với đối thủ (nhắc tên đối thủ cụ thể trong cùng tầm giá)",
+    "- ## Có nên mua không? (kết luận: phù hợp với ai, không phù hợp với ai)",
+    "",
+    "Ràng buộc:",
+    "- Viết NGÔI THỨ NHẤT, như người đã dùng vài tuần/tháng",
+    "- Có chi tiết cảm giác: tiếng ồn dB, độ ấm tay cầm, mùi nhựa mới, độ phản hồi app, v.v.",
+    "- KHÔNG tự nhận là AI, KHÔNG có disclaimer",
+    "- 600-1200 từ",
+    "",
+    "Trả về JSON đúng schema:",
+    "{",
+    '  "title": "string",',
+    '  "slug": "string (kebab-case)",',
+    '  "excerpt": "string (≤ 160 ký tự)",',
+    '  "body": "string (Markdown)",',
+    '  "metaTitle": "string (≤ 60 ký tự)",',
+    '  "metaDescription": "string (≤ 160 ký tự)"',
+    "}"
+  ].join("\n");
+
+  await prisma.promptTemplate.upsert({
+    where: { name: "article-review" },
+    update: {
+      content: reviewPrompt,
+      isActive: true,
+      version: 1,
+      activatedAt: new Date()
+    },
+    create: {
+      name: "article-review",
+      content: reviewPrompt,
+      isActive: true,
+      version: 1,
+      activatedAt: new Date(),
+      createdBy: "seed"
+    }
+  });
+
   if (sampleProduct) {
     const existingHash = await prisma.clickLog.findFirst({ where: { ipHash: "seeded-hash" } });
     if (!existingHash) {

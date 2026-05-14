@@ -1,4 +1,4 @@
-import { ToolDetail, ToolItem, ProductView } from "./types";
+import { ArticleDetail, ArticleSummary, ToolDetail, ToolItem, ProductView } from "./types";
 import { normalizeProduct } from "./format";
 
 const API_BASE_URL = process.env.API_BASE_URL ?? "http://localhost:4000/api/v1";
@@ -46,6 +46,35 @@ export type FlatProduct = ProductView & {
   toolSlug: string;
   toolName: string;
 };
+
+export interface FetchArticlesOptions {
+  type?: "BUYING_GUIDE" | "REVIEW";
+  toolSlug?: string;
+  limit?: number;
+}
+
+export async function fetchArticles(options: FetchArticlesOptions = {}): Promise<ArticleSummary[]> {
+  const params = new URLSearchParams();
+  if (options.type) params.set("type", options.type);
+  if (options.toolSlug) params.set("toolSlug", options.toolSlug);
+  if (options.limit) params.set("limit", String(options.limit));
+  const qs = params.toString();
+  try {
+    return await safeFetch<ArticleSummary[]>(`/articles${qs ? `?${qs}` : ""}`);
+  } catch (error) {
+    console.error("Failed to fetch articles:", error);
+    return [];
+  }
+}
+
+export async function fetchArticleBySlug(slug: string): Promise<ArticleDetail | null> {
+  try {
+    return await safeFetch<ArticleDetail>(`/articles/${slug}`);
+  } catch (error) {
+    console.error(`Failed to fetch article slug=${slug}:`, error);
+    return null;
+  }
+}
 
 export async function fetchAllProductsFlat(tools: ToolItem[]): Promise<FlatProduct[]> {
   if (tools.length === 0) return [];

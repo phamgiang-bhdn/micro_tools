@@ -42,6 +42,13 @@ const NAV: NavEntry[] = [
     href: "/admin?tab=money-trail",
     icon: <CoinsIcon />,
     match: (p, t) => p === "/admin" && t === "money-trail"
+  },
+  {
+    id: "articles",
+    label: "Bài viết",
+    href: "/admin/articles",
+    icon: <ArticleIcon />,
+    match: (p) => p.startsWith("/admin/articles")
   }
 ];
 
@@ -248,6 +255,15 @@ function CoinsIcon(): React.ReactElement {
       <circle cx="9" cy="9" r="6" />
       <path d="M21 14a6 6 0 0 1-6 6c-2 0-3.8-1-4.9-2.5" />
       <path d="M9 6v6M7 9h4" />
+    </svg>
+  );
+}
+
+function ArticleIcon(): React.ReactElement {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="size-4">
+      <path d="M4 5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v14l-3-2-3 2-3-2-3 2-2-1V5Z" />
+      <path d="M9 8h5M9 12h5" />
     </svg>
   );
 }

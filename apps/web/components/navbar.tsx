@@ -56,6 +56,9 @@ export function Navbar(): React.ReactElement | null {
           <NavLink href="/?sort=newest" active={searchParams.get("sort") === "newest"}>
             Mới về
           </NavLink>
+          <NavLink href="/blog" active={pathname?.startsWith("/blog") ?? false}>
+            Blog
+          </NavLink>
         </nav>
 
         <form onSubmit={submit} className="ml-auto flex flex-1 items-center md:max-w-md">

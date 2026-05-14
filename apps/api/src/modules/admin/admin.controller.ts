@@ -8,11 +8,13 @@ import {
   Logger,
   Param,
   Post,
+  Put,
   Query
 } from "@nestjs/common";
-import { ParseStatus, Prisma } from "@prisma/client";
+import { ArticleStatus, ArticleType, ParseStatus, Prisma } from "@prisma/client";
 import { z } from "zod";
 import { AiService } from "../../services/ai.service";
+import { ArticleService } from "../../services/article.service";
 import { PrismaService } from "../../prisma/prisma.service";
 
 const promptTestSchema = z.object({
@@ -28,13 +30,38 @@ const promptSaveSchema = z.object({
   activateNow: z.boolean().optional()
 });
 
+const generateArticleSchema = z.object({
+  type: z.nativeEnum(ArticleType),
+  topic: z.string().min(5).max(300),
+  toolId: z.string().uuid().nullable().optional(),
+  productIds: z.array(z.string().uuid()).max(20).optional()
+});
+
+const updateArticleSchema = z.object({
+  title: z.string().min(5).max(200).optional(),
+  slug: z
+    .string()
+    .min(3)
+    .max(120)
+    .regex(/^[a-z0-9-]+$/)
+    .optional(),
+  excerpt: z.string().max(300).nullable().optional(),
+  body: z.string().min(50).optional(),
+  metaTitle: z.string().max(120).nullable().optional(),
+  metaDescription: z.string().max(300).nullable().optional(),
+  toolId: z.string().uuid().nullable().optional(),
+  productIds: z.array(z.string().uuid()).max(20).optional(),
+  type: z.nativeEnum(ArticleType).optional()
+});
+
 @Controller("admin")
 export class AdminController {
   private readonly logger = new Logger(AdminController.name);
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly aiService: AiService
+    private readonly aiService: AiService,
+    private readonly articleService: ArticleService
   ) {}
 
   private authorize(
@@ -306,6 +333,173 @@ export class AdminController {
       },
       orderBy: { createdAt: "desc" },
       take: parsedLimit
+    });
+  }
+
+  // ───── Articles ─────
+
+  @Get("articles")
+  async listArticles(
+    @Query("status") status?: string,
+    @Query("type") type?: string,
+    @Headers("x-admin-role") role?: string,
+    @Headers("x-admin-key") apiKey?: string
+  ) {
+    this.authorize(role, apiKey, ["viewer", "reviewer", "admin"]);
+    const where: Prisma.ArticleWhereInput = {};
+    if (status && (Object.values(ArticleStatus) as string[]).includes(status)) {
+      where.status = status as ArticleStatus;
+    }
+    if (type && (Object.values(ArticleType) as string[]).includes(type)) {
+      where.type = type as ArticleType;
+    }
+    return this.prisma.article.findMany({
+      where,
+      orderBy: { updatedAt: "desc" },
+      take: 100,
+      select: {
+        id: true,
+        slug: true,
+        title: true,
+        type: true,
+        status: true,
+        updatedAt: true,
+        publishedAt: true,
+        tool: { select: { slug: true, name: true } }
+      }
+    });
+  }
+
+  @Get("articles/:id")
+  async getArticle(
+    @Param("id") id: string,
+    @Headers("x-admin-role") role?: string,
+    @Headers("x-admin-key") apiKey?: string
+  ) {
+    this.authorize(role, apiKey, ["viewer", "reviewer", "admin"]);
+    const article = await this.prisma.article.findUnique({
+      where: { id },
+      include: { tool: { select: { id: true, slug: true, name: true } } }
+    });
+    if (!article) throw new HttpException("Article not found", HttpStatus.NOT_FOUND);
+
+    const products =
+      article.productIds.length > 0
+        ? await this.prisma.product.findMany({
+            where: { id: { in: article.productIds } },
+            select: { id: true, name: true, slug: true, network: true }
+          })
+        : [];
+
+    return { ...article, products };
+  }
+
+  @Post("articles/generate")
+  async generateArticle(
+    @Body() payload: unknown,
+    @Headers("x-admin-role") role?: string,
+    @Headers("x-admin-key") apiKey?: string
+  ) {
+    this.authorize(role, apiKey, ["reviewer", "admin"]);
+    const parsed = generateArticleSchema.safeParse(payload);
+    if (!parsed.success) {
+      throw new HttpException(parsed.error.flatten(), HttpStatus.BAD_REQUEST);
+    }
+
+    const { output, promptName, modelName } = await this.articleService.generateDraft({
+      type: parsed.data.type,
+      topic: parsed.data.topic,
+      toolId: parsed.data.toolId ?? null,
+      productIds: parsed.data.productIds ?? []
+    });
+
+    const uniqueSlug = await this.articleService.ensureUniqueSlug(output.slug);
+
+    const article = await this.prisma.article.create({
+      data: {
+        slug: uniqueSlug,
+        title: output.title,
+        excerpt: output.excerpt,
+        body: output.body,
+        type: parsed.data.type,
+        status: "DRAFT",
+        toolId: parsed.data.toolId ?? null,
+        productIds: parsed.data.productIds ?? [],
+        metaTitle: output.metaTitle || null,
+        metaDescription: output.metaDescription || null,
+        aiModel: modelName,
+        aiPromptName: promptName
+      }
+    });
+
+    return article;
+  }
+
+  @Put("articles/:id")
+  async updateArticle(
+    @Param("id") id: string,
+    @Body() payload: unknown,
+    @Headers("x-admin-role") role?: string,
+    @Headers("x-admin-key") apiKey?: string
+  ) {
+    this.authorize(role, apiKey, ["reviewer", "admin"]);
+    const parsed = updateArticleSchema.safeParse(payload);
+    if (!parsed.success) {
+      throw new HttpException(parsed.error.flatten(), HttpStatus.BAD_REQUEST);
+    }
+
+    const data: Prisma.ArticleUpdateInput = {};
+    if (parsed.data.title !== undefined) data.title = parsed.data.title;
+    if (parsed.data.body !== undefined) data.body = parsed.data.body;
+    if (parsed.data.excerpt !== undefined) data.excerpt = parsed.data.excerpt;
+    if (parsed.data.metaTitle !== undefined) data.metaTitle = parsed.data.metaTitle;
+    if (parsed.data.metaDescription !== undefined) data.metaDescription = parsed.data.metaDescription;
+    if (parsed.data.type !== undefined) data.type = parsed.data.type;
+    if (parsed.data.productIds !== undefined) data.productIds = { set: parsed.data.productIds };
+    if (parsed.data.toolId !== undefined) {
+      data.tool = parsed.data.toolId ? { connect: { id: parsed.data.toolId } } : { disconnect: true };
+    }
+    if (parsed.data.slug !== undefined) {
+      data.slug = await this.articleService.ensureUniqueSlug(parsed.data.slug, id);
+    }
+
+    return this.prisma.article.update({ where: { id }, data });
+  }
+
+  @Post("articles/:id/publish")
+  async publishArticle(
+    @Param("id") id: string,
+    @Body() body: { reviewer?: string },
+    @Headers("x-admin-role") role?: string,
+    @Headers("x-admin-key") apiKey?: string
+  ) {
+    this.authorize(role, apiKey, ["reviewer", "admin"]);
+    return this.prisma.article.update({
+      where: { id },
+      data: {
+        status: "PUBLISHED",
+        publishedAt: new Date(),
+        reviewedBy: body?.reviewer || "admin",
+        reviewedAt: new Date()
+      }
+    });
+  }
+
+  @Post("articles/:id/archive")
+  async archiveArticle(
+    @Param("id") id: string,
+    @Body() body: { reviewer?: string },
+    @Headers("x-admin-role") role?: string,
+    @Headers("x-admin-key") apiKey?: string
+  ) {
+    this.authorize(role, apiKey, ["reviewer", "admin"]);
+    return this.prisma.article.update({
+      where: { id },
+      data: {
+        status: "ARCHIVED",
+        reviewedBy: body?.reviewer || "admin",
+        reviewedAt: new Date()
+      }
     });
   }
 }

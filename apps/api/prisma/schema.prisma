@@ -19,6 +19,17 @@ enum ParseStatus {
   ERROR
 }
 
+enum ArticleType {
+  BUYING_GUIDE
+  REVIEW
+}
+
+enum ArticleStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
 model Tool {
   id           String     @id @default(uuid()) @db.Uuid
   slug         String     @unique
@@ -28,6 +39,7 @@ model Tool {
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
   products     Product[]
+  articles     Article[]
 }
 
 model Product {
@@ -99,4 +111,30 @@ model PromptTemplate {
   createdBy   String?
   createdAt   DateTime @default(now())
   activatedAt DateTime?
+}
+
+model Article {
+  id              String        @id @default(uuid()) @db.Uuid
+  slug            String        @unique
+  title           String
+  excerpt         String?
+  body            String
+  type            ArticleType
+  status          ArticleStatus @default(DRAFT)
+  toolId          String?       @db.Uuid
+  productIds      String[]      @db.Uuid
+  metaTitle       String?
+  metaDescription String?
+  aiModel         String?
+  aiPromptName    String?
+  reviewedBy      String?
+  reviewedAt      DateTime?
+  publishedAt     DateTime?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  tool            Tool?         @relation(fields: [toolId], references: [id], onDelete: SetNull)
+
+  @@index([status, publishedAt])
+  @@index([toolId, status])
+  @@index([type, status])
 }

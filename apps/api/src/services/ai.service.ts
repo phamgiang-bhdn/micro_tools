@@ -5,7 +5,10 @@ import { z } from "zod";
 @Injectable()
 export class AiService {
   private readonly logger = new Logger(AiService.name);
-  private readonly modelName = "gemini-1.5-flash";
+
+  private get modelName(): string {
+    return process.env.GEMINI_MODEL ?? "gemini-2.0-flash";
+  }
 
   private createClient(): GoogleGenerativeAI {
     const apiKey = process.env.GEMINI_API_KEY;
@@ -16,14 +19,6 @@ export class AiService {
   }
 
   async parseBySchema<T>(scrapedText: string, schema: Record<string, unknown>): Promise<T> {
-    const client = this.createClient();
-    const model = client.getGenerativeModel({
-      model: this.modelName,
-      generationConfig: {
-        responseMimeType: "application/json"
-      }
-    });
-
     const prompt = [
       "Extract structured data from the content and return JSON ONLY.",
       "You must strictly follow the provided JSON schema.",
@@ -31,6 +26,26 @@ export class AiService {
       `Schema: ${JSON.stringify(schema)}`,
       `Content: ${scrapedText.slice(0, 15000)}`
     ].join("\n\n");
+
+    return this.callJsonModel<T>(prompt);
+  }
+
+  async generateJson<T>(fullPrompt: string): Promise<T> {
+    return this.callJsonModel<T>(fullPrompt);
+  }
+
+  get currentModel(): string {
+    return this.modelName;
+  }
+
+  private async callJsonModel<T>(prompt: string): Promise<T> {
+    const client = this.createClient();
+    const model = client.getGenerativeModel({
+      model: this.modelName,
+      generationConfig: {
+        responseMimeType: "application/json"
+      }
+    });
 
     const maxAttempts = 3;
     for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
@@ -48,7 +63,7 @@ export class AiService {
         const isRateLimit = /429|rate limit|quota/i.test(message);
 
         if (isRateLimit && attempt < maxAttempts) {
-          const backoffMs = attempt * 1200;
+          const backoffMs = Math.min(60000, attempt * 15000);
           this.logger.warn(`Gemini rate limited, retrying in ${backoffMs}ms (attempt ${attempt}/${maxAttempts})`);
           await new Promise((resolve) => setTimeout(resolve, backoffMs));
           continue;
@@ -59,7 +74,7 @@ export class AiService {
         }
 
         this.logger.error("Failed to parse Gemini response JSON", message);
-        throw new Error(`Gemini parsing failed: ${message}`);
+        throw new Error(`Gemini call failed: ${message}`);
       }
     }
 

@@ -1,5 +1,5 @@
 import type { MetadataRoute } from "next";
-import { fetchToolBySlug, fetchTools } from "../lib/api";
+import { fetchArticles, fetchToolBySlug, fetchTools } from "../lib/api";
 import { slugify } from "../lib/slug";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
@@ -27,6 +27,14 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       : []
   );
 
+  const articles = await fetchArticles({ limit: 100 });
+  const articleEntries: MetadataRoute.Sitemap = articles.map((article) => ({
+    url: `${base}/blog/${article.slug}`,
+    lastModified: article.publishedAt ? new Date(article.publishedAt) : now,
+    changeFrequency: "weekly",
+    priority: 0.7
+  }));
+
   return [
     {
       url: `${base}/`,
@@ -34,7 +42,14 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       changeFrequency: "hourly",
       priority: 1
     },
+    {
+      url: `${base}/blog`,
+      lastModified: now,
+      changeFrequency: "daily",
+      priority: 0.7
+    },
     ...toolEntries,
-    ...productEntries
+    ...productEntries,
+    ...articleEntries
   ];
 }
