@@ -1,0 +1,59 @@
+version: 2.1
+
+jobs:
+  install_dependencies:
+    docker:
+      - image: cimg/node:20.11
+    steps:
+      - checkout
+      - restore_cache:
+          keys:
+            - v1-node-deps-{{ checksum "package.json" }}
+            - v1-node-deps-
+      - run:
+          name: Install dependencies
+          command: npm install
+      - save_cache:
+          key: v1-node-deps-{{ checksum "package.json" }}
+          paths:
+            - node_modules
+            - apps/web/node_modules
+            - apps/api/node_modules
+      - persist_to_workspace:
+          root: .
+          paths:
+            - .
+
+  lint_frontend:
+    docker:
+      - image: cimg/node:20.11
+    steps:
+      - attach_workspace:
+          at: .
+      - run:
+          name: Lint Next.js frontend
+          command: npm run lint:web
+
+  test_backend_and_build:
+    docker:
+      - image: cimg/node:20.11
+    steps:
+      - attach_workspace:
+          at: .
+      - run:
+          name: Run backend tests
+          command: npm run test:api
+      - run:
+          name: Build production assets
+          command: npm run build
+
+workflows:
+  build_test_deploy:
+    jobs:
+      - install_dependencies
+      - lint_frontend:
+          requires:
+            - install_dependencies
+      - test_backend_and_build:
+          requires:
+            - install_dependencies

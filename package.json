@@ -1,0 +1,45 @@
+{
+  "name": "affiliate-micro-tool-platform",
+  "private": true,
+  "version": "1.0.0",
+  "_scripts_help": {
+    "help": "In ra bảng mô tả các lệnh (đọc cho dễ).",
+    "env:init": "Tạo .env từ .env.example nếu chưa có (có banner ✓/✗ màu).",
+    "docker:up": "Bật Postgres + pgAdmin (docker compose up -d).",
+    "docker:down": "Tắt container Docker của project.",
+    "db:deploy": "Áp migration Prisma vào database (an toàn, không hỏi tên migration).",
+    "db:seed": "Nạp dữ liệu mẫu vào DB.",
+    "db:generate": "Generate Prisma Client sau khi đổi schema.prisma.",
+    "setup": "docker:up + db:deploy + db:seed — có banner màu từng bước.",
+    "bootstrap": "env:init + setup — có banner màu (setup máy dev).",
+    "dev:api": "Chạy backend NestJS (port mặc định 4000).",
+    "dev:web": "Chạy frontend Next.js (port 3100, http://localhost:3100).",
+    "lint:web": "ESLint cho app web.",
+    "test:api": "Jest cho app api.",
+    "build:web": "Build production cho web.",
+    "build:api": "Build production cho api.",
+    "build": "Build cả web rồi api."
+  },
+  "workspaces": [
+    "apps/web",
+    "apps/api"
+  ],
+  "scripts": {
+    "help": "node scripts/print-help.mjs",
+    "env:init": "node scripts/run-step.mjs -- node scripts/copy-env-if-missing.mjs",
+    "docker:up": "node scripts/run-step.mjs -- docker compose up -d",
+    "docker:down": "node scripts/run-step.mjs -- docker compose down",
+    "db:deploy": "node scripts/run-step.mjs -- npm run prisma:deploy --workspace api",
+    "db:seed": "node scripts/run-step.mjs -- npm run prisma:seed --workspace api",
+    "db:generate": "node scripts/run-step.mjs -- npm run prisma:generate --workspace api",
+    "setup": "node scripts/setup.mjs",
+    "bootstrap": "node scripts/bootstrap.mjs",
+    "dev:api": "npm run start:dev --workspace api",
+    "dev:web": "npm run dev --workspace web",
+    "lint:web": "node scripts/run-step.mjs -- npm run lint --workspace web",
+    "test:api": "node scripts/run-step.mjs -- npm run test --workspace api",
+    "build:web": "node scripts/run-step.mjs -- npm run build --workspace web",
+    "build:api": "node scripts/run-step.mjs -- npm run build --workspace api",
+    "build": "node scripts/run-step.mjs -- npm run build:web && node scripts/run-step.mjs -- npm run build:api"
+  }
+}

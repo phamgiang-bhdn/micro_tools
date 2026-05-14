@@ -1,0 +1,100 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum ToolStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum ParseStatus {
+  DRAFT_RAW
+  PENDING_REVIEW
+  PUBLISHED
+  ERROR
+}
+
+model Tool {
+  id           String     @id @default(uuid()) @db.Uuid
+  slug         String     @unique
+  name         String
+  status       ToolStatus @default(ACTIVE)
+  schemaConfig Json
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  products     Product[]
+}
+
+model Product {
+  id           String     @id @default(uuid()) @db.Uuid
+  toolId       String     @db.Uuid
+  network      String     @default("ACCESSTRADE")
+  name         String
+  affiliateUrl String
+  scrapedData  Json       @db.JsonB
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  tool         Tool       @relation(fields: [toolId], references: [id], onDelete: Cascade)
+  clickLogs    ClickLog[]
+  extractions  ProductExtraction[]
+
+  @@index([toolId])
+}
+
+model ClickLog {
+  id              String              @id @default(uuid()) @db.Uuid
+  productId       String              @db.Uuid
+  trackingCode    String              @unique
+  ipHash          String
+  userAgent       String?
+  createdAt       DateTime            @default(now())
+  product         Product             @relation(fields: [productId], references: [id], onDelete: Cascade)
+  conversionHooks ConversionWebhook[]
+
+  @@index([productId, createdAt])
+}
+
+model ConversionWebhook {
+  id           String    @id @default(uuid()) @db.Uuid
+  trackingCode String
+  revenue      Decimal   @db.Decimal(10, 2)
+  status       String
+  payload      Json      @db.JsonB
+  receivedAt   DateTime  @default(now())
+  clickLog     ClickLog  @relation(fields: [trackingCode], references: [trackingCode], onDelete: Restrict)
+
+  @@index([trackingCode, receivedAt])
+}
+
+model ProductExtraction {
+  id              String      @id @default(uuid()) @db.Uuid
+  productId       String      @db.Uuid
+  rawContent      String
+  aiOutput        Json?       @db.JsonB
+  status          ParseStatus @default(DRAFT_RAW)
+  errorReason     String?
+  reviewedBy      String?
+  reviewedAt      DateTime?
+  sourceUrl       String?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  product         Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId, status, createdAt])
+}
+
+model PromptTemplate {
+  id          String   @id @default(uuid()) @db.Uuid
+  name        String   @unique
+  content     String
+  isActive    Boolean  @default(false)
+  version     Int      @default(1)
+  createdBy   String?
+  createdAt   DateTime @default(now())
+  activatedAt DateTime?
+}
