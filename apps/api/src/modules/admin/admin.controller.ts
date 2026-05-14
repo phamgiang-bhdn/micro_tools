@@ -117,6 +117,27 @@ export class AdminController {
     });
   }
 
+  @Get("refinery/:id")
+  async getRefineryItem(
+    @Param("id") id: string,
+    @Headers("x-admin-role") role?: string,
+    @Headers("x-admin-key") apiKey?: string
+  ) {
+    this.authorize(role, apiKey, ["reviewer", "admin"]);
+    const extraction = await this.prisma.productExtraction.findUnique({
+      where: { id },
+      include: {
+        product: {
+          include: { tool: { select: { name: true, slug: true } } }
+        }
+      }
+    });
+    if (!extraction) {
+      throw new HttpException("Extraction not found", HttpStatus.NOT_FOUND);
+    }
+    return extraction;
+  }
+
   @Post("refinery/:id/approve")
   async approveExtraction(
     @Param("id") id: string,

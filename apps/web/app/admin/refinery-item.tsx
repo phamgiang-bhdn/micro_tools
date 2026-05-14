@@ -97,9 +97,19 @@ export function RefineryItem({
       </div>
 
       <div>
-        <p className="mb-2 text-xs font-medium uppercase tracking-wide text-google-ink-secondary">
-          Live preview (như user thấy)
-        </p>
+        <div className="mb-2 flex items-center justify-between gap-2">
+          <p className="text-xs font-medium uppercase tracking-wide text-google-ink-secondary">
+            Live preview (như user thấy)
+          </p>
+          <a
+            href={`/admin/preview/${extractionId}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-xs font-medium text-google-blue hover:underline"
+          >
+            Mở trang chi tiết →
+          </a>
+        </div>
         {preview.ok ? (
           <PreviewCard view={preview.view} />
         ) : (
