@@ -1,4 +1,5 @@
 import { Injectable, Logger } from "@nestjs/common";
+import { Prisma } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 import { slugify, uniqueSlugWithin } from "../../utils/slug.util";
 import { NormalizedOffer } from "./dto/normalized-offer.dto";
@@ -41,7 +42,7 @@ export class ImportService {
         where: { affiliateUrl: offer.affiliateUrl }
       });
 
-      const scrapedData: Record<string, unknown> = {
+      const scrapedData = {
         sourceId: offer.externalId,
         sourceNetwork: offer.source,
         brand: offer.brand,
@@ -63,7 +64,7 @@ export class ImportService {
         // Đã có row — chỉ làm mới name + scrapedData, GIỮ slug cũ (URL không đổi → không vỡ index SEO).
         await this.prisma.product.update({
           where: { id: existing.id },
-          data: { name: offer.name, scrapedData }
+          data: { name: offer.name, scrapedData: scrapedData as Prisma.InputJsonValue }
         });
         updated += 1;
         continue;
@@ -84,7 +85,7 @@ export class ImportService {
           name: offer.name,
           slug,
           affiliateUrl: offer.affiliateUrl,
-          scrapedData
+          scrapedData: scrapedData as Prisma.InputJsonValue
         }
       });
       created += 1;

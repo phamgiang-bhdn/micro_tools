@@ -10,7 +10,7 @@ interface ErrorBoundaryProps {
 
 export default function ErrorBoundary({ error, reset }: ErrorBoundaryProps): React.ReactElement {
   return (
-    <div className="grid min-h-[40vh] place-items-center">
+    <div className="mx-auto grid min-h-[60vh] max-w-6xl place-items-center px-4 py-12 sm:px-6">
       <div className="max-w-md rounded-3xl border border-red-200 bg-red-50 p-8 text-center shadow-card">
         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-brand-700">Đã có lỗi</p>
         <h1 className="mt-2 text-xl font-semibold text-ink">Không tải được trang này</h1>

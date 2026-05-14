@@ -55,7 +55,7 @@ export async function fetchAllProductsFlat(tools: ToolItem[]): Promise<FlatProdu
     .flatMap((tool) =>
       tool.products.map((product) => ({
         ...normalizeProduct(product),
-        slug: product.slug ?? null,
+        slug: product.slug ?? undefined,
         toolSlug: tool.slug,
         toolName: tool.name
       }))

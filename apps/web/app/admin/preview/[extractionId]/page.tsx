@@ -74,10 +74,12 @@ export default async function ExtractionPreviewPage({
   };
 
   return (
-    <ProductDetailView
-      productRaw={productRaw}
-      tool={extraction.product.tool}
-      previewMode
-    />
+    <div className="mx-auto max-w-5xl">
+      <ProductDetailView
+        productRaw={productRaw}
+        tool={extraction.product.tool}
+        previewMode
+      />
+    </div>
   );
 }

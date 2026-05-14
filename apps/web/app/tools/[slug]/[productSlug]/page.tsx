@@ -56,5 +56,30 @@ export default async function ProductDetailPage({ params }: ProductPageProps): P
     notFound();
   }
 
-  return <ProductDetailView productRaw={productRaw} tool={{ name: tool.name, slug: tool.slug }} />;
+  // Sản phẩm liên quan cùng tool (top 6 theo discount), loại bỏ chính nó
+  const related = tool.products
+    .filter((p) => p.id !== productRaw.id)
+    .map((p) => ({ raw: p, view: normalizeProduct(p) }))
+    .sort((a, b) => (b.view.discountPercent ?? 0) - (a.view.discountPercent ?? 0))
+    .slice(0, 6);
+
+  return (
+    <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-10">
+      <ProductDetailView
+        productRaw={productRaw}
+        tool={{ name: tool.name, slug: tool.slug }}
+        related={related.map(({ raw, view }) => ({
+          id: raw.id,
+          slug: raw.slug ?? null,
+          name: raw.name,
+          image: view.image,
+          price: view.price,
+          originalPrice: view.originalPrice,
+          currency: view.currency,
+          discountPercent: view.discountPercent,
+          store: view.store
+        }))}
+      />
+    </div>
+  );
 }

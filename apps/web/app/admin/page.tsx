@@ -2,7 +2,9 @@ import type React from "react";
 import Link from "next/link";
 import { savePromptAction } from "./actions";
 import { PromptTestClient } from "./prompt-test-client";
-import { RefineryItem } from "./refinery-item";
+import { RefineryList } from "../../components/admin/refinery-list";
+import { KpiCard } from "../../components/admin/kpi-card";
+import { MoneyTrailTable } from "../../components/admin/money-trail-table";
 
 export const dynamic = "force-dynamic";
 
@@ -33,200 +35,327 @@ async function getJson<T>(path: string): Promise<T> {
   return (await response.json()) as T;
 }
 
-const tabBase =
-  "inline-flex items-center rounded-full px-4 py-2 text-sm font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-google-blue focus-visible:ring-offset-2";
-const tabActive = "bg-google-blue text-white shadow-google";
-const tabIdle = "border border-google-outline bg-google-surface text-google-ink-secondary hover:bg-google-surface-tint";
-
 const field =
-  "w-full rounded-lg border border-google-outline bg-google-surface px-3 py-2.5 text-sm text-google-ink placeholder:text-google-ink-secondary focus:border-google-blue focus:outline-none focus:ring-1 focus:ring-google-blue";
+  "w-full rounded-lg border border-admin-line bg-admin-surface px-3 py-2.5 text-sm text-admin-ink placeholder:text-admin-mute focus:border-admin-accent focus:outline-none focus:ring-2 focus:ring-admin-accent/20";
+
+interface WarRoomResponse {
+  monthlyRevenue: string;
+  totalClicks: number;
+  successfulConversions: number;
+  conversionRate: number;
+  tokenBalanceEstimate: number;
+  pendingReview: number;
+  crawlerHealthy: boolean;
+}
+
+interface RefineryItemResponse {
+  id: string;
+  rawContent: string;
+  aiOutput: Record<string, unknown> | null;
+  status: string;
+  createdAt: string;
+  product: { id: string; name: string; network: string };
+}
+
+interface MoneyTrailRow {
+  trackingCode: string;
+  ipHash: string;
+  userAgent: string | null;
+  createdAt: string;
+  product: { name: string; network: string };
+  conversionHooks: Array<{ revenue: string; status: string }>;
+}
+
+interface ActivePromptResponse {
+  name: string;
+  version: number;
+  content: string;
+}
 
 export default async function AdminPage({ searchParams }: AdminPageProps): Promise<React.ReactElement> {
   const { tab = "war-room" } = await searchParams;
 
-  const tabs: { id: TabId; label: string }[] = [
-    { id: "war-room", label: "War Room" },
-    { id: "refinery", label: "Refinery" },
-    { id: "prompt-studio", label: "Prompt Studio" },
-    { id: "money-trail", label: "Money trail" }
-  ];
-
   const [warRoom, refinery, activePrompt, moneyTrail] = await Promise.all([
-    getJson<{
-      monthlyRevenue: string;
-      totalClicks: number;
-      successfulConversions: number;
-      conversionRate: number;
-      tokenBalanceEstimate: number;
-      pendingReview: number;
-      crawlerHealthy: boolean;
-    }>("/admin/war-room"),
-    getJson<
-      Array<{
-        id: string;
-        rawContent: string;
-        aiOutput: Record<string, unknown> | null;
-        status: string;
-        createdAt: string;
-        product: { id: string; name: string; network: string };
-      }>
-    >("/admin/refinery?status=PENDING_REVIEW"),
-    getJson<{ name: string; version: number; content: string } | null>("/admin/prompts/active"),
-    getJson<
-      Array<{
-        trackingCode: string;
-        ipHash: string;
-        userAgent: string | null;
-        createdAt: string;
-        product: { name: string; network: string };
-        conversionHooks: Array<{ revenue: string; status: string }>;
-      }>
-    >("/admin/money-trail?limit=100")
+    getJson<WarRoomResponse>("/admin/war-room"),
+    getJson<RefineryItemResponse[]>("/admin/refinery?status=PENDING_REVIEW"),
+    getJson<ActivePromptResponse | null>("/admin/prompts/active"),
+    getJson<MoneyTrailRow[]>("/admin/money-trail?limit=100")
   ]);
 
   return (
     <div className="space-y-6">
-      <div className="rounded-2xl border border-google-outline bg-google-surface p-6 shadow-google">
-        <p className="text-xs font-medium uppercase tracking-wide text-google-ink-secondary">Admin</p>
-        <h1 className="mt-1 text-2xl font-normal text-google-ink">Command Center</h1>
-        <p className="mt-2 text-sm text-google-ink-secondary">
-          Human-in-the-loop: duyệt dữ liệu AI, prompt, và đối soát tracking.
-        </p>
+      <PageHeader tab={tab} pending={warRoom.pendingReview} />
+
+      {tab === "war-room" ? <WarRoom data={warRoom} pendingItems={refinery.length} /> : null}
+
+      {tab === "refinery" ? <RefineryList items={refinery} /> : null}
+
+      {tab === "prompt-studio" ? <PromptStudio activePrompt={activePrompt} field={field} /> : null}
+
+      {tab === "money-trail" ? <MoneyTrailTable rows={moneyTrail} /> : null}
+    </div>
+  );
+}
+
+function PageHeader({ tab, pending }: { tab: TabId; pending: number }): React.ReactElement {
+  const titles: Record<TabId, { title: string; sub: string }> = {
+    "war-room": {
+      title: "War Room",
+      sub: "Tổng quan KPI vận hành, doanh thu affiliate và trạng thái crawler."
+    },
+    refinery: {
+      title: "Refinery",
+      sub: "Duyệt dữ liệu AI extraction trước khi go-live. Có preview như user thấy."
+    },
+    "prompt-studio": {
+      title: "Prompt Studio",
+      sub: "Quản lý version prompt và test trước khi activate."
+    },
+    "money-trail": {
+      title: "Money Trail",
+      sub: "Đối soát click → conversion theo trackingCode."
+    }
+  };
+  const meta = titles[tab];
+  return (
+    <div className="flex flex-wrap items-end justify-between gap-3">
+      <div>
+        <p className="text-xs font-semibold uppercase tracking-wider text-admin-mute">Operations</p>
+        <h1 className="mt-1 text-2xl font-bold tracking-tight text-admin-ink sm:text-3xl">{meta.title}</h1>
+        <p className="mt-1 max-w-2xl text-sm text-admin-mute">{meta.sub}</p>
       </div>
+      {pending > 0 ? (
+        <Link
+          href="/admin?tab=refinery"
+          className="inline-flex items-center gap-2 rounded-full border border-amber-200 bg-amber-50 px-4 py-1.5 text-sm font-medium text-amber-800 transition hover:bg-amber-100"
+        >
+          <span aria-hidden className="size-2 rounded-full bg-amber-500 animate-pulse-glow" />
+          {pending} bản đang chờ duyệt →
+        </Link>
+      ) : null}
+    </div>
+  );
+}
 
-      <div className="flex flex-wrap gap-2 rounded-2xl border border-google-outline bg-google-surface p-2 shadow-google">
-        {tabs.map((entry) => (
-          <Link
-            key={entry.id}
-            href={`/admin?tab=${entry.id}`}
-            className={`${tabBase} ${tab === entry.id ? tabActive : tabIdle}`}
-          >
-            {entry.label}
-          </Link>
-        ))}
+function WarRoom({
+  data,
+  pendingItems
+}: {
+  data: WarRoomResponse;
+  pendingItems: number;
+}): React.ReactElement {
+  return (
+    <div className="space-y-6">
+      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <KpiCard
+          label="Doanh thu tháng"
+          value={data.monthlyRevenue}
+          icon="revenue"
+          tone="brand"
+          hint={`${data.successfulConversions} đơn conversion`}
+        />
+        <KpiCard
+          label="Conversion rate"
+          value={`${data.conversionRate}%`}
+          icon="rate"
+          tone={data.conversionRate >= 2 ? "accent" : "neutral"}
+          hint={`${data.totalClicks.toLocaleString("vi-VN")} clicks tháng này`}
+        />
+        <KpiCard
+          label="Token budget (est.)"
+          value={data.tokenBalanceEstimate.toLocaleString("vi-VN")}
+          icon="tokens"
+          tone={data.tokenBalanceEstimate < 50000 ? "warning" : "neutral"}
+          hint={data.tokenBalanceEstimate < 50000 ? "Sắp cạn — top-up sớm" : "Vẫn còn dư"}
+        />
+        <KpiCard
+          label="Crawler"
+          value={data.crawlerHealthy ? "Healthy" : "Check"}
+          icon="crawler"
+          tone={data.crawlerHealthy ? "accent" : "error"}
+          hint={data.crawlerHealthy ? "Tất cả nguồn xanh" : "Có nguồn lỗi — kiểm tra log"}
+        />
+      </section>
+
+      <section className="grid gap-4 lg:grid-cols-3">
+        <article className="admin-card p-5 lg:col-span-2">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wider text-admin-mute">Hôm nay cần xử lý</p>
+              <h2 className="mt-1 text-lg font-semibold text-admin-ink">Hàng đợi vận hành</h2>
+            </div>
+          </div>
+          <ul className="mt-4 space-y-2">
+            <QueueRow
+              tone={pendingItems > 0 ? "warning" : "ok"}
+              title="AI extraction chờ duyệt"
+              hint={pendingItems > 0 ? "Vào Refinery để approve hoặc reject" : "Trống — không có việc tồn"}
+              count={pendingItems}
+              href="/admin?tab=refinery"
+            />
+            <QueueRow
+              tone={data.crawlerHealthy ? "ok" : "error"}
+              title="Crawler status"
+              hint={data.crawlerHealthy ? "Tất cả nguồn đang chạy ổn" : "Có nguồn báo lỗi — mở log để xem"}
+              count={data.crawlerHealthy ? 0 : 1}
+            />
+            <QueueRow
+              tone={data.tokenBalanceEstimate < 50000 ? "warning" : "ok"}
+              title="Gemini token budget"
+              hint={
+                data.tokenBalanceEstimate < 50000
+                  ? "Sắp cạn — cân nhắc top-up trong 24h"
+                  : "Đủ cho chu kỳ crawl hiện tại"
+              }
+              count={data.tokenBalanceEstimate < 50000 ? 1 : 0}
+            />
+          </ul>
+        </article>
+
+        <article className="admin-card p-5">
+          <p className="text-xs font-semibold uppercase tracking-wider text-admin-mute">Lối tắt</p>
+          <h2 className="mt-1 text-lg font-semibold text-admin-ink">Tác vụ nhanh</h2>
+          <div className="mt-4 space-y-2 text-sm">
+            <ShortcutLink href="/admin?tab=refinery" label="Mở Refinery" icon="📋" />
+            <ShortcutLink href="/admin?tab=prompt-studio" label="Save prompt version mới" icon="✨" />
+            <ShortcutLink href="/admin?tab=money-trail" label="Xem money trail" icon="💰" />
+            <ShortcutLink href="/" label="Mở storefront (xem như user)" icon="🪟" external />
+          </div>
+        </article>
+      </section>
+    </div>
+  );
+}
+
+function QueueRow({
+  tone,
+  title,
+  hint,
+  count,
+  href
+}: {
+  tone: "ok" | "warning" | "error";
+  title: string;
+  hint: string;
+  count: number;
+  href?: string;
+}): React.ReactElement {
+  const dotClass =
+    tone === "ok" ? "bg-emerald-500" : tone === "warning" ? "bg-amber-500" : "bg-red-500";
+  const inner = (
+    <div className="flex items-center gap-3 rounded-lg border border-admin-line bg-admin-subtle/50 px-3 py-2.5 transition hover:bg-admin-subtle">
+      <span aria-hidden className={`size-2 shrink-0 rounded-full ${dotClass}`} />
+      <div className="min-w-0 flex-1">
+        <p className="text-sm font-medium text-admin-ink">{title}</p>
+        <p className="text-xs text-admin-mute">{hint}</p>
       </div>
+      {count > 0 ? (
+        <span className={`rounded-full px-2 py-0.5 text-xs font-bold ${tone === "warning" ? "bg-amber-100 text-amber-800" : "bg-red-100 text-red-700"}`}>
+          {count}
+        </span>
+      ) : null}
+    </div>
+  );
+  return href ? <li><Link href={href}>{inner}</Link></li> : <li>{inner}</li>;
+}
 
-      {tab === "war-room" && (
-        <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          {[
-            { label: "Monthly revenue", value: warRoom.monthlyRevenue },
-            { label: "Conversion rate", value: `${warRoom.conversionRate}%` },
-            { label: "Token budget (estimate)", value: String(warRoom.tokenBalanceEstimate) },
-            {
-              label: "Crawler health",
-              value: warRoom.crawlerHealthy ? "Healthy" : "Check",
-              tone: warRoom.crawlerHealthy ? ("text-google-success" as const) : ("text-google-error" as const)
-            }
-          ].map((card) => (
-            <div
-              key={card.label}
-              className="rounded-2xl border border-google-outline bg-google-surface p-5 shadow-google"
-            >
-              <p className="text-xs font-medium uppercase tracking-wide text-google-ink-secondary">{card.label}</p>
-              <p className={`mt-3 text-2xl font-normal ${"tone" in card && card.tone ? card.tone : "text-google-ink"}`}>
-                {card.value}
-              </p>
-            </div>
-          ))}
-        </section>
-      )}
+function ShortcutLink({
+  href,
+  label,
+  icon,
+  external
+}: {
+  href: string;
+  label: string;
+  icon: string;
+  external?: boolean;
+}): React.ReactElement {
+  return (
+    <Link
+      href={href}
+      target={external ? "_blank" : undefined}
+      rel={external ? "noopener noreferrer" : undefined}
+      className="flex items-center gap-2.5 rounded-lg border border-admin-line bg-admin-subtle/40 px-3 py-2.5 text-admin-ink transition hover:border-admin-accent/50 hover:bg-admin-accent-soft hover:text-admin-accent"
+    >
+      <span aria-hidden className="text-base">{icon}</span>
+      <span className="flex-1">{label}</span>
+      <span aria-hidden className="text-admin-mute">→</span>
+    </Link>
+  );
+}
 
-      {tab === "refinery" && (
-        <section className="space-y-4">
-          {refinery.length === 0 ? (
-            <div className="rounded-2xl border border-google-outline bg-google-surface p-6 text-sm text-google-ink-secondary shadow-google">
-              No pending AI extraction in review queue.
-            </div>
-          ) : (
-            refinery.map((item) => (
-              <RefineryItem
-                key={item.id}
-                extractionId={item.id}
-                productId={item.product.id}
-                productName={item.product.name}
-                productNetwork={item.product.network}
-                rawContent={item.rawContent}
-                initialAiOutput={item.aiOutput}
-              />
-            ))
-          )}
-        </section>
-      )}
-
-      {tab === "prompt-studio" && (
-        <section className="grid gap-6 lg:grid-cols-2">
-          <div className="rounded-2xl border border-google-outline bg-google-surface p-6 shadow-google">
-            <p className="text-xs font-medium uppercase tracking-wide text-google-ink-secondary">Active prompt</p>
-            {activePrompt ? (
-              <div className="mt-3 space-y-2">
-                <p className="font-medium text-google-ink">
-                  {activePrompt.name}{" "}
-                  <span className="text-google-ink-secondary">v{activePrompt.version}</span>
-                </p>
-                <pre className="max-h-80 overflow-auto whitespace-pre-wrap rounded-xl border border-google-outline bg-google-surface-tint p-4 text-xs text-google-ink">
-                  {activePrompt.content}
-                </pre>
-              </div>
-            ) : (
-              <p className="mt-3 text-sm text-google-ink-secondary">No active prompt configured.</p>
-            )}
+function PromptStudio({
+  activePrompt,
+  field
+}: {
+  activePrompt: ActivePromptResponse | null;
+  field: string;
+}): React.ReactElement {
+  return (
+    <section className="grid gap-4 lg:grid-cols-2">
+      <article className="admin-card p-6">
+        <div className="flex items-center justify-between gap-2">
+          <p className="text-xs font-semibold uppercase tracking-wider text-admin-mute">Active prompt</p>
+          {activePrompt ? (
+            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700 ring-1 ring-inset ring-emerald-200">
+              v{activePrompt.version}
+            </span>
+          ) : null}
+        </div>
+        {activePrompt ? (
+          <div className="mt-3 space-y-2">
+            <p className="font-semibold text-admin-ink">{activePrompt.name}</p>
+            <pre className="max-h-96 overflow-auto whitespace-pre-wrap rounded-xl border border-admin-line bg-admin-subtle p-4 text-xs leading-relaxed text-admin-ink">
+              {activePrompt.content}
+            </pre>
           </div>
+        ) : (
+          <p className="mt-3 text-sm text-admin-mute">Chưa cấu hình prompt nào — hãy tạo bên phải.</p>
+        )}
+      </article>
 
-          <form action={savePromptAction} className="space-y-4 rounded-2xl border border-google-outline bg-google-surface p-6 shadow-google">
-            <p className="text-xs font-medium uppercase tracking-wide text-google-ink-secondary">Save new version</p>
-            <input name="name" placeholder="default-parser" className={field} />
-            <input name="createdBy" placeholder="admin" className={field} />
-            <textarea name="content" placeholder="You are an expert extraction agent..." className={`${field} h-48`} />
-            <label className="flex items-center gap-2 text-sm text-google-ink">
-              <input name="activateNow" type="checkbox" className="size-4 rounded border-google-outline text-google-blue" />
-              Activate immediately
-            </label>
-            <button
-              type="submit"
-              className="inline-flex h-10 items-center rounded-full bg-google-blue px-6 text-sm font-medium text-white shadow-google hover:bg-google-blue-hover"
-            >
-              Save prompt
-            </button>
-          </form>
-          <PromptTestClient />
-        </section>
-      )}
+      <form action={savePromptAction} className="admin-card space-y-3 p-6">
+        <p className="text-xs font-semibold uppercase tracking-wider text-admin-mute">Save new version</p>
+        <Field label="Tên prompt" name="name" placeholder="default-parser" inputClass={field} />
+        <Field label="Người tạo" name="createdBy" placeholder="admin" inputClass={field} />
+        <div className="space-y-1">
+          <label className="text-xs font-medium text-admin-ink">Nội dung prompt</label>
+          <textarea name="content" placeholder="You are an expert extraction agent..." className={`${field} h-48 font-mono text-xs`} />
+        </div>
+        <label className="flex items-center gap-2 text-sm text-admin-ink">
+          <input name="activateNow" type="checkbox" className="size-4 rounded border-admin-line text-admin-accent" />
+          Activate ngay sau khi lưu
+        </label>
+        <button
+          type="submit"
+          className="inline-flex h-10 items-center rounded-full bg-admin-accent px-6 text-sm font-semibold text-white shadow-google transition hover:bg-admin-accent/90"
+        >
+          Lưu prompt
+        </button>
+      </form>
 
-      {tab === "money-trail" && (
-        <section className="overflow-hidden rounded-2xl border border-google-outline bg-google-surface shadow-google-md">
-          <div className="overflow-x-auto">
-            <table className="min-w-full border-collapse text-sm text-google-ink">
-              <thead>
-                <tr className="border-b border-google-outline bg-google-surface-tint text-left text-xs font-medium uppercase tracking-wide text-google-ink-secondary">
-                  <th className="px-4 py-3">Tracking</th>
-                  <th className="px-4 py-3">Product</th>
-                  <th className="px-4 py-3">IP hash</th>
-                  <th className="px-4 py-3">User-Agent</th>
-                  <th className="px-4 py-3">Conversion</th>
-                </tr>
-              </thead>
-              <tbody>
-                {moneyTrail.map((row) => (
-                  <tr key={row.trackingCode} className="border-b border-google-outline last:border-b-0 hover:bg-google-surface-tint/60">
-                    <td className="px-4 py-3 font-mono text-xs">{row.trackingCode}</td>
-                    <td className="px-4 py-3">
-                      {row.product.name}
-                      <p className="text-xs text-google-ink-secondary">{row.product.network}</p>
-                    </td>
-                    <td className="px-4 py-3 font-mono text-xs text-google-ink-secondary">{row.ipHash}</td>
-                    <td className="max-w-[360px] px-4 py-3 text-xs text-google-ink-secondary">{row.userAgent ?? "—"}</td>
-                    <td className="px-4 py-3 text-xs">
-                      {row.conversionHooks.length > 0
-                        ? `${row.conversionHooks[0].status} · ${row.conversionHooks[0].revenue}`
-                        : "—"}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </section>
-      )}
+      <div className="lg:col-span-2">
+        <PromptTestClient />
+      </div>
+    </section>
+  );
+}
+
+function Field({
+  label,
+  name,
+  placeholder,
+  inputClass
+}: {
+  label: string;
+  name: string;
+  placeholder: string;
+  inputClass: string;
+}): React.ReactElement {
+  return (
+    <div className="space-y-1">
+      <label className="text-xs font-medium text-admin-ink">{label}</label>
+      <input name={name} placeholder={placeholder} className={inputClass} />
     </div>
   );
 }

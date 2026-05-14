@@ -4,7 +4,7 @@ import type React from "react";
 import { useState } from "react";
 
 const field =
-  "w-full rounded-lg border border-google-outline bg-google-surface px-3 py-2.5 text-sm text-google-ink placeholder:text-google-ink-secondary focus:border-google-blue focus:outline-none focus:ring-1 focus:ring-google-blue";
+  "w-full rounded-lg border border-admin-line bg-admin-surface px-3 py-2.5 text-sm text-admin-ink placeholder:text-admin-mute focus:border-admin-accent focus:outline-none focus:ring-2 focus:ring-admin-accent/20";
 
 export function PromptTestClient(): React.ReactElement {
   const [prompt, setPrompt] = useState("You are an expert extraction engine.");
@@ -50,27 +50,107 @@ export function PromptTestClient(): React.ReactElement {
   };
 
   return (
-    <div className="space-y-4 rounded-2xl border border-google-outline bg-google-surface p-6 shadow-google lg:col-span-2">
-      <p className="text-xs font-medium uppercase tracking-wide text-google-ink-secondary">Test prompt</p>
-      <textarea value={prompt} onChange={(e) => setPrompt(e.target.value)} className={`${field} h-24`} />
-      <textarea value={sampleText} onChange={(e) => setSampleText(e.target.value)} className={`${field} h-24`} />
-      <textarea value={schemaConfig} onChange={(e) => setSchemaConfig(e.target.value)} className={`${field} h-36 font-mono text-xs`} />
-      <button
-        type="button"
-        onClick={onTest}
-        disabled={loading}
-        className="inline-flex h-10 items-center rounded-full border border-google-warning bg-white px-6 text-sm font-medium text-google-ink shadow-google hover:bg-amber-50 disabled:opacity-50"
-      >
-        {loading ? "Testing…" : "Test prompt"}
-      </button>
-      {error && (
-        <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-google-error">{error}</div>
-      )}
-      {result && (
-        <pre className="max-h-72 overflow-auto whitespace-pre-wrap rounded-xl border border-google-outline bg-google-surface-tint p-4 font-mono text-xs text-google-ink">
-          {result}
-        </pre>
-      )}
-    </div>
+    <article className="admin-card space-y-4 p-6">
+      <header className="flex items-center justify-between gap-2">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-wider text-admin-mute">Sandbox</p>
+          <h2 className="mt-1 text-lg font-semibold text-admin-ink">Test prompt với input mẫu</h2>
+        </div>
+        <button
+          type="button"
+          onClick={onTest}
+          disabled={loading}
+          className="inline-flex h-10 items-center gap-2 rounded-full bg-admin-accent px-5 text-sm font-semibold text-white shadow-google transition hover:bg-admin-accent/90 disabled:opacity-50"
+        >
+          {loading ? (
+            <>
+              <Spinner /> Đang chạy…
+            </>
+          ) : (
+            <>
+              <PlayIcon /> Chạy thử
+            </>
+          )}
+        </button>
+      </header>
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        <FieldArea
+          label="System prompt"
+          value={prompt}
+          onChange={setPrompt}
+          field={field}
+          rows={6}
+        />
+        <FieldArea
+          label="Input mẫu (raw)"
+          value={sampleText}
+          onChange={setSampleText}
+          field={field}
+          rows={6}
+        />
+      </div>
+      <FieldArea
+        label="Schema config (JSON)"
+        value={schemaConfig}
+        onChange={setSchemaConfig}
+        field={`${field} font-mono`}
+        rows={8}
+      />
+
+      {error ? (
+        <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</div>
+      ) : null}
+      {result ? (
+        <div>
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-admin-mute">Kết quả</p>
+          <pre className="scrollbar-thin max-h-80 overflow-auto whitespace-pre-wrap rounded-xl border border-admin-line bg-admin-subtle p-4 font-mono text-xs text-admin-ink">
+            {result}
+          </pre>
+        </div>
+      ) : null}
+    </article>
+  );
+}
+
+function FieldArea({
+  label,
+  value,
+  onChange,
+  field,
+  rows
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  field: string;
+  rows: number;
+}): React.ReactElement {
+  return (
+    <label className="block space-y-1">
+      <span className="text-xs font-medium text-admin-ink">{label}</span>
+      <textarea
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        rows={rows}
+        className={field}
+      />
+    </label>
+  );
+}
+
+function PlayIcon(): React.ReactElement {
+  return (
+    <svg viewBox="0 0 24 24" fill="currentColor" className="size-3.5">
+      <path d="M8 5v14l11-7Z" />
+    </svg>
+  );
+}
+
+function Spinner(): React.ReactElement {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="size-3.5 animate-spin">
+      <path d="M21 12a9 9 0 1 1-3-6.7" />
+    </svg>
   );
 }

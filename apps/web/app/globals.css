@@ -4,6 +4,7 @@
 
 :root {
   color-scheme: light;
+  --header-h: 64px;
 }
 
 body {
@@ -11,6 +12,12 @@ body {
   color: #0e1116;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
+}
+
+/* Trang admin có nền & màu chữ riêng — không dùng cream warm như storefront. */
+body[data-shell="admin"] {
+  background-color: #f6f7f9;
+  color: #0f172a;
 }
 
 @layer utilities {
@@ -21,8 +28,19 @@ body {
     color: transparent;
   }
 
+  .text-gradient-cool {
+    background-image: linear-gradient(135deg, #2563eb 0%, #0ea5e9 60%, #14b8a6 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
   .ring-focus {
     @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 focus-visible:ring-offset-canvas;
+  }
+
+  .ring-focus-cool {
+    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-admin-accent focus-visible:ring-offset-2 focus-visible:ring-offset-admin-bg;
   }
 
   .scrollbar-thin::-webkit-scrollbar {
@@ -32,5 +50,38 @@ body {
   .scrollbar-thin::-webkit-scrollbar-thumb {
     background-color: #d1d5db;
     border-radius: 999px;
+  }
+  .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+    background-color: #9ca3af;
+  }
+
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  /* Skeleton shimmer — dùng cho loading state */
+  .skeleton {
+    background: linear-gradient(90deg, #f1f5f9 0%, #e2e8f0 50%, #f1f5f9 100%);
+    background-size: 800px 100%;
+    animation: shimmer 1.4s linear infinite;
+  }
+}
+
+@layer components {
+  /* Surface card — base style cho mọi panel, kèm border subtle + hover lift nhẹ */
+  .surface-card {
+    @apply rounded-2xl border border-line bg-card shadow-card;
+  }
+  .surface-card-hover {
+    @apply transition hover:-translate-y-0.5 hover:shadow-card-md;
+  }
+
+  /* Admin surface — flatter, nhiều info, ít cảm xúc */
+  .admin-card {
+    @apply rounded-xl border border-admin-line bg-admin-surface shadow-google;
   }
 }
