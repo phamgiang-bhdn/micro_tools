@@ -1,6 +1,7 @@
 "use server";
 
 import { headers } from "next/headers";
+import { redirect } from "next/navigation";
 import { randomUUID } from "crypto";
 
 const API_BASE_URL = process.env.API_BASE_URL ?? "http://localhost:4000/api/v1";
@@ -13,6 +14,18 @@ export interface TrackingInput {
 export interface TrackingResult {
   trackingCode: string;
   finalUrl: string;
+}
+
+/**
+ * Form-action wrapper: đọc productId + affiliateUrl từ hidden inputs, gọi
+ * createTrackingRedirect rồi redirect ngay. Dùng cho inline CTA trong article body.
+ */
+export async function trackAndRedirectAction(formData: FormData): Promise<void> {
+  const productId = String(formData.get("productId") ?? "");
+  const affiliateUrl = String(formData.get("affiliateUrl") ?? "");
+  if (!productId || !affiliateUrl) return;
+  const tracked = await createTrackingRedirect({ productId, affiliateUrl });
+  redirect(tracked.finalUrl);
 }
 
 export async function createTrackingRedirect(input: TrackingInput): Promise<TrackingResult> {

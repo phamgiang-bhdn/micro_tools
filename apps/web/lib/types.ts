@@ -61,6 +61,7 @@ export interface ArticleSummary {
   type: ArticleType;
   publishedAt: string | null;
   tool: { slug: string; name: string } | null;
+  coverImage: string | null;
 }
 
 export interface ArticleAdminSummary extends ArticleSummary {

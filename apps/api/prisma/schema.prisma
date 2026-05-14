@@ -119,6 +119,7 @@ model Article {
   title           String
   excerpt         String?
   body            String
+  blocks          Json?         @db.JsonB
   type            ArticleType
   status          ArticleStatus @default(DRAFT)
   toolId          String?       @db.Uuid

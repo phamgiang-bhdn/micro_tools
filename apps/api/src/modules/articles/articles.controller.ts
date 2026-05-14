@@ -26,7 +26,7 @@ export class ArticlesController {
       where.toolId = tool.id;
     }
 
-    return this.prisma.article.findMany({
+    const articles = await this.prisma.article.findMany({
       where,
       orderBy: { publishedAt: "desc" },
       take: parsedLimit,
@@ -37,9 +37,30 @@ export class ArticlesController {
         excerpt: true,
         type: true,
         publishedAt: true,
+        productIds: true,
         tool: { select: { slug: true, name: true } }
       }
     });
+
+    const allProductIds = [...new Set(articles.flatMap((a) => a.productIds))];
+    const products = allProductIds.length
+      ? await this.prisma.product.findMany({
+          where: { id: { in: allProductIds } },
+          select: { id: true, scrapedData: true }
+        })
+      : [];
+
+    const imageMap = new Map<string, string>();
+    for (const p of products) {
+      const raw = (p.scrapedData ?? {}) as Record<string, unknown>;
+      const img = pickImage(raw);
+      if (img) imageMap.set(p.id, img);
+    }
+
+    return articles.map(({ productIds, ...rest }) => ({
+      ...rest,
+      coverImage: productIds.map((id) => imageMap.get(id)).find(Boolean) ?? null
+    }));
   }
 
   @Get(":slug")
@@ -65,4 +86,12 @@ export class ArticlesController {
 
     return { ...article, products };
   }
+}
+
+function pickImage(raw: Record<string, unknown>): string | undefined {
+  for (const key of ["image", "imageUrl", "thumbnail", "photo"]) {
+    const value = raw[key];
+    if (typeof value === "string" && value.trim().length > 0) return value;
+  }
+  return undefined;
 }
