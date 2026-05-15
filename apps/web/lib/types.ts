@@ -69,8 +69,31 @@ export interface ArticleAdminSummary extends ArticleSummary {
   updatedAt: string;
 }
 
+export type ArticleBlock =
+  | { type: "hero_quote"; text: string; attribution?: string }
+  | {
+      type: "criteria_grid";
+      title?: string;
+      items: { icon?: string; title: string; body: string }[];
+    }
+  | {
+      type: "product_spotlight";
+      productId: string;
+      angle: string;
+      pros?: string[];
+      cons?: string[];
+      imageUrl?: string;
+    }
+  | { type: "callout"; tone: "info" | "warning" | "tip" | "success"; title: string; body: string }
+  | { type: "prose"; markdown: string }
+  | { type: "comparison"; productIds: string[] }
+  | { type: "pros_cons"; pros: string[]; cons: string[] }
+  | { type: "faq"; items: { q: string; a: string }[] }
+  | { type: "verdict"; summary: string; bestFor?: string[]; notFor?: string[] };
+
 export interface ArticleDetail extends ArticleSummary {
   body: string;
+  blocks: ArticleBlock[] | null;
   metaTitle: string | null;
   metaDescription: string | null;
   productIds: string[];

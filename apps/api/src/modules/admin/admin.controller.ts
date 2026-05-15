@@ -406,7 +406,7 @@ export class AdminController {
       throw new HttpException(parsed.error.flatten(), HttpStatus.BAD_REQUEST);
     }
 
-    const { output, promptName, modelName } = await this.articleService.generateDraft({
+    const { output, derivedBody, promptName, modelName } = await this.articleService.generateDraft({
       type: parsed.data.type,
       topic: parsed.data.topic,
       toolId: parsed.data.toolId ?? null,
@@ -420,7 +420,8 @@ export class AdminController {
         slug: uniqueSlug,
         title: output.title,
         excerpt: output.excerpt,
-        body: output.body,
+        body: derivedBody,
+        blocks: output.blocks as Prisma.InputJsonValue,
         type: parsed.data.type,
         status: "DRAFT",
         toolId: parsed.data.toolId ?? null,

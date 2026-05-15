@@ -9,6 +9,7 @@ import { ComparisonTable } from "../../../components/article/comparison-table";
 import { QuickPicks } from "../../../components/article/quick-picks";
 import { SpecsTable } from "../../../components/article/specs-table";
 import { VerdictCard } from "../../../components/article/verdict-card";
+import { BlockRenderer } from "../../../components/article/blocks/block-renderer";
 
 export const revalidate = 300;
 
@@ -147,50 +148,57 @@ export default async function ArticleDetailPage({ params }: PageProps): Promise<
       </header>
 
       <main className="mx-auto max-w-3xl px-4 pb-20 sm:px-6">
-        {/* ───── TYPE-SPECIFIC: trên đầu body ───── */}
-        {isReview && heroProduct ? (
-          <VerdictCard product={heroProduct} excerpt={article.excerpt} />
-        ) : null}
-        {!isReview && article.products.length > 0 ? (
-          <QuickPicks products={article.products} />
-        ) : null}
-
-        {/* ───── BODY ───── */}
-        <div className="prose prose-slate max-w-none prose-headings:mt-10 prose-headings:font-semibold prose-h2:mt-12 prose-h2:text-2xl prose-h2:tracking-tight prose-h3:text-xl prose-p:leading-7 prose-a:text-brand-700 prose-a:no-underline hover:prose-a:underline prose-strong:text-ink prose-li:marker:text-brand-500 prose-blockquote:border-l-4 prose-blockquote:border-brand-300 prose-blockquote:bg-card prose-blockquote:px-4 prose-blockquote:py-2 prose-blockquote:not-italic prose-blockquote:text-ink-soft prose-img:rounded-xl">
-          <ReactMarkdown>{bodyParts.before}</ReactMarkdown>
-        </div>
-
-        {/* Inline CTA hoặc inline compact comparison sau H2 đầu */}
-        {bodyParts.after ? (
+        {article.blocks && article.blocks.length > 0 ? (
+          // ────── NEW: STRUCTURED BLOCKS RENDER ──────
+          <BlockRenderer
+            blocks={article.blocks}
+            products={article.products}
+            schemaConfig={schemaConfig}
+          />
+        ) : (
+          // ────── LEGACY: markdown body render ──────
           <>
-            {!isReview && article.products.length >= 2 ? (
-              <ComparisonTable products={article.products} schemaConfig={schemaConfig} />
+            {isReview && heroProduct ? (
+              <VerdictCard product={heroProduct} excerpt={article.excerpt} />
             ) : null}
+            {!isReview && article.products.length > 0 ? (
+              <QuickPicks products={article.products} />
+            ) : null}
+
             <div className="prose prose-slate max-w-none prose-headings:mt-10 prose-headings:font-semibold prose-h2:mt-12 prose-h2:text-2xl prose-h2:tracking-tight prose-h3:text-xl prose-p:leading-7 prose-a:text-brand-700 prose-a:no-underline hover:prose-a:underline prose-strong:text-ink prose-li:marker:text-brand-500 prose-blockquote:border-l-4 prose-blockquote:border-brand-300 prose-blockquote:bg-card prose-blockquote:px-4 prose-blockquote:py-2 prose-blockquote:not-italic prose-blockquote:text-ink-soft prose-img:rounded-xl">
-              <ReactMarkdown>{bodyParts.after}</ReactMarkdown>
+              <ReactMarkdown>{bodyParts.before}</ReactMarkdown>
             </div>
+
+            {bodyParts.after ? (
+              <>
+                {!isReview && article.products.length >= 2 ? (
+                  <ComparisonTable products={article.products} schemaConfig={schemaConfig} />
+                ) : null}
+                <div className="prose prose-slate max-w-none prose-headings:mt-10 prose-headings:font-semibold prose-h2:mt-12 prose-h2:text-2xl prose-h2:tracking-tight prose-h3:text-xl prose-p:leading-7 prose-a:text-brand-700 prose-a:no-underline hover:prose-a:underline prose-strong:text-ink prose-li:marker:text-brand-500 prose-blockquote:border-l-4 prose-blockquote:border-brand-300 prose-blockquote:bg-card prose-blockquote:px-4 prose-blockquote:py-2 prose-blockquote:not-italic prose-blockquote:text-ink-soft prose-img:rounded-xl">
+                  <ReactMarkdown>{bodyParts.after}</ReactMarkdown>
+                </div>
+              </>
+            ) : null}
+
+            {isReview && heroProduct ? (
+              <SpecsTable product={heroProduct} schemaConfig={schemaConfig} />
+            ) : null}
+
+            {!isReview && article.products.length > 3 ? (
+              <section className="mt-14">
+                <div className="mb-5">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-brand-700">Tất cả sản phẩm trong bài</p>
+                  <h2 className="mt-1 text-xl font-bold tracking-tight text-ink">Danh sách đầy đủ</h2>
+                </div>
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4">
+                  {article.products.slice(3).map((p) => (
+                    <CompactProductCard key={p.id} product={p} />
+                  ))}
+                </div>
+              </section>
+            ) : null}
           </>
-        ) : null}
-
-        {/* ───── TYPE-SPECIFIC: dưới body ───── */}
-        {isReview && heroProduct ? (
-          <SpecsTable product={heroProduct} schemaConfig={schemaConfig} />
-        ) : null}
-
-        {/* All products grid (fallback nếu không có verdict/quickpicks ở trên) */}
-        {!isReview && article.products.length > 3 ? (
-          <section className="mt-14">
-            <div className="mb-5">
-              <p className="text-xs font-semibold uppercase tracking-wider text-brand-700">Tất cả sản phẩm trong bài</p>
-              <h2 className="mt-1 text-xl font-bold tracking-tight text-ink">Danh sách đầy đủ</h2>
-            </div>
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4">
-              {article.products.slice(3).map((p) => (
-                <CompactProductCard key={p.id} product={p} />
-              ))}
-            </div>
-          </section>
-        ) : null}
+        )}
 
         {/* AFFILIATE DISCLOSURE */}
         <aside className="mt-14 flex gap-4 rounded-2xl border border-line bg-card/60 p-5 shadow-sm">
