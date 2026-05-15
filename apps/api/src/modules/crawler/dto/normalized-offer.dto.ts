@@ -3,7 +3,7 @@
  * Mọi adapter phải trả về kiểu này; mọi consumer (enrichment / import) chỉ làm việc với nó.
  */
 export interface NormalizedOffer {
-  source: "accesstrade" | "shopee" | "manual";
+  source: "accesstrade" | "shopee" | "tiktok" | "lazada" | "manual";
   /** ID của sản phẩm trên nguồn gốc — để dedup khi crawl lại. */
   externalId: string;
   name: string;
@@ -23,4 +23,9 @@ export interface NormalizedOffer {
   categorySlug: string;
   badge?: string;
   highlights?: string[];
+  /**
+   * Raw fields network-specific mà NormalizedOffer chưa cover (vd shop_rating, voucher_code).
+   * Mỗi client tự stash vào đây — consumer dùng `unknown` cast khi cần.
+   */
+  metadata?: Record<string, unknown>;
 }

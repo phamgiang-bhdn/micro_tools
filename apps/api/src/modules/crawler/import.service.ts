@@ -1,8 +1,9 @@
 import { Injectable, Logger } from "@nestjs/common";
-import { Prisma } from "@prisma/client";
+import { AffiliateNetwork, Prisma } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 import { slugify, uniqueSlugWithin } from "../../utils/slug.util";
 import { NormalizedOffer } from "./dto/normalized-offer.dto";
+import { networkFromSource } from "./network.util";
 
 export interface ImportResult {
   created: number;
@@ -13,6 +14,7 @@ export interface ImportResult {
 /**
  * Idempotent upsert: dùng affiliateUrl làm dedup key.
  * Tự sinh slug duy nhất trong scope của category — phục vụ SEO URL.
+ * Auto-upsert Campaign (network, externalId) khi offer có offer.campaign — link Product.campaignId.
  */
 @Injectable()
 export class ImportService {
@@ -38,6 +40,9 @@ export class ImportService {
         continue;
       }
 
+      const network = networkFromSource(offer.source);
+      const campaignId = await this.resolveCampaignId(network, offer);
+
       const existing = await this.prisma.product.findFirst({
         where: { affiliateUrl: offer.affiliateUrl }
       });
@@ -61,10 +66,15 @@ export class ImportService {
       };
 
       if (existing) {
-        // Đã có row — chỉ làm mới name + scrapedData, GIỮ slug cũ (URL không đổi → không vỡ index SEO).
+        // Đã có row — làm mới name/scrapedData, GIỮ slug cũ (URL không đổi → không vỡ index SEO).
+        // campaignId chỉ set nếu chưa có (admin có thể đã gán tay; không ghi đè).
         await this.prisma.product.update({
           where: { id: existing.id },
-          data: { name: offer.name, scrapedData: scrapedData as Prisma.InputJsonValue }
+          data: {
+            name: offer.name,
+            scrapedData: scrapedData as Prisma.InputJsonValue,
+            ...(existing.campaignId ? {} : campaignId ? { campaignId } : {})
+          }
         });
         updated += 1;
         continue;
@@ -81,7 +91,8 @@ export class ImportService {
       await this.prisma.product.create({
         data: {
           categoryId: category.id,
-          network: offer.source.toUpperCase(),
+          network,
+          campaignId: campaignId ?? null,
           name: offer.name,
           slug,
           affiliateUrl: offer.affiliateUrl,
@@ -92,5 +103,36 @@ export class ImportService {
     }
 
     return { created, updated, skipped };
+  }
+
+  /**
+   * Upsert Campaign theo (network, externalId).
+   * externalId = slugify(offer.campaign) — Accesstrade không trả id riêng cho campaign,
+   * nên dùng tên slug-ified làm khoá ổn định. Campaign mới mặc định status=APPLIED;
+   * admin sẽ chuyển trạng thái tay khi sync với dashboard publisher.
+   */
+  private async resolveCampaignId(
+    network: AffiliateNetwork,
+    offer: NormalizedOffer
+  ): Promise<string | null> {
+    if (!offer.campaign) return null;
+    const externalId = slugify(offer.campaign);
+    if (!externalId) return null;
+    const campaign = await this.prisma.campaign.upsert({
+      where: { network_externalId: { network, externalId } },
+      create: {
+        network,
+        externalId,
+        name: offer.campaign,
+        merchantName: offer.merchantName ?? null
+      },
+      update: {
+        // Tên/merchant có thể đổi theo thời gian — refresh, nhưng không động vào status/notes admin đã set.
+        name: offer.campaign,
+        ...(offer.merchantName ? { merchantName: offer.merchantName } : {})
+      },
+      select: { id: true }
+    });
+    return campaign.id;
   }
 }

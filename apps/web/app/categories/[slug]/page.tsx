@@ -4,16 +4,16 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { fetchCategoryBySlug, fetchCategories } from "../../../lib/api";
 import { formatMoney, formatNumber, normalizeProduct } from "../../../lib/format";
-import { ProductCard } from "../../../components/product-card";
+import { ProductGrid } from "../../../components/storefront/product-grid";
 import { Breadcrumb } from "../../../components/ui/breadcrumb";
 import { EmptyState } from "../../../components/ui/empty-state";
+import { PageContainer, PageSection, SectionHeading } from "../../../components/ui/section";
+import { Stat, StatGrid } from "../../../components/ui/stat";
 
 export const revalidate = 300;
 
 interface CategoryPageProps {
-  params: Promise<{
-    slug: string;
-  }>;
+  params: Promise<{ slug: string }>;
 }
 
 export async function generateMetadata({ params }: CategoryPageProps): Promise<Metadata> {
@@ -37,8 +37,7 @@ export default async function CategoryDetailPage({ params }: CategoryPageProps):
   if (!category) notFound();
 
   const products = category.products
-    .map(normalizeProduct)
-    .map((p, idx) => ({ ...p, slug: category.products[idx].slug ?? undefined }))
+    .map((p, idx) => ({ ...normalizeProduct(p), slug: category.products[idx].slug ?? undefined, categorySlug: category.slug }))
     .sort((a, b) => (b.discountPercent ?? 0) - (a.discountPercent ?? 0));
 
   const totalSavings = products.reduce((sum, p) => {
@@ -50,57 +49,44 @@ export default async function CategoryDetailPage({ params }: CategoryPageProps):
 
   return (
     <div>
-      {/* HERO — category */}
       <section className="relative overflow-hidden border-b border-line bg-canvas">
         <div aria-hidden className="absolute inset-0 bg-hero-mesh opacity-70" />
-        <div className="relative mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-10">
+        <PageContainer className="relative py-8 sm:py-10">
           <Breadcrumb items={[{ label: "Trang chủ", href: "/" }, { label: category.name }]} />
-          <div className="mt-4 flex flex-wrap items-end justify-between gap-4">
-            <div>
+          <div className="mt-4 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+            <div className="max-w-xl space-y-2">
               <p className="text-xs font-semibold uppercase tracking-wider text-brand-700">Danh mục</p>
-              <h1 className="mt-1 text-3xl font-bold tracking-tight text-ink sm:text-4xl">{category.name}</h1>
-              <p className="mt-2 max-w-xl text-sm text-ink-soft">
-                {products.length} sản phẩm đang có ưu đãi. Đã sắp xếp theo mức giảm cao nhất.
+              <h1 className="text-3xl font-bold tracking-tight text-ink sm:text-4xl">{category.name}</h1>
+              <p className="text-sm text-ink-soft">
+                {products.length > 0
+                  ? `${products.length} sản phẩm đang có ưu đãi, đã sắp theo mức giảm cao nhất.`
+                  : "Chưa có sản phẩm nào trong danh mục này."}
               </p>
             </div>
-            <dl className="grid grid-cols-3 gap-2 text-right sm:gap-3">
-              <Stat label="Sản phẩm" value={formatNumber(products.length)} />
-              <Stat
-                label="Giảm sâu"
-                value={maxDiscount ? `-${maxDiscount}%` : "—"}
-                tone="brand"
-              />
-              <Stat
-                label="Tiết kiệm"
-                value={totalSavings > 0 ? formatMoney(totalSavings) : "—"}
-                tone="accent"
-              />
-            </dl>
+            <StatGrid cols={3} className="sm:w-auto">
+              <Stat label="Sản phẩm" value={formatNumber(products.length)} size="sm" />
+              <Stat label="Giảm sâu" value={maxDiscount ? `-${maxDiscount}%` : "—"} tone="brand" size="sm" />
+              <Stat label="Tiết kiệm" value={totalSavings > 0 ? formatMoney(totalSavings) : "—"} tone="accent" size="sm" />
+            </StatGrid>
           </div>
-        </div>
+        </PageContainer>
       </section>
 
-      <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-10">
+      <PageSection padding="default">
         {products.length === 0 ? (
           <EmptyState title="Chưa có sản phẩm" description={<p>Quay lại sau để xem ưu đãi mới.</p>} />
         ) : (
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4 xl:grid-cols-5">
-            {products.map((product, idx) => (
-              <div
-                key={product.id}
-                className="animate-fade-up"
-                style={{ animationDelay: `${Math.min(idx * 30, 300)}ms` }}
-              >
-                <ProductCard product={product} categorySlug={category.slug} />
-              </div>
-            ))}
-          </div>
+          <ProductGrid products={products} />
         )}
 
         {otherCategories.length > 0 ? (
           <section className="mt-12 border-t border-line pt-8">
-            <h2 className="text-lg font-semibold text-ink">Khám phá danh mục khác</h2>
-            <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
+            <SectionHeading
+              title="Khám phá danh mục khác"
+              description="Xem những niche khác cũng đang có ưu đãi tốt."
+              size="sm"
+            />
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
               {otherCategories.map((c) => (
                 <Link
                   key={c.id}
@@ -114,26 +100,7 @@ export default async function CategoryDetailPage({ params }: CategoryPageProps):
             </div>
           </section>
         ) : null}
-      </div>
-    </div>
-  );
-}
-
-function Stat({
-  label,
-  value,
-  tone
-}: {
-  label: string;
-  value: string;
-  tone?: "brand" | "accent";
-}): React.ReactElement {
-  const toneClass =
-    tone === "brand" ? "text-brand-700" : tone === "accent" ? "text-accent-700" : "text-ink";
-  return (
-    <div className="rounded-lg border border-line bg-card/70 px-3 py-2 text-left backdrop-blur">
-      <dt className="text-[10.5px] font-medium uppercase tracking-wider text-ink-mute">{label}</dt>
-      <dd className={`text-base font-bold ${toneClass}`}>{value}</dd>
+      </PageSection>
     </div>
   );
 }

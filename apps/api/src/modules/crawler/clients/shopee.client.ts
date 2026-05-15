@@ -1,6 +1,8 @@
 import { Injectable, Logger } from "@nestjs/common";
+import { AffiliateNetwork } from "@prisma/client";
 import { createHmac } from "crypto";
 import { NormalizedOffer } from "../dto/normalized-offer.dto";
+import { AffiliateClient } from "./affiliate-client.interface";
 
 /**
  * STUB: Shopee Affiliate Open API yêu cầu signing HMAC-SHA256 và query GraphQL.
@@ -8,7 +10,8 @@ import { NormalizedOffer } from "../dto/normalized-offer.dto";
  * Skeleton dưới đây có sẵn helper `sign()` đúng spec.
  */
 @Injectable()
-export class ShopeeAffiliateClient {
+export class ShopeeAffiliateClient implements AffiliateClient {
+  readonly network = AffiliateNetwork.SHOPEE;
   private readonly logger = new Logger(ShopeeAffiliateClient.name);
 
   isConfigured(): boolean {

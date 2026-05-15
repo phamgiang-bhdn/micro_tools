@@ -31,7 +31,7 @@ export class CrawlerController {
   @Post("run")
   async runNow(@Headers("x-admin-key") apiKey?: string) {
     authorize(apiKey);
-    return this.crawler.runFullCycle();
+    return this.crawler.runFullCycle("manual");
   }
 
   /** Paste URL bất kỳ → AI bóc dữ liệu → upsert vào DB. */

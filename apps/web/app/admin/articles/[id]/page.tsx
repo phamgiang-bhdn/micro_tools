@@ -1,11 +1,18 @@
 import type React from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { ArrowLeft, AlertTriangle } from "lucide-react";
 import { fetchCategories, fetchCategoryBySlug } from "../../../../lib/api";
-import type { ArticleAdminDetail, ArticleStatus } from "../../../../lib/types";
-import { archiveArticleAction, publishArticleAction } from "../../actions";
+import type { ArticleAdminDetail } from "../../../../lib/types";
+import { PageHeader, StatusPill } from "../../../../components/admin/ui";
+import {
+  ARTICLE_STATUS_META,
+  ARTICLE_TYPE_META
+} from "../../../../lib/admin/constants";
 import { ArticleEditorClient } from "./article-editor-client";
 import { GeneratingScreen } from "./generating-screen";
+import { ArticleHeaderActions } from "./header-actions";
+import { ScheduleForm } from "./schedule-form";
 
 export const dynamic = "force-dynamic";
 
@@ -23,32 +30,13 @@ async function getJson<T>(path: string): Promise<T | null> {
   return (await response.json()) as T;
 }
 
-const STATUS_BADGE: Record<ArticleStatus, string> = {
-  GENERATING: "bg-sky-50 text-sky-700 ring-sky-200",
-  DRAFT: "bg-amber-50 text-amber-700 ring-amber-200",
-  PUBLISHED: "bg-emerald-50 text-emerald-700 ring-emerald-200",
-  ARCHIVED: "bg-slate-100 text-slate-600 ring-slate-200",
-  FAILED: "bg-rose-50 text-rose-700 ring-rose-200"
-};
-
-const STATUS_LABEL: Record<ArticleStatus, string> = {
-  GENERATING: "AI đang sinh nội dung...",
-  DRAFT: "Bản nháp — chưa public",
-  PUBLISHED: "Đã đăng",
-  ARCHIVED: "Đã lưu trữ",
-  FAILED: "Sinh bài thất bại"
-};
-
-const TYPE_LABEL: Record<string, string> = {
-  BUYING_GUIDE: "Cẩm nang chọn mua",
-  REVIEW: "Review chi tiết"
-};
-
 interface PageProps {
   params: Promise<{ id: string }>;
 }
 
-export default async function AdminArticleDetail({ params }: PageProps): Promise<React.ReactElement> {
+export default async function AdminArticleDetail({
+  params
+}: PageProps): Promise<React.ReactElement> {
   const { id } = await params;
   const article = await getJson<ArticleAdminDetail>(`/admin/articles/${id}`);
   if (!article) notFound();
@@ -65,80 +53,64 @@ export default async function AdminArticleDetail({ params }: PageProps): Promise
       category!.products.map((p) => ({ id: p.id, name: p.name, categoryName: category!.name }))
     );
 
+  const statusMeta = ARTICLE_STATUS_META[article.status];
+  const typeMeta = ARTICLE_TYPE_META[article.type];
+
   return (
     <div className="space-y-6">
-      <header>
-        <Link href="/admin/articles" className="text-xs text-admin-mute hover:text-admin-ink">
-          ← Quay lại danh sách
-        </Link>
-        <div className="mt-2 flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <div className="flex flex-wrap items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-admin-mute">
-              <span className="rounded bg-admin-subtle px-1.5 py-0.5">
-                {TYPE_LABEL[article.type] ?? article.type}
-              </span>
-              <span
-                className={`rounded-full px-2 py-0.5 ring-1 ring-inset ${STATUS_BADGE[article.status]}`}
-              >
-                {STATUS_LABEL[article.status]}
-              </span>
-              {article.aiModel ? <span>· AI: {article.aiModel}</span> : null}
-              {article.aiPromptName ? <span>· prompt: {article.aiPromptName}</span> : null}
-            </div>
-            <h1 className="mt-2 text-2xl font-bold tracking-tight text-admin-ink">{article.title}</h1>
-            <p className="mt-1 text-xs text-admin-mute">
-              /blog/{article.slug}
-              {article.status === "PUBLISHED" ? (
-                <Link
-                  href={`/blog/${article.slug}`}
-                  target="_blank"
-                  className="ml-2 text-admin-accent hover:underline"
-                >
-                  Xem live ↗
-                </Link>
-              ) : null}
-            </p>
-          </div>
+      <Link
+        href="/admin/articles"
+        className="inline-flex items-center gap-1 text-xs text-admin-mute hover:text-admin-ink"
+      >
+        <ArrowLeft className="size-3" /> Quay lại danh sách
+      </Link>
 
-          <div className="flex gap-2">
-            {article.status !== "PUBLISHED" ? (
-              <form action={publishArticleAction}>
-                <input type="hidden" name="id" value={article.id} />
-                <input type="hidden" name="reviewer" value="admin" />
-                <button
-                  type="submit"
-                  className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700"
-                >
-                  Publish
-                </button>
-              </form>
+      <PageHeader
+        eyebrow={typeMeta.label}
+        title={article.title}
+        subtitle={
+          <span className="inline-flex flex-wrap items-center gap-2">
+            <StatusPill tone={statusMeta.tone} dot>
+              {statusMeta.label}
+            </StatusPill>
+            <code className="rounded bg-admin-subtle px-1.5 py-0.5 font-mono text-[11px] text-admin-mute">
+              /blog/{article.slug}
+            </code>
+            {article.aiModel ? (
+              <span className="text-[11px] text-admin-mute">AI: {article.aiModel}</span>
             ) : null}
-            {article.status !== "ARCHIVED" ? (
-              <form action={archiveArticleAction}>
-                <input type="hidden" name="id" value={article.id} />
-                <input type="hidden" name="reviewer" value="admin" />
-                <button
-                  type="submit"
-                  className="rounded-lg border border-admin-line bg-admin-surface px-4 py-2 text-sm font-semibold text-admin-mute hover:border-rose-200 hover:text-rose-700"
-                >
-                  Archive
-                </button>
-              </form>
+            {article.aiPromptName ? (
+              <span className="text-[11px] text-admin-mute">prompt: {article.aiPromptName}</span>
             ) : null}
-          </div>
-        </div>
-      </header>
+          </span>
+        }
+        actions={
+          <ArticleHeaderActions
+            articleId={article.id}
+            slug={article.slug}
+            title={article.title}
+            status={article.status}
+          />
+        }
+      />
+
+      {article.status === "DRAFT" ? (
+        <ScheduleForm articleId={article.id} scheduledAt={article.scheduledAt} />
+      ) : null}
 
       {article.status === "FAILED" && article.generationError ? (
-        <div className="rounded-lg border border-rose-200 bg-rose-50 p-4 text-sm text-rose-900">
-          <strong>AI sinh bài thất bại:</strong>
-          <pre className="mt-1 whitespace-pre-wrap text-xs">{article.generationError}</pre>
-          <p className="mt-2 text-xs">Xoá bài này và tạo lại, hoặc tự fill nội dung tay.</p>
+        <div className="flex items-start gap-3 rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-900">
+          <AlertTriangle className="mt-0.5 size-5 shrink-0" />
+          <div className="min-w-0">
+            <p className="font-semibold">AI sinh bài thất bại</p>
+            <pre className="mt-1 whitespace-pre-wrap text-xs">{article.generationError}</pre>
+            <p className="mt-2 text-xs">Xoá bài này và tạo lại, hoặc tự fill nội dung tay.</p>
+          </div>
         </div>
       ) : null}
 
       {article.products.length > 0 ? (
-        <div className="rounded-lg border border-admin-line bg-admin-surface p-4 text-sm">
+        <div className="admin-card p-4 text-sm">
           <div className="mb-2 font-semibold text-admin-ink">Sản phẩm gắn trong bài</div>
           <ul className="space-y-1">
             {article.products.map((p) => (
@@ -147,13 +119,9 @@ export default async function AdminArticleDetail({ params }: PageProps): Promise
                 <span className="flex items-center gap-1.5 text-xs">
                   <span className="text-admin-mute">{p.network}</span>
                   {!p.isPublic ? (
-                    <span className="rounded-full bg-amber-100 px-2 py-0.5 font-semibold text-amber-800 ring-1 ring-amber-200">
-                      Chờ duyệt Refinery
-                    </span>
+                    <StatusPill tone="warning">Chờ duyệt Refinery</StatusPill>
                   ) : (
-                    <span className="rounded-full bg-emerald-100 px-2 py-0.5 font-semibold text-emerald-800 ring-1 ring-emerald-200">
-                      Public
-                    </span>
+                    <StatusPill tone="success">Public</StatusPill>
                   )}
                 </span>
               </li>
@@ -161,7 +129,7 @@ export default async function AdminArticleDetail({ params }: PageProps): Promise
           </ul>
           {article.products.some((p) => !p.isPublic) ? (
             <p className="mt-2 text-xs text-admin-mute">
-              Sản phẩm &quot;Chờ duyệt&quot; sẽ ẨN trên storefront tới khi bạn approve ở Refinery.
+              Sản phẩm &quot;Chờ duyệt&quot; sẽ ẨN trên storefront tới khi approve ở Refinery.
             </p>
           ) : null}
         </div>

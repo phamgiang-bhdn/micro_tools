@@ -1,8 +1,9 @@
 import { Body, Controller, HttpCode, HttpException, HttpStatus, Logger, Post } from "@nestjs/common";
-import { Prisma } from "@prisma/client";
+import { AffiliateNetwork, Prisma } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
+import { slugify } from "../../utils/slug.util";
 
-interface AccessTradeWebhookPayload {
+interface ConversionWebhookPayload {
   trackingCode?: string;
   sub_id?: string;
   subId?: string;
@@ -10,8 +11,14 @@ interface AccessTradeWebhookPayload {
   clickId?: string;
   revenue?: number | string;
   status?: string;
+  campaign?: string;
+  campaign_name?: string;
+  campaignName?: string;
+  merchant?: string;
   [key: string]: unknown;
 }
+
+type StubResponse = { success: false; reason: "not_implemented"; network: AffiliateNetwork };
 
 @Controller("webhooks")
 export class WebhooksController {
@@ -21,7 +28,32 @@ export class WebhooksController {
 
   @Post("accesstrade")
   @HttpCode(HttpStatus.OK)
-  async handleAccessTradeWebhook(@Body() payload: AccessTradeWebhookPayload): Promise<{ success: true }> {
+  async handleAccessTradeWebhook(@Body() payload: ConversionWebhookPayload): Promise<{ success: true }> {
+    return this.recordConversion(AffiliateNetwork.ACCESSTRADE, payload);
+  }
+
+  @Post("shopee")
+  @HttpCode(HttpStatus.OK)
+  async handleShopeeWebhook(@Body() payload: ConversionWebhookPayload): Promise<StubResponse> {
+    return this.stubResponse(AffiliateNetwork.SHOPEE, payload);
+  }
+
+  @Post("tiktok")
+  @HttpCode(HttpStatus.OK)
+  async handleTiktokWebhook(@Body() payload: ConversionWebhookPayload): Promise<StubResponse> {
+    return this.stubResponse(AffiliateNetwork.TIKTOK, payload);
+  }
+
+  @Post("lazada")
+  @HttpCode(HttpStatus.OK)
+  async handleLazadaWebhook(@Body() payload: ConversionWebhookPayload): Promise<StubResponse> {
+    return this.stubResponse(AffiliateNetwork.LAZADA, payload);
+  }
+
+  private async recordConversion(
+    network: AffiliateNetwork,
+    payload: ConversionWebhookPayload
+  ): Promise<{ success: true }> {
     try {
       const trackingCode =
         payload.trackingCode ?? payload.sub_id ?? payload.subId ?? payload.click_id ?? payload.clickId;
@@ -38,23 +70,57 @@ export class WebhooksController {
         throw new HttpException("Invalid revenue value", HttpStatus.BAD_REQUEST);
       }
 
+      const campaignId = await this.resolveCampaignId(network, payload);
+
       await this.prisma.conversionWebhook.create({
         data: {
           trackingCode,
+          network,
+          campaignId,
           revenue: new Prisma.Decimal(revenueNumber.toFixed(2)),
           status,
           payload: payload as Prisma.InputJsonValue
         }
       });
 
-      this.logger.log(`Webhook stored for trackingCode=${trackingCode}`);
+      this.logger.log(`Webhook stored network=${network} trackingCode=${trackingCode}`);
       return { success: true };
     } catch (error: unknown) {
-      this.logger.error("AccessTrade webhook processing failed", error instanceof Error ? error.stack : String(error));
+      this.logger.error(
+        `${network} webhook processing failed`,
+        error instanceof Error ? error.stack : String(error)
+      );
       if (error instanceof HttpException) {
         throw error;
       }
       throw new HttpException("Failed to process webhook", HttpStatus.INTERNAL_SERVER_ERROR);
     }
+  }
+
+  /**
+   * Match conversion → Campaign theo (network, slugified-name).
+   * Trả null nếu payload không gửi tên campaign hoặc chưa có Campaign tương ứng trong DB.
+   * Không tự tạo Campaign từ webhook — luồng tạo chính thức là từ crawler datafeed.
+   */
+  private async resolveCampaignId(
+    network: AffiliateNetwork,
+    payload: ConversionWebhookPayload
+  ): Promise<string | null> {
+    const name = payload.campaign ?? payload.campaign_name ?? payload.campaignName;
+    if (typeof name !== "string" || !name.trim()) return null;
+    const externalId = slugify(name);
+    if (!externalId) return null;
+    const found = await this.prisma.campaign.findUnique({
+      where: { network_externalId: { network, externalId } },
+      select: { id: true }
+    });
+    return found?.id ?? null;
+  }
+
+  private stubResponse(network: AffiliateNetwork, payload: ConversionWebhookPayload): StubResponse {
+    this.logger.warn(
+      `${network} webhook received but handler is a stub — payload keys: ${Object.keys(payload).join(",")}`
+    );
+    return { success: false, reason: "not_implemented", network };
   }
 }

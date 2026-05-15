@@ -121,6 +121,7 @@ export interface ArticleAdminDetail {
   generationError: string | null;
   reviewedBy: string | null;
   reviewedAt: string | null;
+  scheduledAt: string | null;
   publishedAt: string | null;
   createdAt: string;
   updatedAt: string;

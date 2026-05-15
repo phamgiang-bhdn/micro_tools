@@ -1,5 +1,6 @@
 import type { Config } from "tailwindcss";
 import typography from "@tailwindcss/typography";
+import animate from "tailwindcss-animate";
 
 /**
  * Design tokens hợp nhất cho cả public storefront và admin shell.
@@ -50,10 +51,10 @@ const config: Config = {
           bg: "#f6f7f9",
           surface: "#ffffff",
           ink: "#0f172a",
-          mute: "#64748b",
-          line: "#e2e8f0",
-          subtle: "#f1f5f9",
-          accent: "#2563eb",
+          mute: "#475569",
+          line: "#d8dee7",
+          subtle: "#eef2f7",
+          accent: "#1d4ed8",
           "accent-soft": "#dbeafe"
         },
         // Tokens cũ (google-*) giữ alias để file legacy không vỡ — sẽ phai dần.
@@ -123,7 +124,7 @@ const config: Config = {
       }
     }
   },
-  plugins: [typography]
+  plugins: [typography, animate]
 };
 
 export default config;

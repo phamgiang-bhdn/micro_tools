@@ -1,9 +1,10 @@
 "use client";
 
 import type React from "react";
-import { useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
+import { cn } from "../../lib/utils";
 
 interface NavEntry {
   id: string;
@@ -14,58 +15,154 @@ interface NavEntry {
   badge?: string;
 }
 
-const NAV: NavEntry[] = [
+interface NavGroup {
+  id: string;
+  label: string;
+  entries: NavEntry[];
+}
+
+const NAV: NavGroup[] = [
   {
-    id: "war-room",
-    label: "War Room",
-    href: "/admin?tab=war-room",
-    icon: <DashboardIcon />,
-    match: (p, t) => p === "/admin" && (t === null || t === "war-room")
+    id: "operations",
+    label: "Vận hành",
+    entries: [
+      {
+        id: "war-room",
+        label: "Tổng quan",
+        href: "/admin?tab=war-room",
+        icon: <DashboardIcon />,
+        match: (p, t) => p === "/admin" && (t === null || t === "war-room")
+      },
+      {
+        id: "refinery",
+        label: "Duyệt sản phẩm",
+        href: "/admin?tab=refinery",
+        icon: <RefineryIcon />,
+        match: (p, t) => p === "/admin" && t === "refinery"
+      },
+      {
+        id: "crawler-logs",
+        label: "Nhật ký crawler",
+        href: "/admin/crawler-logs",
+        icon: <LogIcon />,
+        match: (p) => p.startsWith("/admin/crawler-logs")
+      }
+    ]
   },
   {
-    id: "refinery",
-    label: "Refinery",
-    href: "/admin?tab=refinery",
-    icon: <RefineryIcon />,
-    match: (p, t) => p === "/admin" && t === "refinery"
+    id: "catalog",
+    label: "Catalog",
+    entries: [
+      {
+        id: "categories",
+        label: "Danh mục",
+        href: "/admin/categories",
+        icon: <CategoryIcon />,
+        match: (p) => p.startsWith("/admin/categories")
+      },
+      {
+        id: "products",
+        label: "Sản phẩm",
+        href: "/admin/products",
+        icon: <ProductIcon />,
+        match: (p) => p.startsWith("/admin/products")
+      },
+      {
+        id: "coupons",
+        label: "Mã giảm giá",
+        href: "/admin/coupons",
+        icon: <CouponIcon />,
+        match: (p) => p.startsWith("/admin/coupons")
+      }
+    ]
   },
   {
-    id: "prompt-studio",
-    label: "Prompt Studio",
-    href: "/admin?tab=prompt-studio",
-    icon: <PromptIcon />,
-    match: (p, t) => p === "/admin" && t === "prompt-studio"
+    id: "content",
+    label: "Nội dung",
+    entries: [
+      {
+        id: "articles",
+        label: "Bài viết",
+        href: "/admin/articles",
+        icon: <ArticleIcon />,
+        match: (p) => p.startsWith("/admin/articles")
+      },
+      {
+        id: "prompt-studio",
+        label: "Xưởng prompt",
+        href: "/admin?tab=prompt-studio",
+        icon: <PromptIcon />,
+        match: (p, t) => p === "/admin" && t === "prompt-studio"
+      }
+    ]
   },
   {
-    id: "money-trail",
-    label: "Money Trail",
-    href: "/admin?tab=money-trail",
-    icon: <CoinsIcon />,
-    match: (p, t) => p === "/admin" && t === "money-trail"
-  },
-  {
-    id: "articles",
-    label: "Bài viết",
-    href: "/admin/articles",
-    icon: <ArticleIcon />,
-    match: (p) => p.startsWith("/admin/articles")
+    id: "revenue",
+    label: "Doanh thu",
+    entries: [
+      {
+        id: "campaigns",
+        label: "Campaign affiliate",
+        href: "/admin/campaigns",
+        icon: <CampaignIcon />,
+        match: (p) => p.startsWith("/admin/campaigns")
+      },
+      {
+        id: "money-trail",
+        label: "Dòng tiền",
+        href: "/admin?tab=money-trail",
+        icon: <CoinsIcon />,
+        match: (p, t) => p === "/admin" && t === "money-trail"
+      },
+      {
+        id: "analytics",
+        label: "Thống kê",
+        href: "/admin/analytics",
+        icon: <ChartIcon />,
+        match: (p) => p.startsWith("/admin/analytics")
+      }
+    ]
   }
 ];
 
+const ALL_ENTRIES: NavEntry[] = NAV.flatMap((g) => g.entries);
+
 export function AdminShell({ children }: { children: React.ReactNode }): React.ReactElement {
+  return (
+    <Suspense fallback={<AdminShellFallback>{children}</AdminShellFallback>}>
+      <AdminShellInner>{children}</AdminShellInner>
+    </Suspense>
+  );
+}
+
+function AdminShellFallback({ children }: { children: React.ReactNode }): React.ReactElement {
+  return (
+    <div className="flex min-h-screen bg-admin-bg text-admin-ink">
+      <aside className="sticky top-0 hidden h-screen w-60 shrink-0 border-r border-admin-line bg-admin-surface lg:block" />
+      <div className="flex min-w-0 flex-1 flex-col">
+        <header className="sticky top-0 z-30 h-14 border-b border-admin-line bg-admin-surface/85 backdrop-blur-md" />
+        <div className="min-w-0 flex-1 p-4 sm:p-6">{children}</div>
+      </div>
+    </div>
+  );
+}
+
+function AdminShellInner({ children }: { children: React.ReactNode }): React.ReactElement {
   const pathname = usePathname() ?? "";
   const searchParams = useSearchParams();
   const tab = searchParams.get("tab");
   const [open, setOpen] = useState(false);
 
+  useEffect(() => {
+    setOpen(false);
+  }, [pathname, tab]);
+
   return (
     <div className="flex min-h-screen bg-admin-bg text-admin-ink">
-      {/* SIDEBAR DESKTOP */}
       <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col border-r border-admin-line bg-admin-surface lg:flex">
         <SidebarContent pathname={pathname} tab={tab} />
       </aside>
 
-      {/* SIDEBAR MOBILE drawer */}
       {open ? (
         <div className="fixed inset-0 z-50 lg:hidden">
           <button
@@ -74,14 +171,13 @@ export function AdminShell({ children }: { children: React.ReactNode }): React.R
             className="absolute inset-0 bg-admin-ink/40"
             onClick={() => setOpen(false)}
           />
-          <div className="relative h-full w-64 animate-slide-in-right border-r border-admin-line bg-admin-surface">
+          <div className="relative h-full w-64 border-r border-admin-line bg-admin-surface shadow-xl">
             <SidebarContent pathname={pathname} tab={tab} onNavigate={() => setOpen(false)} />
           </div>
         </div>
       ) : null}
 
       <div className="flex min-w-0 flex-1 flex-col">
-        {/* TOPBAR */}
         <header className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b border-admin-line bg-admin-surface/85 px-4 backdrop-blur-md sm:px-6">
           <button
             type="button"
@@ -99,13 +195,15 @@ export function AdminShell({ children }: { children: React.ReactNode }): React.R
           <div className="flex items-center gap-2">
             <Link
               href="/"
+              target="_blank"
+              rel="noopener noreferrer"
               className="hidden items-center gap-1.5 rounded-full border border-admin-line bg-admin-surface px-3 py-1.5 text-xs font-medium text-admin-mute transition hover:border-admin-accent hover:text-admin-accent sm:inline-flex"
             >
-              <ExternalIcon /> Xem trang user
+              <ExternalIcon /> Xem trang khách
             </Link>
             <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-700 ring-1 ring-inset ring-emerald-200">
               <span aria-hidden className="size-1.5 rounded-full bg-emerald-500" />
-              Operator
+              Vận hành
             </span>
           </div>
         </header>
@@ -141,50 +239,64 @@ function SidebarContent({
         </Link>
       </div>
 
-      <nav className="flex-1 space-y-1 p-3">
-        <p className="px-2 pb-1 pt-2 text-[10.5px] font-semibold uppercase tracking-wider text-admin-mute">
-          Operations
-        </p>
-        {NAV.map((entry) => {
-          const active = entry.match(pathname, tab);
-          return (
-            <Link
-              key={entry.id}
-              href={entry.href}
-              onClick={onNavigate}
-              className={`flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm font-medium transition ${
-                active
-                  ? "bg-admin-accent-soft text-admin-accent"
-                  : "text-admin-mute hover:bg-admin-subtle hover:text-admin-ink"
-              }`}
-            >
-              <span className={`grid size-7 place-items-center rounded-md ${active ? "bg-admin-accent/10" : "bg-admin-subtle"}`}>
-                {entry.icon}
-              </span>
-              <span className="flex-1">{entry.label}</span>
-              {entry.badge ? (
-                <span className="rounded-full bg-brand-600 px-1.5 py-0.5 text-[10px] font-bold text-white">
-                  {entry.badge}
-                </span>
-              ) : null}
-            </Link>
-          );
-        })}
+      <nav className="flex-1 space-y-4 overflow-y-auto p-3">
+        {NAV.map((group) => (
+          <div key={group.id}>
+            <p className="px-2 pb-1 pt-1 text-[10.5px] font-semibold uppercase tracking-wider text-admin-mute">
+              {group.label}
+            </p>
+            <div className="space-y-0.5">
+              {group.entries.map((entry) => {
+                const active = entry.match(pathname, tab);
+                return (
+                  <Link
+                    key={entry.id}
+                    href={entry.href}
+                    onClick={onNavigate}
+                    className={cn(
+                      "flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm font-medium transition",
+                      active
+                        ? "bg-admin-accent-soft text-admin-accent"
+                        : "text-admin-mute hover:bg-admin-subtle hover:text-admin-ink"
+                    )}
+                  >
+                    <span
+                      className={cn(
+                        "grid size-7 place-items-center rounded-md",
+                        active ? "bg-admin-accent/10" : "bg-admin-subtle"
+                      )}
+                    >
+                      {entry.icon}
+                    </span>
+                    <span className="flex-1">{entry.label}</span>
+                    {entry.badge ? (
+                      <span className="rounded-full bg-brand-600 px-1.5 py-0.5 text-[10px] font-bold text-white">
+                        {entry.badge}
+                      </span>
+                    ) : null}
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        ))}
       </nav>
 
       <div className="border-t border-admin-line p-3">
         <div className="rounded-lg bg-admin-subtle p-3 text-xs">
-          <p className="font-semibold text-admin-ink">Phím tắt</p>
-          <ul className="mt-1.5 space-y-1 text-[11px] text-admin-mute">
+          <p className="font-semibold text-admin-ink">Phím tắt (Refinery)</p>
+          <ul className="mt-1.5 grid grid-cols-2 gap-1.5 text-[11px] text-admin-mute">
             <li>
-              <kbd className="rounded border border-admin-line bg-white px-1 py-0.5 font-mono text-[10px]">A</kbd> Approve
+              <Kbd>A</Kbd> Duyệt
             </li>
             <li>
-              <kbd className="rounded border border-admin-line bg-white px-1 py-0.5 font-mono text-[10px]">R</kbd> Reject
+              <Kbd>R</Kbd> Từ chối
             </li>
             <li>
-              <kbd className="rounded border border-admin-line bg-white px-1 py-0.5 font-mono text-[10px]">J</kbd>/
-              <kbd className="rounded border border-admin-line bg-white px-1 py-0.5 font-mono text-[10px]">K</kbd> Next/Prev
+              <Kbd>J</Kbd> Bài tiếp
+            </li>
+            <li>
+              <Kbd>K</Kbd> Bài trước
             </li>
           </ul>
         </div>
@@ -193,13 +305,28 @@ function SidebarContent({
   );
 }
 
+function Kbd({ children }: { children: React.ReactNode }): React.ReactElement {
+  return (
+    <kbd className="rounded border border-admin-line bg-white px-1 py-0.5 font-mono text-[10px] text-admin-ink">
+      {children}
+    </kbd>
+  );
+}
+
 function Crumb({ pathname, tab }: { pathname: string; tab: string | null }): React.ReactElement {
-  const current = NAV.find((entry) => entry.match(pathname, tab));
+  const current = ALL_ENTRIES.find((entry) => entry.match(pathname, tab));
+  const group = NAV.find((g) => g.entries.some((e) => e === current));
   return (
     <>
       <span className="text-admin-mute">Admin</span>
       <span aria-hidden>›</span>
-      <span className="font-semibold text-admin-ink">{current?.label ?? "Command Center"}</span>
+      {group ? (
+        <>
+          <span className="text-admin-mute">{group.label}</span>
+          <span aria-hidden>›</span>
+        </>
+      ) : null}
+      <span className="font-semibold text-admin-ink">{current?.label ?? "Trung tâm điều hành"}</span>
     </>
   );
 }
@@ -255,6 +382,60 @@ function CoinsIcon(): React.ReactElement {
       <circle cx="9" cy="9" r="6" />
       <path d="M21 14a6 6 0 0 1-6 6c-2 0-3.8-1-4.9-2.5" />
       <path d="M9 6v6M7 9h4" />
+    </svg>
+  );
+}
+
+function CategoryIcon(): React.ReactElement {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="size-4">
+      <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z" />
+    </svg>
+  );
+}
+
+function ProductIcon(): React.ReactElement {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="size-4">
+      <path d="M3 7 12 3l9 4-9 4-9-4Z" />
+      <path d="M3 7v10l9 4 9-4V7" />
+      <path d="M12 11v10" />
+    </svg>
+  );
+}
+
+function CouponIcon(): React.ReactElement {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="size-4">
+      <path d="M3 8a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v2a2 2 0 0 0 0 4v2a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-2a2 2 0 0 0 0-4Z" />
+      <path d="M11 8v8" strokeDasharray="2 2" />
+    </svg>
+  );
+}
+
+function ChartIcon(): React.ReactElement {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="size-4">
+      <path d="M3 3v18h18" />
+      <path d="M7 14v4M11 10v8M15 6v12M19 12v6" />
+    </svg>
+  );
+}
+
+function CampaignIcon(): React.ReactElement {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="size-4">
+      <path d="M3 11v2a2 2 0 0 0 2 2h1l3 4V5L6 9H5a2 2 0 0 0-2 2Z" />
+      <path d="M14 5v14M18 8v8" />
+    </svg>
+  );
+}
+
+function LogIcon(): React.ReactElement {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="size-4">
+      <rect x="4" y="4" width="16" height="16" rx="2" />
+      <path d="M8 8h8M8 12h8M8 16h5" />
     </svg>
   );
 }

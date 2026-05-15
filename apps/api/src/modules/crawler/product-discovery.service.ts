@@ -4,6 +4,7 @@ import { PrismaService } from "../../prisma/prisma.service";
 import { ScraperService } from "../../services/scraper.service";
 import { slugify, uniqueSlugWithin } from "../../utils/slug.util";
 import { WebScrapeClient } from "./clients/web-scrape.client";
+import { inferNetworkFromUrl } from "./network.util";
 
 export interface DiscoverIngestInput {
   name: string;
@@ -96,7 +97,7 @@ export class ProductDiscoveryService {
     const product = await this.prisma.product.create({
       data: {
         categoryId: input.categoryId,
-        network: "AI_DISCOVERY",
+        network: inferNetworkFromUrl(input.sourceUrl),
         name,
         slug,
         affiliateUrl: input.sourceUrl,

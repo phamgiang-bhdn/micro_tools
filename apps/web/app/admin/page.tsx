@@ -1,42 +1,44 @@
 import type React from "react";
 import Link from "next/link";
-import { savePromptAction } from "./actions";
+import { Download, Play } from "lucide-react";
+import { ingestUrlAction, runCrawlerNowAction, savePromptAction } from "./actions";
 import { PromptTestClient } from "./prompt-test-client";
 import { RefineryList } from "../../components/admin/refinery-list";
 import { KpiCard } from "../../components/admin/kpi-card";
 import { MoneyTrailTable } from "../../components/admin/money-trail-table";
+import {
+  adminGet,
+  AdminLinkButton,
+  FilterBar,
+  NativeFilterInput,
+  NativeFilterSelect,
+  PageHeader,
+  SectionCard,
+  SubmitButton,
+  TextField,
+  TextareaField
+} from "../../components/admin/ui";
+import { ADMIN_PARAMS, NETWORK_OPTIONS } from "../../lib/admin/constants";
 
 export const dynamic = "force-dynamic";
-
-const API_BASE_URL = process.env.API_BASE_URL ?? "http://localhost:4000/api/v1";
-const ADMIN_ROLE = process.env.ADMIN_ROLE ?? "admin";
-const ADMIN_API_KEY = process.env.ADMIN_API_KEY ?? "change-me";
 
 type TabId = "war-room" | "refinery" | "prompt-studio" | "money-trail";
 
 interface AdminPageProps {
   searchParams: Promise<{
     tab?: TabId;
+    trackingCode?: string;
+    from?: string;
+    to?: string;
+    network?: string;
   }>;
 }
 
-async function getJson<T>(path: string): Promise<T> {
-  const response = await fetch(`${API_BASE_URL}${path}`, {
-    cache: "no-store",
-    headers: {
-      "x-admin-role": ADMIN_ROLE,
-      "x-admin-key": ADMIN_API_KEY
-    }
-  });
-  if (!response.ok) {
-    const text = await response.text();
-    throw new Error(`${path} failed: ${text}`);
-  }
-  return (await response.json()) as T;
+interface MoneyTrailSummary {
+  totalRevenue: string;
+  conversionCount: number;
+  byNetwork: Array<{ network: string; revenue: string; count: number }>;
 }
-
-const field =
-  "w-full rounded-lg border border-admin-line bg-admin-surface px-3 py-2.5 text-sm text-admin-ink placeholder:text-admin-mute focus:border-admin-accent focus:outline-none focus:ring-2 focus:ring-admin-accent/20";
 
 interface WarRoomResponse {
   monthlyRevenue: string;
@@ -73,66 +75,167 @@ interface ActivePromptResponse {
 }
 
 export default async function AdminPage({ searchParams }: AdminPageProps): Promise<React.ReactElement> {
-  const { tab = "war-room" } = await searchParams;
+  const { tab = "war-room", trackingCode, from, to, network } = await searchParams;
 
-  const [warRoom, refinery, activePrompt, moneyTrail] = await Promise.all([
-    getJson<WarRoomResponse>("/admin/war-room"),
-    getJson<RefineryItemResponse[]>("/admin/refinery?status=PENDING_REVIEW"),
-    getJson<ActivePromptResponse | null>("/admin/prompts/active"),
-    getJson<MoneyTrailRow[]>("/admin/money-trail?limit=100")
+  const moneyTrailQs = new URLSearchParams({ limit: "200" });
+  if (trackingCode) moneyTrailQs.set("trackingCode", trackingCode);
+  if (from) moneyTrailQs.set("from", from);
+  if (to) moneyTrailQs.set("to", to);
+  if (network) moneyTrailQs.set("network", network);
+
+  const summaryQs = new URLSearchParams();
+  if (from) summaryQs.set("from", from);
+  if (to) summaryQs.set("to", to);
+
+  const [warRoom, refinery, activePrompt, moneyTrail, summary] = await Promise.all([
+    adminGet<WarRoomResponse>("/admin/war-room"),
+    adminGet<RefineryItemResponse[]>("/admin/refinery?status=PENDING_REVIEW"),
+    adminGet<ActivePromptResponse | null>("/admin/prompts/active"),
+    adminGet<MoneyTrailRow[]>(`/admin/money-trail?${moneyTrailQs.toString()}`),
+    adminGet<MoneyTrailSummary>(`/admin/money-trail/summary?${summaryQs.toString()}`)
   ]);
+
+  const titles: Record<TabId, { title: string; sub: string; eyebrow: string }> = {
+    "war-room": {
+      eyebrow: "Operations",
+      title: "Tổng quan",
+      sub: "KPI vận hành, doanh thu affiliate và trạng thái crawler."
+    },
+    refinery: {
+      eyebrow: "HITL Gate",
+      title: "Duyệt sản phẩm",
+      sub: "Duyệt dữ liệu AI bóc tách trước khi cho lên trang. Có preview như user thấy."
+    },
+    "prompt-studio": {
+      eyebrow: "AI",
+      title: "Xưởng prompt",
+      sub: "Quản lý phiên bản prompt và test trước khi kích hoạt."
+    },
+    "money-trail": {
+      eyebrow: "Revenue",
+      title: "Dòng tiền",
+      sub: "Đối soát click → đơn hàng theo mã tracking."
+    }
+  };
+  const meta = titles[tab];
 
   return (
     <div className="space-y-6">
-      <PageHeader tab={tab} pending={warRoom.pendingReview} />
+      <PageHeader
+        eyebrow={meta.eyebrow}
+        title={meta.title}
+        subtitle={meta.sub}
+        actions={
+          warRoom.pendingReview > 0 ? (
+            <Link
+              href="/admin?tab=refinery"
+              className="inline-flex items-center gap-2 rounded-full border border-amber-200 bg-amber-50 px-4 py-1.5 text-sm font-medium text-amber-800 transition hover:bg-amber-100"
+            >
+              <span aria-hidden className="size-2 animate-pulse rounded-full bg-amber-500" />
+              {warRoom.pendingReview} bản chờ duyệt →
+            </Link>
+          ) : null
+        }
+      />
 
       {tab === "war-room" ? <WarRoom data={warRoom} pendingItems={refinery.length} /> : null}
-
       {tab === "refinery" ? <RefineryList items={refinery} /> : null}
-
-      {tab === "prompt-studio" ? <PromptStudio activePrompt={activePrompt} field={field} /> : null}
-
-      {tab === "money-trail" ? <MoneyTrailTable rows={moneyTrail} /> : null}
+      {tab === "prompt-studio" ? <PromptStudio activePrompt={activePrompt} /> : null}
+      {tab === "money-trail" ? (
+        <MoneyTrailSection
+          rows={moneyTrail}
+          summary={summary}
+          filters={{ trackingCode, from, to, network }}
+        />
+      ) : null}
     </div>
   );
 }
 
-function PageHeader({ tab, pending }: { tab: TabId; pending: number }): React.ReactElement {
-  const titles: Record<TabId, { title: string; sub: string }> = {
-    "war-room": {
-      title: "War Room",
-      sub: "Tổng quan KPI vận hành, doanh thu affiliate và trạng thái crawler."
-    },
-    refinery: {
-      title: "Refinery",
-      sub: "Duyệt dữ liệu AI extraction trước khi go-live. Có preview như user thấy."
-    },
-    "prompt-studio": {
-      title: "Prompt Studio",
-      sub: "Quản lý version prompt và test trước khi activate."
-    },
-    "money-trail": {
-      title: "Money Trail",
-      sub: "Đối soát click → conversion theo trackingCode."
-    }
-  };
-  const meta = titles[tab];
+function MoneyTrailSection({
+  rows,
+  summary,
+  filters
+}: {
+  rows: MoneyTrailRow[];
+  summary: MoneyTrailSummary;
+  filters: { trackingCode?: string; from?: string; to?: string; network?: string };
+}): React.ReactElement {
+  const exportQs = new URLSearchParams({ format: "csv" });
+  if (filters.trackingCode) exportQs.set("trackingCode", filters.trackingCode);
+  if (filters.from) exportQs.set("from", filters.from);
+  if (filters.to) exportQs.set("to", filters.to);
+  if (filters.network) exportQs.set("network", filters.network);
+
   return (
-    <div className="flex flex-wrap items-end justify-between gap-3">
-      <div>
-        <p className="text-xs font-semibold uppercase tracking-wider text-admin-mute">Operations</p>
-        <h1 className="mt-1 text-2xl font-bold tracking-tight text-admin-ink sm:text-3xl">{meta.title}</h1>
-        <p className="mt-1 max-w-2xl text-sm text-admin-mute">{meta.sub}</p>
-      </div>
-      {pending > 0 ? (
-        <Link
-          href="/admin?tab=refinery"
-          className="inline-flex items-center gap-2 rounded-full border border-amber-200 bg-amber-50 px-4 py-1.5 text-sm font-medium text-amber-800 transition hover:bg-amber-100"
-        >
-          <span aria-hidden className="size-2 rounded-full bg-amber-500 animate-pulse-glow" />
-          {pending} bản đang chờ duyệt →
-        </Link>
-      ) : null}
+    <div className="space-y-4">
+      <section className="grid gap-3 sm:grid-cols-3">
+        <KpiCard
+          label="Tổng doanh thu (khoảng thời gian)"
+          value={`₫${Number(summary.totalRevenue).toLocaleString("vi-VN")}`}
+          icon="revenue"
+          tone="brand"
+          hint={`${summary.conversionCount} đơn`}
+        />
+        {summary.byNetwork.slice(0, 2).map((b) => (
+          <KpiCard
+            key={b.network}
+            label={`Doanh thu ${b.network}`}
+            value={`₫${Number(b.revenue).toLocaleString("vi-VN")}`}
+            icon="rate"
+            tone="accent"
+            hint={`${b.count} đơn`}
+          />
+        ))}
+        {summary.byNetwork.length === 0 ? (
+          <KpiCard label="Theo network" value="—" icon="rate" tone="neutral" hint="Chưa có đơn" />
+        ) : null}
+      </section>
+
+      <FilterBar
+        resetHref="/admin?tab=money-trail"
+        hiddenFields={{ tab: "money-trail" }}
+        extraActions={
+          <AdminLinkButton
+            href={`/admin/money-trail/export?${exportQs.toString()}`}
+            variant="outline"
+            size="md"
+            iconLeft={<Download />}
+          >
+            Tải CSV
+          </AdminLinkButton>
+        }
+      >
+        <NativeFilterInput
+          label="Mã tracking"
+          name={ADMIN_PARAMS.trackingCode}
+          defaultValue={filters.trackingCode ?? ""}
+          placeholder="32 ký tự..."
+          className="font-mono text-xs"
+        />
+        <NativeFilterInput
+          label="Từ ngày"
+          name={ADMIN_PARAMS.from}
+          type="date"
+          defaultValue={filters.from ?? ""}
+          className="w-40"
+        />
+        <NativeFilterInput
+          label="Đến ngày"
+          name={ADMIN_PARAMS.to}
+          type="date"
+          defaultValue={filters.to ?? ""}
+          className="w-40"
+        />
+        <NativeFilterSelect
+          label="Network"
+          name={ADMIN_PARAMS.network}
+          defaultValue={filters.network ?? ""}
+          options={NETWORK_OPTIONS}
+        />
+      </FilterBar>
+
+      <MoneyTrailTable rows={rows} />
     </div>
   );
 }
@@ -178,52 +281,88 @@ function WarRoom({
       </section>
 
       <section className="grid gap-4 lg:grid-cols-3">
-        <article className="admin-card p-5 lg:col-span-2">
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-wider text-admin-mute">Hôm nay cần xử lý</p>
-              <h2 className="mt-1 text-lg font-semibold text-admin-ink">Hàng đợi vận hành</h2>
-            </div>
-          </div>
-          <ul className="mt-4 space-y-2">
-            <QueueRow
-              tone={pendingItems > 0 ? "warning" : "ok"}
-              title="AI extraction chờ duyệt"
-              hint={pendingItems > 0 ? "Vào Refinery để approve hoặc reject" : "Trống — không có việc tồn"}
-              count={pendingItems}
-              href="/admin?tab=refinery"
-            />
-            <QueueRow
-              tone={data.crawlerHealthy ? "ok" : "error"}
-              title="Crawler status"
-              hint={data.crawlerHealthy ? "Tất cả nguồn đang chạy ổn" : "Có nguồn báo lỗi — mở log để xem"}
-              count={data.crawlerHealthy ? 0 : 1}
-            />
-            <QueueRow
-              tone={data.tokenBalanceEstimate < 50000 ? "warning" : "ok"}
-              title="Gemini token budget"
-              hint={
-                data.tokenBalanceEstimate < 50000
-                  ? "Sắp cạn — cân nhắc top-up trong 24h"
-                  : "Đủ cho chu kỳ crawl hiện tại"
-              }
-              count={data.tokenBalanceEstimate < 50000 ? 1 : 0}
-            />
-          </ul>
-        </article>
+        <div className="lg:col-span-2">
+          <SectionCard title="Hàng đợi vận hành" eyebrow="Hôm nay cần xử lý">
+            <ul className="space-y-2">
+              <QueueRow
+                tone={pendingItems > 0 ? "warning" : "ok"}
+                title="AI extraction chờ duyệt"
+                hint={pendingItems > 0 ? "Vào Refinery để approve hoặc reject" : "Trống — không có việc tồn"}
+                count={pendingItems}
+                href="/admin?tab=refinery"
+              />
+              <QueueRow
+                tone={data.crawlerHealthy ? "ok" : "error"}
+                title="Crawler status"
+                hint={data.crawlerHealthy ? "Tất cả nguồn đang chạy ổn" : "Có nguồn báo lỗi — mở log để xem"}
+                count={data.crawlerHealthy ? 0 : 1}
+                href={data.crawlerHealthy ? undefined : "/admin/crawler-logs"}
+              />
+              <QueueRow
+                tone={data.tokenBalanceEstimate < 50000 ? "warning" : "ok"}
+                title="Gemini token budget"
+                hint={
+                  data.tokenBalanceEstimate < 50000
+                    ? "Sắp cạn — cân nhắc top-up trong 24h"
+                    : "Đủ cho chu kỳ crawl hiện tại"
+                }
+                count={data.tokenBalanceEstimate < 50000 ? 1 : 0}
+              />
+            </ul>
+          </SectionCard>
+        </div>
 
-        <article className="admin-card p-5">
-          <p className="text-xs font-semibold uppercase tracking-wider text-admin-mute">Lối tắt</p>
-          <h2 className="mt-1 text-lg font-semibold text-admin-ink">Tác vụ nhanh</h2>
-          <div className="mt-4 space-y-2 text-sm">
-            <ShortcutLink href="/admin?tab=refinery" label="Mở Refinery" icon="📋" />
-            <ShortcutLink href="/admin?tab=prompt-studio" label="Save prompt version mới" icon="✨" />
-            <ShortcutLink href="/admin?tab=money-trail" label="Xem money trail" icon="💰" />
-            <ShortcutLink href="/" label="Mở storefront (xem như user)" icon="🪟" external />
+        <SectionCard title="Tác vụ nhanh" eyebrow="Lối tắt">
+          <div className="space-y-2 text-sm">
+            <ShortcutLink href="/admin?tab=refinery" label="Mở Duyệt sản phẩm" icon="📋" />
+            <ShortcutLink href="/admin/categories" label="Quản lý danh mục" icon="🗂" />
+            <ShortcutLink href="/admin/products" label="Quản lý sản phẩm" icon="📦" />
+            <ShortcutLink href="/admin/articles" label="Quản lý bài viết" icon="📰" />
+            <ShortcutLink href="/admin/coupons" label="Mã giảm giá" icon="🎟" />
+            <ShortcutLink href="/" label="Mở storefront" icon="🪟" external />
           </div>
-        </article>
+        </SectionCard>
       </section>
+
+      <CrawlerConsole />
     </div>
+  );
+}
+
+function CrawlerConsole(): React.ReactElement {
+  return (
+    <section className="grid gap-4 lg:grid-cols-2">
+      <SectionCard
+        title="Chạy crawler thủ công"
+        eyebrow="Điều khiển crawler"
+        description="Bỏ qua cron, kéo dữ liệu từ tất cả nguồn affiliate ngay bây giờ. Mất 30s–2 phút tùy số lượng."
+      >
+        <form action={runCrawlerNowAction}>
+          <SubmitButton size="md" iconLeft={<Play />}>
+            Chạy crawler ngay
+          </SubmitButton>
+        </form>
+      </SectionCard>
+
+      <SectionCard title="Paste URL sản phẩm → AI tự ingest" eyebrow="Import nhanh">
+        <form action={ingestUrlAction} className="space-y-3">
+          <TextField label="URL sản phẩm" name="url" required placeholder="https://shopee.vn/..." />
+          <TextField
+            label="Slug danh mục"
+            name="categorySlug"
+            required
+            mono
+            placeholder="robot-hut-bui-lau-nha"
+          />
+          <TextField
+            label="Affiliate URL (tùy chọn)"
+            name="affiliateUrl"
+            placeholder="Nếu khác URL gốc"
+          />
+          <SubmitButton size="md">Ingest URL</SubmitButton>
+        </form>
+      </SectionCard>
+    </section>
   );
 }
 
@@ -241,7 +380,7 @@ function QueueRow({
   href?: string;
 }): React.ReactElement {
   const dotClass =
-    tone === "ok" ? "bg-emerald-500" : tone === "warning" ? "bg-amber-500" : "bg-red-500";
+    tone === "ok" ? "bg-emerald-500" : tone === "warning" ? "bg-amber-500" : "bg-rose-500";
   const inner = (
     <div className="flex items-center gap-3 rounded-lg border border-admin-line bg-admin-subtle/50 px-3 py-2.5 transition hover:bg-admin-subtle">
       <span aria-hidden className={`size-2 shrink-0 rounded-full ${dotClass}`} />
@@ -250,13 +389,25 @@ function QueueRow({
         <p className="text-xs text-admin-mute">{hint}</p>
       </div>
       {count > 0 ? (
-        <span className={`rounded-full px-2 py-0.5 text-xs font-bold ${tone === "warning" ? "bg-amber-100 text-amber-800" : "bg-red-100 text-red-700"}`}>
+        <span
+          className={`rounded-full px-2 py-0.5 text-xs font-bold ${
+            tone === "warning" ? "bg-amber-100 text-amber-800" : "bg-rose-100 text-rose-700"
+          }`}
+        >
           {count}
         </span>
-      ) : null}
+      ) : (
+        <span aria-hidden className="text-admin-mute">→</span>
+      )}
     </div>
   );
-  return href ? <li><Link href={href}>{inner}</Link></li> : <li>{inner}</li>;
+  return href ? (
+    <li>
+      <Link href={href}>{inner}</Link>
+    </li>
+  ) : (
+    <li>{inner}</li>
+  );
 }
 
 function ShortcutLink({
@@ -285,77 +436,61 @@ function ShortcutLink({
 }
 
 function PromptStudio({
-  activePrompt,
-  field
+  activePrompt
 }: {
   activePrompt: ActivePromptResponse | null;
-  field: string;
 }): React.ReactElement {
   return (
     <section className="grid gap-4 lg:grid-cols-2">
-      <article className="admin-card p-6">
-        <div className="flex items-center justify-between gap-2">
-          <p className="text-xs font-semibold uppercase tracking-wider text-admin-mute">Active prompt</p>
-          {activePrompt ? (
+      <SectionCard
+        title="Prompt đang active"
+        eyebrow="Active"
+        actions={
+          activePrompt ? (
             <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700 ring-1 ring-inset ring-emerald-200">
               v{activePrompt.version}
             </span>
-          ) : null}
-        </div>
+          ) : null
+        }
+      >
         {activePrompt ? (
-          <div className="mt-3 space-y-2">
+          <div className="space-y-2">
             <p className="font-semibold text-admin-ink">{activePrompt.name}</p>
             <pre className="max-h-96 overflow-auto whitespace-pre-wrap rounded-xl border border-admin-line bg-admin-subtle p-4 text-xs leading-relaxed text-admin-ink">
               {activePrompt.content}
             </pre>
           </div>
         ) : (
-          <p className="mt-3 text-sm text-admin-mute">Chưa cấu hình prompt nào — hãy tạo bên phải.</p>
+          <p className="text-sm text-admin-mute">Chưa cấu hình prompt nào — hãy tạo bên phải.</p>
         )}
-      </article>
+      </SectionCard>
 
-      <form action={savePromptAction} className="admin-card space-y-3 p-6">
-        <p className="text-xs font-semibold uppercase tracking-wider text-admin-mute">Save new version</p>
-        <Field label="Tên prompt" name="name" placeholder="default-parser" inputClass={field} />
-        <Field label="Người tạo" name="createdBy" placeholder="admin" inputClass={field} />
-        <div className="space-y-1">
-          <label className="text-xs font-medium text-admin-ink">Nội dung prompt</label>
-          <textarea name="content" placeholder="You are an expert extraction agent..." className={`${field} h-48 font-mono text-xs`} />
-        </div>
-        <label className="flex items-center gap-2 text-sm text-admin-ink">
-          <input name="activateNow" type="checkbox" className="size-4 rounded border-admin-line text-admin-accent" />
-          Activate ngay sau khi lưu
-        </label>
-        <button
-          type="submit"
-          className="inline-flex h-10 items-center rounded-full bg-admin-accent px-6 text-sm font-semibold text-white shadow-google transition hover:bg-admin-accent/90"
-        >
-          Lưu prompt
-        </button>
-      </form>
+      <SectionCard title="Tạo phiên bản mới" eyebrow="Save new version">
+        <form action={savePromptAction} className="space-y-3">
+          <TextField label="Tên prompt" name="name" placeholder="default-parser" />
+          <TextField label="Người tạo" name="createdBy" placeholder="admin" />
+          <TextareaField
+            label="Nội dung prompt"
+            name="content"
+            mono
+            rows={10}
+            placeholder="You are an expert extraction agent..."
+          />
+          <label className="flex items-center gap-2 text-sm text-admin-ink">
+            <input
+              name="activateNow"
+              type="checkbox"
+              className="size-4 rounded border-admin-line text-admin-accent"
+            />
+            Activate ngay sau khi lưu
+          </label>
+          <SubmitButton size="md">Lưu prompt</SubmitButton>
+        </form>
+      </SectionCard>
 
       <div className="lg:col-span-2">
         <PromptTestClient />
       </div>
     </section>
-  );
-}
-
-function Field({
-  label,
-  name,
-  placeholder,
-  inputClass
-}: {
-  label: string;
-  name: string;
-  placeholder: string;
-  inputClass: string;
-}): React.ReactElement {
-  return (
-    <div className="space-y-1">
-      <label className="text-xs font-medium text-admin-ink">{label}</label>
-      <input name={name} placeholder={placeholder} className={inputClass} />
-    </div>
   );
 }
