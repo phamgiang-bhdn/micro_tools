@@ -16,7 +16,7 @@ export function slugify(input: string): string {
 }
 
 /**
- * Tìm slug duy nhất trong cùng tool: nếu đụng → `slug-2`, `slug-3`...
+ * Tìm slug duy nhất trong cùng category: nếu đụng → `slug-2`, `slug-3`...
  * `existsCheck` trả về true nếu slug đã tồn tại.
  */
 export async function uniqueSlugWithin(

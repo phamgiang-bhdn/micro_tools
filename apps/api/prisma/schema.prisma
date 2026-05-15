@@ -7,7 +7,7 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-enum ToolStatus {
+enum CategoryStatus {
   ACTIVE
   INACTIVE
 }
@@ -32,21 +32,21 @@ enum ArticleStatus {
   FAILED
 }
 
-model Tool {
-  id           String     @id @default(uuid()) @db.Uuid
-  slug         String     @unique
+model Category {
+  id           String         @id @default(uuid()) @db.Uuid
+  slug         String         @unique
   name         String
-  status       ToolStatus @default(ACTIVE)
+  status       CategoryStatus @default(ACTIVE)
   schemaConfig Json
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
   products     Product[]
   articles     Article[]
 }
 
 model Product {
   id           String     @id @default(uuid()) @db.Uuid
-  toolId       String     @db.Uuid
+  categoryId   String     @db.Uuid
   network      String     @default("ACCESSTRADE")
   name         String
   slug         String?
@@ -55,12 +55,12 @@ model Product {
   isPublic     Boolean    @default(true)
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
-  tool         Tool       @relation(fields: [toolId], references: [id], onDelete: Cascade)
+  category     Category   @relation(fields: [categoryId], references: [id], onDelete: Cascade)
   clickLogs    ClickLog[]
   extractions  ProductExtraction[]
 
-  @@unique([toolId, slug])
-  @@index([toolId])
+  @@unique([categoryId, slug])
+  @@index([categoryId])
 }
 
 model ClickLog {
@@ -126,7 +126,7 @@ model Article {
   coverImage      String?
   type            ArticleType
   status          ArticleStatus @default(DRAFT)
-  toolId          String?       @db.Uuid
+  categoryId      String?       @db.Uuid
   productIds      String[]      @db.Uuid
   pinnedProductIds String[]     @db.Uuid
   metaTitle       String?
@@ -139,9 +139,9 @@ model Article {
   publishedAt     DateTime?
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
-  tool            Tool?         @relation(fields: [toolId], references: [id], onDelete: SetNull)
+  category        Category?     @relation(fields: [categoryId], references: [id], onDelete: SetNull)
 
   @@index([status, publishedAt])
-  @@index([toolId, status])
+  @@index([categoryId, status])
   @@index([type, status])
 }

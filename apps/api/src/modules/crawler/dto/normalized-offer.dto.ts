@@ -19,8 +19,8 @@ export interface NormalizedOffer {
   discountPercent?: number;
   campaign?: string;
   merchantName?: string;
-  /** slug của Tool mà offer sẽ được gán vào. */
-  toolSlug: string;
+  /** slug của Category mà offer sẽ được gán vào. */
+  categorySlug: string;
   badge?: string;
   highlights?: string[];
 }

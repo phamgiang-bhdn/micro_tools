@@ -26,7 +26,7 @@ interface ListResponse {
   pagination?: { total: number; page: number };
 }
 
-const TOOL_BY_KEYWORD: Array<[RegExp, string]> = [
+const CATEGORY_BY_KEYWORD: Array<[RegExp, string]> = [
   [/laptop|máy tính|tablet|điện thoại|tai nghe|loa|monitor|màn hình|smart\s?tv|console|gaming|bàn phím|chuột/i, "tech-gadgets"],
   [/làm đẹp|son|kem|chống nắng|serum|skincare|mỹ phẩm|dior|chanel|sk[\s-]?ii|hasaki/i, "beauty-skincare"],
   [/du lịch|khách sạn|tour|vé|booking|agoda|traveloka|hotel|flight|chuyến bay|vinpearl/i, "travel-deals"],
@@ -34,9 +34,9 @@ const TOOL_BY_KEYWORD: Array<[RegExp, string]> = [
   [/thẻ|card|tín dụng|cashback|visa|mastercard|ngân hàng|amex/i, "credit-card-compare"]
 ];
 
-function inferToolSlug(category?: string, name?: string): string {
+function inferCategorySlug(category?: string, name?: string): string {
   const target = `${category ?? ""} ${name ?? ""}`;
-  for (const [pattern, slug] of TOOL_BY_KEYWORD) {
+  for (const [pattern, slug] of CATEGORY_BY_KEYWORD) {
     if (pattern.test(target)) return slug;
   }
   return "tech-gadgets";
@@ -105,7 +105,7 @@ export class AccesstradeClient {
       discountPercent,
       campaign: p.campaign,
       merchantName: p.merchant,
-      toolSlug: inferToolSlug(p.category, p.name)
+      categorySlug: inferCategorySlug(p.category, p.name)
     };
   }
 }

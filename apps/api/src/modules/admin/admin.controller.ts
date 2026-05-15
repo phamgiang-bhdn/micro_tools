@@ -33,7 +33,7 @@ const promptSaveSchema = z.object({
 const generateArticleSchema = z.object({
   type: z.nativeEnum(ArticleType),
   topic: z.string().min(5).max(300),
-  toolId: z.string().uuid().nullable().optional(),
+  categoryId: z.string().uuid().nullable().optional(),
   pinnedProductIds: z.array(z.string().uuid()).max(10).optional(),
   productRef: z.string().min(1).max(500).nullable().optional()
 });
@@ -50,7 +50,7 @@ const updateArticleSchema = z.object({
   body: z.string().min(50).optional(),
   metaTitle: z.string().max(120).nullable().optional(),
   metaDescription: z.string().max(300).nullable().optional(),
-  toolId: z.string().uuid().nullable().optional(),
+  categoryId: z.string().uuid().nullable().optional(),
   productIds: z.array(z.string().uuid()).max(20).optional(),
   type: z.nativeEnum(ArticleType).optional()
 });
@@ -169,7 +169,7 @@ export class AdminController {
       where: { id },
       include: {
         product: {
-          include: { tool: { select: { name: true, slug: true } } }
+          include: { category: { select: { name: true, slug: true } } }
         }
       }
     });
@@ -241,13 +241,13 @@ export class AdminController {
     this.authorize(role, apiKey, ["reviewer", "admin"]);
     const extraction = await this.prisma.productExtraction.findUnique({
       where: { id },
-      include: { product: { include: { tool: true } } }
+      include: { product: { include: { category: true } } }
     });
     if (!extraction) {
       throw new HttpException("Extraction not found", HttpStatus.NOT_FOUND);
     }
 
-    const schema = extraction.product.tool.schemaConfig as Record<string, unknown>;
+    const schema = extraction.product.category.schemaConfig as Record<string, unknown>;
     const aiOutput = await this.aiService.parseBySchema<Record<string, unknown>>(extraction.rawContent, schema);
 
     await this.prisma.productExtraction.update({
@@ -380,7 +380,7 @@ export class AdminController {
         status: true,
         updatedAt: true,
         publishedAt: true,
-        tool: { select: { slug: true, name: true } }
+        category: { select: { slug: true, name: true } }
       }
     });
   }
@@ -394,7 +394,7 @@ export class AdminController {
     this.authorize(role, apiKey, ["viewer", "reviewer", "admin"]);
     const article = await this.prisma.article.findUnique({
       where: { id },
-      include: { tool: { select: { id: true, slug: true, name: true } } }
+      include: { category: { select: { id: true, slug: true, name: true } } }
     });
     if (!article) throw new HttpException("Article not found", HttpStatus.NOT_FOUND);
 
@@ -420,8 +420,8 @@ export class AdminController {
     if (!parsed.success) {
       throw new HttpException(parsed.error.flatten(), HttpStatus.BAD_REQUEST);
     }
-    if (parsed.data.type === ArticleType.BUYING_GUIDE && !parsed.data.toolId) {
-      throw new HttpException("BUYING_GUIDE bài cần chọn tool", HttpStatus.BAD_REQUEST);
+    if (parsed.data.type === ArticleType.BUYING_GUIDE && !parsed.data.categoryId) {
+      throw new HttpException("BUYING_GUIDE bài cần chọn danh mục", HttpStatus.BAD_REQUEST);
     }
     if (parsed.data.type === ArticleType.REVIEW && !parsed.data.productRef) {
       throw new HttpException("REVIEW cần nhập tên / slug / URL sản phẩm", HttpStatus.BAD_REQUEST);
@@ -435,7 +435,7 @@ export class AdminController {
         body: "(đang sinh nội dung...)",
         type: parsed.data.type,
         status: "GENERATING",
-        toolId: parsed.data.toolId ?? null,
+        categoryId: parsed.data.categoryId ?? null,
         productIds: [],
         pinnedProductIds: parsed.data.pinnedProductIds ?? []
       }
@@ -459,7 +459,7 @@ export class AdminController {
       const draft = await this.articleService.generateDraft({
         type: input.type,
         topic: input.topic,
-        toolId: input.toolId ?? null,
+        categoryId: input.categoryId ?? null,
         pinnedProductIds: input.pinnedProductIds ?? [],
         productRef: input.productRef ?? null
       });
@@ -515,8 +515,8 @@ export class AdminController {
     if (parsed.data.metaDescription !== undefined) data.metaDescription = parsed.data.metaDescription;
     if (parsed.data.type !== undefined) data.type = parsed.data.type;
     if (parsed.data.productIds !== undefined) data.productIds = { set: parsed.data.productIds };
-    if (parsed.data.toolId !== undefined) {
-      data.tool = parsed.data.toolId ? { connect: { id: parsed.data.toolId } } : { disconnect: true };
+    if (parsed.data.categoryId !== undefined) {
+      data.category = parsed.data.categoryId ? { connect: { id: parsed.data.categoryId } } : { disconnect: true };
     }
     if (parsed.data.slug !== undefined) {
       data.slug = await this.articleService.ensureUniqueSlug(parsed.data.slug, id);

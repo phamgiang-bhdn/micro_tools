@@ -18,7 +18,7 @@ function slugify(input) {
     .slice(0, 80);
 }
 
-const TOOLS = [
+const CATEGORIES = [
   {
     slug: "robot-hut-bui-lau-nha",
     name: "Robot hút bụi - lau nhà",
@@ -277,15 +277,15 @@ const TOOLS = [
   }
 ];
 
-async function cleanupRemovedTools(keepSlugs) {
-  const stale = await prisma.tool.findMany({
+async function cleanupRemovedCategories(keepSlugs) {
+  const stale = await prisma.category.findMany({
     where: { slug: { notIn: keepSlugs } },
     select: { id: true, slug: true }
   });
   if (stale.length === 0) return;
-  const staleIds = stale.map((t) => t.id);
+  const staleIds = stale.map((c) => c.id);
   const staleProducts = await prisma.product.findMany({
-    where: { toolId: { in: staleIds } },
+    where: { categoryId: { in: staleIds } },
     select: { id: true }
   });
   const staleProductIds = staleProducts.map((p) => p.id);
@@ -301,28 +301,28 @@ async function cleanupRemovedTools(keepSlugs) {
       });
     }
   }
-  const result = await prisma.tool.deleteMany({ where: { id: { in: staleIds } } });
+  const result = await prisma.category.deleteMany({ where: { id: { in: staleIds } } });
   console.log(
-    `[seed] Removed ${result.count} stale tool(s): ${stale.map((t) => t.slug).join(", ")}`
+    `[seed] Removed ${result.count} stale category(s): ${stale.map((c) => c.slug).join(", ")}`
   );
 }
 
 async function main() {
-  await cleanupRemovedTools(TOOLS.map((t) => t.slug));
+  await cleanupRemovedCategories(CATEGORIES.map((c) => c.slug));
 
-  for (const toolSpec of TOOLS) {
-    const tool = await prisma.tool.upsert({
-      where: { slug: toolSpec.slug },
-      update: { name: toolSpec.name, schemaConfig: toolSpec.schemaConfig, status: "ACTIVE" },
+  for (const categorySpec of CATEGORIES) {
+    const category = await prisma.category.upsert({
+      where: { slug: categorySpec.slug },
+      update: { name: categorySpec.name, schemaConfig: categorySpec.schemaConfig, status: "ACTIVE" },
       create: {
-        slug: toolSpec.slug,
-        name: toolSpec.name,
+        slug: categorySpec.slug,
+        name: categorySpec.name,
         status: "ACTIVE",
-        schemaConfig: toolSpec.schemaConfig
+        schemaConfig: categorySpec.schemaConfig
       }
     });
 
-    for (const productSpec of toolSpec.products) {
+    for (const productSpec of categorySpec.products) {
       const slug = slugify(productSpec.name);
       await prisma.product.upsert({
         where: { id: productSpec.id },
@@ -334,7 +334,7 @@ async function main() {
         },
         create: {
           id: productSpec.id,
-          toolId: tool.id,
+          categoryId: category.id,
           network: "ACCESSTRADE",
           name: productSpec.name,
           slug,

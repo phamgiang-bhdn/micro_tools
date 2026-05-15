@@ -7,7 +7,7 @@ import { ImportService } from "./import.service";
 
 const ingestSchema = z.object({
   url: z.string().url(),
-  toolSlug: z.string().min(1),
+  categorySlug: z.string().min(1),
   affiliateUrl: z.string().url().optional()
 });
 
@@ -39,7 +39,7 @@ export class CrawlerController {
   async ingestUrl(@Body() body: unknown, @Headers("x-admin-key") apiKey?: string) {
     authorize(apiKey);
     const parsed = ingestSchema.parse(body);
-    const offer = await this.webScrape.fetchByUrl(parsed.url, parsed.toolSlug, parsed.affiliateUrl);
+    const offer = await this.webScrape.fetchByUrl(parsed.url, parsed.categorySlug, parsed.affiliateUrl);
     if (!offer) {
       throw new HttpException("Could not extract product from URL", HttpStatus.BAD_REQUEST);
     }
