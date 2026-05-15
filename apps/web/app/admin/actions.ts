@@ -74,7 +74,7 @@ export async function savePromptAction(formData: FormData): Promise<void> {
 export async function generateArticleAction(formData: FormData): Promise<void> {
   const type = String(formData.get("type") ?? "BUYING_GUIDE");
   const topic = String(formData.get("topic") ?? "").trim();
-  const toolId = String(formData.get("toolId") ?? "") || undefined;
+  const categoryId = String(formData.get("categoryId") ?? "") || undefined;
   const pinnedProductIdsRaw = formData.getAll("pinnedProductIds");
   const pinnedProductIds = pinnedProductIdsRaw.map((v) => String(v)).filter(Boolean);
   const productRef = String(formData.get("productRef") ?? "").trim() || undefined;
@@ -82,8 +82,8 @@ export async function generateArticleAction(formData: FormData): Promise<void> {
   if (!topic || topic.length < 5) {
     throw new Error("Vui lòng nhập chủ đề (≥ 5 ký tự).");
   }
-  if (type === "BUYING_GUIDE" && !toolId) {
-    throw new Error("Cẩm nang chọn mua cần chọn 1 tool (danh mục).");
+  if (type === "BUYING_GUIDE" && !categoryId) {
+    throw new Error("Cẩm nang chọn mua cần chọn 1 danh mục.");
   }
   if (type === "REVIEW" && !productRef) {
     throw new Error("Review cần nhập tên / slug / URL sản phẩm.");
@@ -92,7 +92,7 @@ export async function generateArticleAction(formData: FormData): Promise<void> {
   const created = (await adminFetch<{ id: string }>("/admin/articles/generate", "POST", {
     type,
     topic,
-    toolId,
+    categoryId,
     pinnedProductIds,
     productRef
   }));
@@ -114,8 +114,8 @@ export async function updateArticleAction(formData: FormData): Promise<void> {
     metaDescription: String(formData.get("metaDescription") ?? ""),
     productIds: productIdsRaw.map((v) => String(v)).filter(Boolean)
   };
-  const toolIdRaw = String(formData.get("toolId") ?? "");
-  if (toolIdRaw) body.toolId = toolIdRaw;
+  const categoryIdRaw = String(formData.get("categoryId") ?? "");
+  if (categoryIdRaw) body.categoryId = categoryIdRaw;
 
   await adminFetch(`/admin/articles/${id}`, "PUT", body);
   revalidatePath(`/admin/articles/${id}`);

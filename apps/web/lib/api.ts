@@ -1,4 +1,4 @@
-import { ArticleDetail, ArticleSummary, ToolDetail, ToolItem, ProductView } from "./types";
+import { ArticleDetail, ArticleSummary, CategoryDetail, CategoryItem, ProductView } from "./types";
 import { normalizeProduct } from "./format";
 
 const API_BASE_URL = process.env.API_BASE_URL ?? "http://localhost:4000/api/v1";
@@ -16,47 +16,47 @@ async function safeFetch<T>(path: string): Promise<T> {
   return (await response.json()) as T;
 }
 
-export type FetchToolsResult = {
-  tools: ToolItem[];
+export type FetchCategoriesResult = {
+  categories: CategoryItem[];
   loadError: string | null;
 };
 
-export async function fetchTools(): Promise<FetchToolsResult> {
+export async function fetchCategories(): Promise<FetchCategoriesResult> {
   try {
-    const tools = await safeFetch<ToolItem[]>("/tools");
-    return { tools, loadError: null };
+    const categories = await safeFetch<CategoryItem[]>("/categories");
+    return { categories, loadError: null };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    console.error("Failed to fetch tools:", error);
-    return { tools: [], loadError: message };
+    console.error("Failed to fetch categories:", error);
+    return { categories: [], loadError: message };
   }
 }
 
-export async function fetchToolBySlug(slug: string): Promise<ToolDetail | null> {
+export async function fetchCategoryBySlug(slug: string): Promise<CategoryDetail | null> {
   try {
-    return await safeFetch<ToolDetail>(`/tools/${slug}`);
+    return await safeFetch<CategoryDetail>(`/categories/${slug}`);
   } catch (error) {
-    console.error(`Failed to fetch tool slug=${slug}:`, error);
+    console.error(`Failed to fetch category slug=${slug}:`, error);
     return null;
   }
 }
 
 export type FlatProduct = ProductView & {
   slug?: string | null;
-  toolSlug: string;
-  toolName: string;
+  categorySlug: string;
+  categoryName: string;
 };
 
 export interface FetchArticlesOptions {
   type?: "BUYING_GUIDE" | "REVIEW";
-  toolSlug?: string;
+  categorySlug?: string;
   limit?: number;
 }
 
 export async function fetchArticles(options: FetchArticlesOptions = {}): Promise<ArticleSummary[]> {
   const params = new URLSearchParams();
   if (options.type) params.set("type", options.type);
-  if (options.toolSlug) params.set("toolSlug", options.toolSlug);
+  if (options.categorySlug) params.set("categorySlug", options.categorySlug);
   if (options.limit) params.set("limit", String(options.limit));
   const qs = params.toString();
   try {
@@ -76,17 +76,17 @@ export async function fetchArticleBySlug(slug: string): Promise<ArticleDetail | 
   }
 }
 
-export async function fetchAllProductsFlat(tools: ToolItem[]): Promise<FlatProduct[]> {
-  if (tools.length === 0) return [];
-  const details = await Promise.all(tools.map((tool) => fetchToolBySlug(tool.slug)));
+export async function fetchAllProductsFlat(categories: CategoryItem[]): Promise<FlatProduct[]> {
+  if (categories.length === 0) return [];
+  const details = await Promise.all(categories.map((category) => fetchCategoryBySlug(category.slug)));
   return details
-    .filter((tool): tool is ToolDetail => tool !== null)
-    .flatMap((tool) =>
-      tool.products.map((product) => ({
+    .filter((category): category is CategoryDetail => category !== null)
+    .flatMap((category) =>
+      category.products.map((product) => ({
         ...normalizeProduct(product),
         slug: product.slug ?? undefined,
-        toolSlug: tool.slug,
-        toolName: tool.name
+        categorySlug: category.slug,
+        categoryName: category.name
       }))
     );
 }

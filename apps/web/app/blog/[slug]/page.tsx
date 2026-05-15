@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import ReactMarkdown from "react-markdown";
-import { fetchArticleBySlug, fetchToolBySlug } from "../../../lib/api";
+import { fetchArticleBySlug, fetchCategoryBySlug } from "../../../lib/api";
 import { articleVisual, readingTime } from "../../../lib/article-format";
 import { ComparisonTable } from "../../../components/article/comparison-table";
 import { QuickPicks } from "../../../components/article/quick-picks";
@@ -53,8 +53,8 @@ export default async function ArticleDetailPage({ params }: PageProps): Promise<
   const article = await fetchArticleBySlug(slug);
   if (!article) notFound();
 
-  const tool = article.tool ? await fetchToolBySlug(article.tool.slug) : null;
-  const schemaConfig = (tool?.schemaConfig ?? undefined) as Record<string, unknown> | undefined;
+  const category = article.category ? await fetchCategoryBySlug(article.category.slug) : null;
+  const schemaConfig = (category?.schemaConfig ?? undefined) as Record<string, unknown> | undefined;
 
   const visual = articleVisual(article.type);
   const mins = readingTime(article.body);
@@ -99,11 +99,11 @@ export default async function ArticleDetailPage({ params }: PageProps): Promise<
               <Link href="/" className="hover:text-white">Trang chủ</Link>
               <span>›</span>
               <Link href="/blog" className="hover:text-white">Cẩm nang</Link>
-              {article.tool ? (
+              {article.category ? (
                 <>
                   <span>›</span>
-                  <Link href={`/blog?tool=${article.tool.slug}`} className="hover:text-white">
-                    {article.tool.name}
+                  <Link href={`/blog?category=${article.category.slug}`} className="hover:text-white">
+                    {article.category.name}
                   </Link>
                 </>
               ) : null}
@@ -114,9 +114,9 @@ export default async function ArticleDetailPage({ params }: PageProps): Promise<
                 <span aria-hidden>{visual.icon}</span>
                 {visual.label}
               </span>
-              {article.tool ? (
+              {article.category ? (
                 <span className="inline-flex items-center rounded-full bg-white/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-wider text-white backdrop-blur-sm">
-                  {article.tool.name}
+                  {article.category.name}
                 </span>
               ) : null}
             </div>

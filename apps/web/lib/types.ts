@@ -1,4 +1,4 @@
-export interface ToolItem {
+export interface CategoryItem {
   id: string;
   slug: string;
   name: string;
@@ -11,7 +11,7 @@ export interface ToolItem {
 
 export interface ProductItem {
   id: string;
-  toolId: string;
+  categoryId: string;
   network: string;
   name: string;
   slug?: string | null;
@@ -19,7 +19,7 @@ export interface ProductItem {
   scrapedData: Record<string, unknown>;
 }
 
-export interface ToolDetail extends ToolItem {
+export interface CategoryDetail extends CategoryItem {
   products: ProductItem[];
 }
 
@@ -29,7 +29,7 @@ export interface ToolDetail extends ToolItem {
  */
 export interface ProductView {
   id: string;
-  toolId: string;
+  categoryId: string;
   network: string;
   name: string;
   slug?: string;
@@ -60,7 +60,7 @@ export interface ArticleSummary {
   excerpt: string | null;
   type: ArticleType;
   publishedAt: string | null;
-  tool: { slug: string; name: string } | null;
+  category: { slug: string; name: string } | null;
   coverImage: string | null;
 }
 
@@ -111,7 +111,7 @@ export interface ArticleAdminDetail {
   coverImage: string | null;
   type: ArticleType;
   status: ArticleStatus;
-  toolId: string | null;
+  categoryId: string | null;
   productIds: string[];
   pinnedProductIds: string[];
   metaTitle: string | null;
@@ -124,6 +124,6 @@ export interface ArticleAdminDetail {
   publishedAt: string | null;
   createdAt: string;
   updatedAt: string;
-  tool: { id: string; slug: string; name: string } | null;
+  category: { id: string; slug: string; name: string } | null;
   products: Array<{ id: string; name: string; slug: string | null; network: string; isPublic: boolean }>;
 }

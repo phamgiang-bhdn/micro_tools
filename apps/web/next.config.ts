@@ -15,6 +15,23 @@ const nextConfig: NextConfig = {
     serverActions: {
       bodySizeLimit: "2mb"
     }
+  },
+
+  // Permanent redirects from the legacy /tools URL scheme to /categories.
+  // The entity was renamed Tool -> Category; the public URL changed to match.
+  async redirects() {
+    return [
+      {
+        source: "/tools/:slug",
+        destination: "/categories/:slug",
+        permanent: true
+      },
+      {
+        source: "/tools/:slug/:productSlug",
+        destination: "/categories/:slug/:productSlug",
+        permanent: true
+      }
+    ];
   }
 };
 

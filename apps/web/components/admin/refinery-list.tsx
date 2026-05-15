@@ -285,7 +285,7 @@ function buildPreview(
 
   const fakeProduct: ProductItem = {
     id: productId,
-    toolId: "preview",
+    categoryId: "preview",
     network: productNetwork,
     name: productName,
     affiliateUrl: "#",

@@ -1,7 +1,7 @@
 import type React from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { fetchTools, fetchToolBySlug } from "../../../../lib/api";
+import { fetchCategories, fetchCategoryBySlug } from "../../../../lib/api";
 import type { ArticleAdminDetail, ArticleStatus } from "../../../../lib/types";
 import { archiveArticleAction, publishArticleAction } from "../../actions";
 import { ArticleEditorClient } from "./article-editor-client";
@@ -57,12 +57,12 @@ export default async function AdminArticleDetail({ params }: PageProps): Promise
     return <GeneratingScreen articleId={article.id} topic={article.title} />;
   }
 
-  const { tools } = await fetchTools();
-  const toolDetails = await Promise.all(tools.map((t) => fetchToolBySlug(t.slug)));
-  const productOptions = toolDetails
-    .filter((t) => t !== null)
-    .flatMap((tool) =>
-      tool!.products.map((p) => ({ id: p.id, name: p.name, toolName: tool!.name }))
+  const { categories } = await fetchCategories();
+  const categoryDetails = await Promise.all(categories.map((c) => fetchCategoryBySlug(c.slug)));
+  const productOptions = categoryDetails
+    .filter((c) => c !== null)
+    .flatMap((category) =>
+      category!.products.map((p) => ({ id: p.id, name: p.name, categoryName: category!.name }))
     );
 
   return (
@@ -176,12 +176,12 @@ export default async function AdminArticleDetail({ params }: PageProps): Promise
           body: article.body,
           metaTitle: article.metaTitle,
           metaDescription: article.metaDescription,
-          toolId: article.toolId,
+          categoryId: article.categoryId,
           productIds: article.productIds,
           hasBlocks: Array.isArray(article.blocks) && article.blocks.length > 0,
           coverImage: article.coverImage
         }}
-        tools={tools.map((t) => ({ id: t.id, name: t.name }))}
+        categories={categories.map((c) => ({ id: c.id, name: c.name }))}
         products={productOptions}
       />
     </div>

@@ -5,7 +5,7 @@ import { useFormStatus } from "react-dom";
 import { useMemo, useState } from "react";
 import { generateArticleAction } from "../../actions";
 
-interface ToolOption {
+interface CategoryOption {
   id: string;
   name: string;
   slug: string;
@@ -13,25 +13,25 @@ interface ToolOption {
 }
 
 interface Props {
-  tools: ToolOption[];
+  categories: CategoryOption[];
 }
 
-export function NewArticleForm({ tools }: Props): React.ReactElement {
+export function NewArticleForm({ categories }: Props): React.ReactElement {
   return (
     <form action={generateArticleAction} className="space-y-5 rounded-2xl border border-admin-line bg-admin-surface p-6">
-      <FormBody tools={tools} />
+      <FormBody categories={categories} />
     </form>
   );
 }
 
-function FormBody({ tools }: { tools: ToolOption[] }): React.ReactElement {
+function FormBody({ categories }: { categories: CategoryOption[] }): React.ReactElement {
   const { pending } = useFormStatus();
   const [type, setType] = useState<"BUYING_GUIDE" | "REVIEW">("BUYING_GUIDE");
-  const [toolId, setToolId] = useState<string>("");
+  const [categoryId, setCategoryId] = useState<string>("");
   const [pinned, setPinned] = useState<string[]>([]);
 
-  const selectedTool = useMemo(() => tools.find((t) => t.id === toolId) ?? null, [tools, toolId]);
-  const productsForPin = selectedTool?.products ?? [];
+  const selectedCategory = useMemo(() => categories.find((c) => c.id === categoryId) ?? null, [categories, categoryId]);
+  const productsForPin = selectedCategory?.products ?? [];
 
   return (
     <>
@@ -51,7 +51,7 @@ function FormBody({ tools }: { tools: ToolOption[] }): React.ReactElement {
               />
               <span>
                 <span className="block text-sm font-semibold text-admin-ink">Cẩm nang chọn mua</span>
-                <span className="block text-xs text-admin-mute">AI tự shortlist sản phẩm trong tool. Bắt buộc chọn tool.</span>
+                <span className="block text-xs text-admin-mute">AI tự shortlist sản phẩm trong danh mục. Bắt buộc chọn danh mục.</span>
               </span>
             </label>
             <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-admin-line p-3 hover:border-admin-accent has-[input:checked]:border-admin-accent has-[input:checked]:bg-admin-accent-soft">
@@ -89,27 +89,27 @@ function FormBody({ tools }: { tools: ToolOption[] }): React.ReactElement {
         </div>
 
         <div>
-          <label htmlFor="toolId" className="block text-sm font-medium text-admin-ink">
-            Tool {type === "BUYING_GUIDE" ? "(bắt buộc)" : "(tuỳ chọn)"}
+          <label htmlFor="categoryId" className="block text-sm font-medium text-admin-ink">
+            Danh mục {type === "BUYING_GUIDE" ? "(bắt buộc)" : "(tuỳ chọn)"}
           </label>
           <p className="mt-0.5 text-xs text-admin-mute">
-            AI sẽ chỉ shortlist sản phẩm thuộc tool này. Bài sẽ hiện trong filter blog theo tool.
+            AI sẽ chỉ shortlist sản phẩm thuộc danh mục này. Bài sẽ hiện trong filter blog theo danh mục.
           </p>
           <select
-            id="toolId"
-            name="toolId"
+            id="categoryId"
+            name="categoryId"
             required={type === "BUYING_GUIDE"}
-            value={toolId}
+            value={categoryId}
             onChange={(e) => {
-              setToolId(e.target.value);
+              setCategoryId(e.target.value);
               setPinned([]);
             }}
             className={`${input} mt-2`}
           >
-            <option value="">— Chọn tool —</option>
-            {tools.map((tool) => (
-              <option key={tool.id} value={tool.id}>
-                {tool.name}
+            <option value="">— Chọn danh mục —</option>
+            {categories.map((category) => (
+              <option key={category.id} value={category.id}>
+                {category.name}
               </option>
             ))}
           </select>
@@ -132,14 +132,14 @@ function FormBody({ tools }: { tools: ToolOption[] }): React.ReactElement {
               className={`${input} mt-2`}
             />
             <datalist id="product-suggestions">
-              {(selectedTool?.products ?? tools.flatMap((t) => t.products)).map((p) => (
+              {(selectedCategory?.products ?? categories.flatMap((c) => c.products)).map((p) => (
                 <option key={p.id} value={p.name} />
               ))}
             </datalist>
           </div>
         )}
 
-        {type === "BUYING_GUIDE" && selectedTool && productsForPin.length > 0 && (
+        {type === "BUYING_GUIDE" && selectedCategory && productsForPin.length > 0 && (
           <div>
             <label className="block text-sm font-medium text-admin-ink">
               Pin sản phẩm (tuỳ chọn, tối đa 5)

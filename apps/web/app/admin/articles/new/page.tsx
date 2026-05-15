@@ -1,21 +1,21 @@
 import type React from "react";
 import Link from "next/link";
-import { fetchTools, fetchToolBySlug } from "../../../../lib/api";
+import { fetchCategories, fetchCategoryBySlug } from "../../../../lib/api";
 import { NewArticleForm } from "./new-article-form";
 
 export const dynamic = "force-dynamic";
 
 export default async function NewArticlePage(): Promise<React.ReactElement> {
-  const { tools } = await fetchTools();
-  const toolDetails = await Promise.all(tools.map((t) => fetchToolBySlug(t.slug)));
+  const { categories } = await fetchCategories();
+  const categoryDetails = await Promise.all(categories.map((c) => fetchCategoryBySlug(c.slug)));
 
-  const toolOptions = toolDetails
-    .filter((t) => t !== null)
-    .map((tool) => ({
-      id: tool!.id,
-      slug: tool!.slug,
-      name: tool!.name,
-      products: tool!.products.map((p) => ({ id: p.id, name: p.name }))
+  const categoryOptions = categoryDetails
+    .filter((c) => c !== null)
+    .map((category) => ({
+      id: category!.id,
+      slug: category!.slug,
+      name: category!.name,
+      products: category!.products.map((p) => ({ id: p.id, name: p.name }))
     }));
 
   return (
@@ -30,7 +30,7 @@ export default async function NewArticlePage(): Promise<React.ReactElement> {
         </p>
       </header>
 
-      <NewArticleForm tools={toolOptions} />
+      <NewArticleForm categories={categoryOptions} />
     </div>
   );
 }

@@ -1,6 +1,6 @@
 import type React from "react";
 import Link from "next/link";
-import { fetchAllProductsFlat, fetchTools } from "../lib/api";
+import { fetchAllProductsFlat, fetchCategories } from "../lib/api";
 import { ProductCard } from "../components/product-card";
 import { EmptyState } from "../components/ui/empty-state";
 import { formatMoney, formatNumber } from "../lib/format";
@@ -8,21 +8,21 @@ import { formatMoney, formatNumber } from "../lib/format";
 export const revalidate = 300;
 
 interface HomeProps {
-  searchParams: Promise<{ tool?: string; sort?: string; q?: string }>;
+  searchParams: Promise<{ category?: string; sort?: string; q?: string }>;
 }
 
 const CODE = "rounded bg-white px-1.5 py-0.5 font-mono text-[12px] text-ink border border-line";
 
 export default async function HomePage({ searchParams }: HomeProps): Promise<React.ReactElement> {
-  const { tool: activeSlug, sort = "top", q = "" } = await searchParams;
-  const { tools, loadError } = await fetchTools();
-  const allProducts = loadError ? [] : await fetchAllProductsFlat(tools);
+  const { category: activeSlug, sort = "top", q = "" } = await searchParams;
+  const { categories, loadError } = await fetchCategories();
+  const allProducts = loadError ? [] : await fetchAllProductsFlat(categories);
 
   const query = q.trim().toLowerCase();
-  let filtered = activeSlug ? allProducts.filter((p) => p.toolSlug === activeSlug) : allProducts;
+  let filtered = activeSlug ? allProducts.filter((p) => p.categorySlug === activeSlug) : allProducts;
   if (query.length > 0) {
     filtered = filtered.filter((p) =>
-      [p.name, p.brand, p.store, p.toolName]
+      [p.name, p.brand, p.store, p.categoryName]
         .filter((s): s is string => Boolean(s))
         .some((field) => field.toLowerCase().includes(query))
     );
@@ -73,7 +73,7 @@ export default async function HomePage({ searchParams }: HomeProps): Promise<Rea
               </div>
               <StatStrip
                 deals={allProducts.length}
-                categories={tools.length}
+                categories={categories.length}
                 biggestDiscount={biggestDiscount}
                 totalSavings={totalSavings}
               />
@@ -105,7 +105,7 @@ export default async function HomePage({ searchParams }: HomeProps): Promise<Rea
         ) : null}
 
         {/* CATEGORY FILTER + SORT — sticky */}
-        {tools.length > 0 ? (
+        {categories.length > 0 ? (
           <div
             id="categories"
             className="sticky top-16 z-30 -mx-4 mb-6 border-b border-line bg-canvas/85 px-4 py-3 backdrop-blur-md sm:-mx-6 sm:px-6"
@@ -113,18 +113,18 @@ export default async function HomePage({ searchParams }: HomeProps): Promise<Rea
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <nav aria-label="Lọc theo danh mục" className="scrollbar-thin -mx-1 flex flex-1 gap-2 overflow-x-auto px-1">
                 <ChipLink
-                  href={buildHref({ tool: undefined, sort, q })}
+                  href={buildHref({ category: undefined, sort, q })}
                   active={!activeSlug}
                   label="Tất cả"
                   count={allProducts.length}
                 />
-                {tools.map((tool) => (
+                {categories.map((category) => (
                   <ChipLink
-                    key={tool.id}
-                    href={buildHref({ tool: tool.slug, sort, q })}
-                    active={activeSlug === tool.slug}
-                    label={tool.name}
-                    count={tool._count?.products ?? 0}
+                    key={category.id}
+                    href={buildHref({ category: category.slug, sort, q })}
+                    active={activeSlug === category.slug}
+                    label={category.name}
+                    count={category._count?.products ?? 0}
                   />
                 ))}
               </nav>
@@ -134,7 +134,7 @@ export default async function HomePage({ searchParams }: HomeProps): Promise<Rea
               <p className="mt-2 text-xs text-ink-mute">
                 Đang tìm: <span className="font-medium text-ink">“{q}”</span> · {sorted.length} kết quả
                 {" · "}
-                <Link href={buildHref({ tool: activeSlug, sort, q: "" })} className="text-brand-700 hover:underline">
+                <Link href={buildHref({ category: activeSlug, sort, q: "" })} className="text-brand-700 hover:underline">
                   Xoá tìm kiếm
                 </Link>
               </p>
@@ -163,7 +163,7 @@ export default async function HomePage({ searchParams }: HomeProps): Promise<Rea
             <div className="mb-3 flex items-end justify-between gap-2">
               <h2 className="text-lg font-semibold text-ink">
                 {activeSlug
-                  ? tools.find((t) => t.slug === activeSlug)?.name ?? "Sản phẩm"
+                  ? categories.find((c) => c.slug === activeSlug)?.name ?? "Sản phẩm"
                   : query
                     ? "Kết quả tìm kiếm"
                     : "Deal hôm nay"}
@@ -177,7 +177,7 @@ export default async function HomePage({ searchParams }: HomeProps): Promise<Rea
                   className="animate-fade-up"
                   style={{ animationDelay: `${Math.min(idx * 30, 300)}ms` }}
                 >
-                  <ProductCard product={product} toolSlug={product.toolSlug} />
+                  <ProductCard product={product} categorySlug={product.categorySlug} />
                 </div>
               ))}
             </div>
@@ -209,9 +209,9 @@ function sortProducts<T extends { discountPercent?: number; price?: number; name
   }
 }
 
-function buildHref({ tool, sort, q }: { tool?: string; sort?: string; q?: string }): string {
+function buildHref({ category, sort, q }: { category?: string; sort?: string; q?: string }): string {
   const params = new URLSearchParams();
-  if (tool) params.set("tool", tool);
+  if (category) params.set("category", category);
   if (sort && sort !== "top") params.set("sort", sort);
   if (q) params.set("q", q);
   const qs = params.toString();
@@ -261,7 +261,7 @@ function Stat({
 function FeaturedPreview({
   deals
 }: {
-  deals: Array<{ id: string; name: string; image?: string; price?: number; originalPrice?: number; currency?: string; discountPercent?: number; toolSlug: string; slug?: string | null }>;
+  deals: Array<{ id: string; name: string; image?: string; price?: number; originalPrice?: number; currency?: string; discountPercent?: number; categorySlug: string; slug?: string | null }>;
 }): React.ReactElement | null {
   if (deals.length === 0) return null;
   return (
@@ -273,7 +273,7 @@ function FeaturedPreview({
           return (
             <Link
               key={deal.id}
-              href={`/tools/${deal.toolSlug}/${key}`}
+              href={`/categories/${deal.categorySlug}/${key}`}
               className={`group flex items-center gap-3 rounded-2xl border border-line bg-card p-3 shadow-card transition hover:-translate-y-0.5 hover:border-brand-200 hover:shadow-pop ${
                 idx === 0 ? "scale-105" : ""
               }`}
@@ -371,7 +371,7 @@ function SortControl({
           return (
             <Link
               key={option.value}
-              href={buildHref({ tool: activeSlug, sort: option.value, q: query })}
+              href={buildHref({ category: activeSlug, sort: option.value, q: query })}
               scroll={false}
               className={`flex items-center justify-between rounded-lg px-3 py-2 text-sm transition ${
                 active ? "bg-brand-50 text-brand-700" : "text-ink-soft hover:bg-canvas hover:text-ink"

@@ -1,7 +1,7 @@
 import type React from "react";
 import type { Metadata } from "next";
 import Link from "next/link";
-import { fetchArticles, fetchTools } from "../../lib/api";
+import { fetchArticles, fetchCategories } from "../../lib/api";
 import { articleVisual } from "../../lib/article-format";
 import { EmptyState } from "../../components/ui/empty-state";
 import type { ArticleSummary } from "../../lib/types";
@@ -16,19 +16,19 @@ export const metadata: Metadata = {
 };
 
 interface BlogProps {
-  searchParams: Promise<{ type?: string; tool?: string }>;
+  searchParams: Promise<{ type?: string; category?: string }>;
 }
 
 const dateFmt = new Intl.DateTimeFormat("vi-VN", { day: "2-digit", month: "2-digit", year: "numeric" });
 
 export default async function BlogIndexPage({ searchParams }: BlogProps): Promise<React.ReactElement> {
-  const { type, tool: toolSlug } = await searchParams;
+  const { type, category: categorySlug } = await searchParams;
   const typeFilter =
     type === "BUYING_GUIDE" || type === "REVIEW" ? (type as "BUYING_GUIDE" | "REVIEW") : undefined;
 
-  const [articles, { tools }] = await Promise.all([
-    fetchArticles({ type: typeFilter, toolSlug, limit: 50 }),
-    fetchTools()
+  const [articles, { categories }] = await Promise.all([
+    fetchArticles({ type: typeFilter, categorySlug, limit: 50 }),
+    fetchCategories()
   ]);
 
   const featured = articles[0];
@@ -60,31 +60,31 @@ export default async function BlogIndexPage({ searchParams }: BlogProps): Promis
 
       <main className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
         <nav className="mb-8 flex flex-wrap items-center gap-2">
-          <FilterChip href="/blog" active={!typeFilter && !toolSlug} label="Tất cả" />
+          <FilterChip href="/blog" active={!typeFilter && !categorySlug} label="Tất cả" />
           <FilterChip
-            href={`/blog?type=BUYING_GUIDE${toolSlug ? `&tool=${toolSlug}` : ""}`}
+            href={`/blog?type=BUYING_GUIDE${categorySlug ? `&category=${categorySlug}` : ""}`}
             active={typeFilter === "BUYING_GUIDE"}
             label="Cẩm nang chọn mua"
           />
           <FilterChip
-            href={`/blog?type=REVIEW${toolSlug ? `&tool=${toolSlug}` : ""}`}
+            href={`/blog?type=REVIEW${categorySlug ? `&category=${categorySlug}` : ""}`}
             active={typeFilter === "REVIEW"}
             label="Review"
           />
-          {tools.length > 0 ? (
+          {categories.length > 0 ? (
             <div className="ml-auto flex flex-wrap items-center gap-2">
               <span className="text-xs text-ink-mute">Danh mục:</span>
               <FilterChip
                 href={typeFilter ? `/blog?type=${typeFilter}` : "/blog"}
-                active={!toolSlug}
+                active={!categorySlug}
                 label="Tất cả"
               />
-              {tools.map((t) => (
+              {categories.map((c) => (
                 <FilterChip
-                  key={t.id}
-                  href={`/blog?tool=${t.slug}${typeFilter ? `&type=${typeFilter}` : ""}`}
-                  active={toolSlug === t.slug}
-                  label={t.name}
+                  key={c.id}
+                  href={`/blog?category=${c.slug}${typeFilter ? `&type=${typeFilter}` : ""}`}
+                  active={categorySlug === c.slug}
+                  label={c.name}
                 />
               ))}
             </div>
@@ -167,8 +167,8 @@ function FeaturedCard({ article }: { article: ArticleSummary }): React.ReactElem
 
       <div className="flex flex-col justify-center p-6 sm:p-8 md:col-span-3">
         <div className="flex flex-wrap items-center gap-2 text-[11px] font-medium uppercase tracking-wider text-ink-mute">
-          {article.tool ? <span>{article.tool.name}</span> : null}
-          {article.tool && dateStr ? <span aria-hidden>·</span> : null}
+          {article.category ? <span>{article.category.name}</span> : null}
+          {article.category && dateStr ? <span aria-hidden>·</span> : null}
           {dateStr ? <span>{dateStr}</span> : null}
         </div>
         <h2 className="mt-3 text-2xl font-bold tracking-tight text-ink group-hover:text-brand-700 sm:text-3xl">
@@ -219,8 +219,8 @@ function ArticleCard({ article }: { article: ArticleSummary }): React.ReactEleme
 
       <div className="flex flex-1 flex-col p-5">
         <div className="flex items-center gap-2 text-[11px] font-medium uppercase tracking-wider text-ink-mute">
-          {article.tool ? <span>{article.tool.name}</span> : null}
-          {article.tool && dateStr ? <span aria-hidden>·</span> : null}
+          {article.category ? <span>{article.category.name}</span> : null}
+          {article.category && dateStr ? <span aria-hidden>·</span> : null}
           {dateStr ? <span>{dateStr}</span> : null}
         </div>
         <h3 className="mt-2 line-clamp-2 text-lg font-semibold text-ink group-hover:text-brand-700">

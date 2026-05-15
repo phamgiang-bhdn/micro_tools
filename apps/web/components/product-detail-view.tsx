@@ -22,7 +22,7 @@ interface RelatedItem {
 
 interface ProductDetailViewProps {
   productRaw: ProductItem;
-  tool: { name: string; slug: string };
+  category: { name: string; slug: string };
   previewMode?: boolean;
   related?: RelatedItem[];
 }
@@ -37,12 +37,12 @@ interface ProductDetailViewProps {
  */
 export function ProductDetailView({
   productRaw,
-  tool,
+  category,
   previewMode = false,
   related = []
 }: ProductDetailViewProps): React.ReactElement {
   const product = normalizeProduct(productRaw);
-  const jsonLd = buildProductJsonLd(product, tool.name);
+  const jsonLd = buildProductJsonLd(product, category.name);
   const savings =
     product.originalPrice && product.price && product.originalPrice > product.price
       ? product.originalPrice - product.price
@@ -79,7 +79,7 @@ export function ProductDetailView({
       <Breadcrumb
         items={[
           { label: "Trang chủ", href: previewMode ? "/admin" : "/" },
-          { label: tool.name, href: previewMode ? "/admin?tab=refinery" : `/tools/${tool.slug}` },
+          { label: category.name, href: previewMode ? "/admin?tab=refinery" : `/categories/${category.slug}` },
           { label: product.name }
         ]}
       />
@@ -213,8 +213,8 @@ export function ProductDetailView({
       {related.length > 0 ? (
         <section className="space-y-3">
           <div className="flex items-end justify-between gap-3">
-            <h2 className="text-lg font-semibold text-ink">Sản phẩm liên quan trong {tool.name}</h2>
-            <Link href={`/tools/${tool.slug}`} className="text-sm font-medium text-brand-700 hover:underline">
+            <h2 className="text-lg font-semibold text-ink">Sản phẩm liên quan trong {category.name}</h2>
+            <Link href={`/categories/${category.slug}`} className="text-sm font-medium text-brand-700 hover:underline">
               Xem tất cả →
             </Link>
           </div>
@@ -222,7 +222,7 @@ export function ProductDetailView({
             {related.map((r) => (
               <Link
                 key={r.id}
-                href={`/tools/${tool.slug}/${r.slug ?? r.id}`}
+                href={`/categories/${category.slug}/${r.slug ?? r.id}`}
                 className="group overflow-hidden rounded-xl border border-line bg-card shadow-card transition hover:-translate-y-0.5 hover:border-brand-200 hover:shadow-card-md"
               >
                 <div className="relative aspect-square overflow-hidden bg-canvas">
@@ -353,7 +353,7 @@ function formatValue(value: unknown): string {
 
 function buildProductJsonLd(
   product: ReturnType<typeof normalizeProduct>,
-  toolName: string
+  categoryName: string
 ): Record<string, unknown> {
   const offer: Record<string, unknown> = {
     "@type": "Offer",
@@ -368,7 +368,7 @@ function buildProductJsonLd(
     description: product.description,
     brand: product.brand ? { "@type": "Brand", name: product.brand } : undefined,
     image: product.image ? [product.image] : undefined,
-    category: toolName,
+    category: categoryName,
     offers: offer,
     aggregateRating:
       product.rating !== undefined && product.reviewCount

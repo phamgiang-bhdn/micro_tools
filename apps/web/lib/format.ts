@@ -81,7 +81,7 @@ export function normalizeProduct(product: ProductItem): ProductView {
 
   return {
     id: product.id,
-    toolId: product.toolId,
+    categoryId: product.categoryId,
     network: product.network,
     name: product.name,
     brand: pickString(raw, ["brand", "manufacturer", "bank", "issuer"]),

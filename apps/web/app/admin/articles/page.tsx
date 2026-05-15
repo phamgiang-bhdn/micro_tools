@@ -116,7 +116,7 @@ export default async function AdminArticlesPage({ searchParams }: PageProps): Pr
               <tr>
                 <th className="px-4 py-3 font-semibold">Tiêu đề</th>
                 <th className="px-4 py-3 font-semibold">Loại</th>
-                <th className="px-4 py-3 font-semibold">Tool</th>
+                <th className="px-4 py-3 font-semibold">Danh mục</th>
                 <th className="px-4 py-3 font-semibold">Trạng thái</th>
                 <th className="px-4 py-3 font-semibold">Cập nhật</th>
               </tr>
@@ -136,7 +136,7 @@ export default async function AdminArticlesPage({ searchParams }: PageProps): Pr
                     ) : null}
                   </td>
                   <td className="px-4 py-3 text-admin-mute">{TYPE_LABEL[article.type]}</td>
-                  <td className="px-4 py-3 text-admin-mute">{article.tool?.name ?? "—"}</td>
+                  <td className="px-4 py-3 text-admin-mute">{article.category?.name ?? "—"}</td>
                   <td className="px-4 py-3">
                     <span
                       className={`inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold ring-1 ring-inset ${STATUS_BADGE[article.status]}`}
