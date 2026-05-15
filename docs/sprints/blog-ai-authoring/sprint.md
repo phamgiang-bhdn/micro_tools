@@ -5,6 +5,12 @@
 **Target end:** 2026-05-29 (2 tuần)
 **Owner:** @igapdev01
 
+> **Naming update (post-sprint):** This document was written before the
+> `Tool` -> `Category` rename. Read every occurrence of `Tool`, `toolId`,
+> `toolSlug`, `/tools/...` below as `Category`, `categoryId`,
+> `categorySlug`, `/categories/...`. The schema rename is atomic and the
+> URLs return 308 permanent redirects.
+
 ---
 
 ## Vấn đề (problem statement)

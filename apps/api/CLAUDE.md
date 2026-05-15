@@ -11,7 +11,7 @@ Auto-loaded when working anywhere under `apps/api/`. Root `CLAUDE.md` covers mon
 
 ## Module wiring
 
-`src/modules/app.module.ts` imports `ConfigModule.forRoot({ isGlobal: true })` and `CrawlerModule`, and registers five controllers directly: `WebhooksController`, `ToolsController`, `TrackingController`, `ArticlesController`, `AdminController`. `PrismaService`, `ScraperService`, `AiService`, `ArticleService` are top-level providers.
+`src/modules/app.module.ts` imports `ConfigModule.forRoot({ isGlobal: true })` and `CrawlerModule`, and registers five controllers directly: `WebhooksController`, `CategoriesController`, `TrackingController`, `ArticlesController`, `AdminController`. `PrismaService`, `ScraperService`, `AiService`, `ArticleService` are top-level providers.
 
 Crawler is the only feature module (`src/modules/crawler/`) because it owns its scheduler + affiliate clients. If you add another scheduled feature, follow the same pattern (own module, own `ScheduleModule.forRoot()` import is already in `CrawlerModule`).
 
@@ -51,7 +51,7 @@ When in doubt about the existing admin endpoints (Refinery, Prompt Studio, Money
 
 - Model: read from `GEMINI_MODEL` env, default `gemini-2.0-flash`. `responseMimeType: "application/json"`. Resolved per-call (getter, not constructor) so changing env doesn't need a code restart in dev.
 - Two methods, both routed through the shared `callJsonModel` helper:
-  - `parseBySchema<T>(scrapedText, schema)` — extraction (raw text → structured JSON via `Tool.schemaConfig`). Used by Refinery / crawler enrichment.
+  - `parseBySchema<T>(scrapedText, schema)` — extraction (raw text → structured JSON via `Category.schemaConfig`). Used by Refinery / crawler enrichment.
   - `generateJson<T>(fullPrompt)` — generation (full prompt → JSON). Used by `ArticleService.generateDraft()` for blog AI authoring. The caller controls the entire prompt; nothing is prepended.
 - `currentModel` getter exposes the active model name (used to log into `Article.aiModel` for traceability).
 - Built-in retry: 3 attempts, backoff `Math.min(60000, attempt * 15000)` (15s/30s/45s) when error matches `429|rate limit|quota`. After max attempts, throws `HttpException(429)`. Non-rate-limit errors re-throw immediately. Don't wrap your own retry on top.
@@ -61,8 +61,8 @@ When in doubt about the existing admin endpoints (Refinery, Prompt Studio, Money
 
 Same HITL philosophy as `ProductExtraction`: AI produces a draft, an admin reviews, only then it reaches the public storefront. States on `Article.status`: `DRAFT | PUBLISHED | ARCHIVED`. `Article.type`: `BUYING_GUIDE | REVIEW`.
 
-- **`ArticleService` (`src/services/article.service.ts`)** — picks the active `PromptTemplate` by name (`article-buying-guide` or `article-review`), interpolates `{topic}`, `{toolName}`, `{productHints}` (auto-built from `productIds`), calls `AiService.generateJson<ArticleAiOutput>` validated by a zod schema. Returns `{ output, promptName, modelName }`; the AdminController is the one that persists into `Article` and dedupes slug via `ensureUniqueSlug(candidate, excludeId?)`.
-- **`ArticlesController` (public)** — `GET /api/v1/articles?type=&toolSlug=&limit=` (PUBLISHED only), `GET /api/v1/articles/:slug` (returns article + related `products` joined by `productIds[]`). Both unauthenticated.
+- **`ArticleService` (`src/services/article.service.ts`)** — picks the active `PromptTemplate` by name (`article-buying-guide` or `article-review`), interpolates `{topic}`, `{categoryName}`, `{productHints}` (auto-built from `productIds`), calls `AiService.generateJson<ArticleAiOutput>` validated by a zod schema. Returns `{ output, promptName, modelName }`; the AdminController is the one that persists into `Article` and dedupes slug via `ensureUniqueSlug(candidate, excludeId?)`.
+- **`ArticlesController` (public)** — `GET /api/v1/articles?type=&categorySlug=&limit=` (PUBLISHED only), `GET /api/v1/articles/:slug` (returns article + related `products` joined by `productIds[]`). Both unauthenticated.
 - **Admin endpoints** in `AdminController`: `GET /admin/articles`, `GET /admin/articles/:id`, `POST /admin/articles/generate`, `PUT /admin/articles/:id`, `POST /admin/articles/:id/publish`, `POST /admin/articles/:id/archive`. Use zod schemas (`generateArticleSchema`, `updateArticleSchema`) for body validation.
 - `Article.productIds: String[]` is a plain Postgres uuid array, **not** a relation table. Hand-managed: when products are deleted, the `Article` still references them by id — frontend must handle missing.
 
