@@ -34,7 +34,8 @@ const generateArticleSchema = z.object({
   type: z.nativeEnum(ArticleType),
   topic: z.string().min(5).max(300),
   toolId: z.string().uuid().nullable().optional(),
-  productIds: z.array(z.string().uuid()).max(20).optional()
+  pinnedProductIds: z.array(z.string().uuid()).max(10).optional(),
+  productRef: z.string().min(1).max(500).nullable().optional()
 });
 
 const updateArticleSchema = z.object({
@@ -54,6 +55,13 @@ const updateArticleSchema = z.object({
   type: z.nativeEnum(ArticleType).optional()
 });
 
+function redactSecrets(text: string): string {
+  return text
+    .replace(/AIza[0-9A-Za-z_-]{30,}/g, "[REDACTED_GEMINI_KEY]")
+    .replace(/postgres(ql)?:\/\/[^\s]+/gi, "[REDACTED_DB_URL]")
+    .replace(/(api[-_]?key|x-admin-key|authorization)[":=\s]+[\w.-]+/gi, "$1: [REDACTED]");
+}
+
 @Controller("admin")
 export class AdminController {
   private readonly logger = new Logger(AdminController.name);
@@ -71,6 +79,12 @@ export class AdminController {
   ): void {
     const normalizedRole = (role ?? "viewer").toLowerCase() as "viewer" | "reviewer" | "admin";
     const expectedKey = process.env.ADMIN_API_KEY ?? "change-me";
+    if (process.env.NODE_ENV === "production" && expectedKey === "change-me") {
+      throw new HttpException(
+        "ADMIN_API_KEY is left at default in production — refusing all admin requests",
+        HttpStatus.INTERNAL_SERVER_ERROR
+      );
+    }
     if (!apiKey || apiKey !== expectedKey) {
       throw new HttpException("Unauthorized admin API key", HttpStatus.UNAUTHORIZED);
     }
@@ -190,7 +204,8 @@ export class AdminController {
     await this.prisma.product.update({
       where: { id: extraction.productId },
       data: {
-        scrapedData: body.aiOutput as Prisma.InputJsonValue
+        scrapedData: body.aiOutput as Prisma.InputJsonValue,
+        isPublic: true
       }
     });
 
@@ -387,7 +402,7 @@ export class AdminController {
       article.productIds.length > 0
         ? await this.prisma.product.findMany({
             where: { id: { in: article.productIds } },
-            select: { id: true, name: true, slug: true, network: true }
+            select: { id: true, name: true, slug: true, network: true, isPublic: true }
           })
         : [];
 
@@ -405,35 +420,78 @@ export class AdminController {
     if (!parsed.success) {
       throw new HttpException(parsed.error.flatten(), HttpStatus.BAD_REQUEST);
     }
+    if (parsed.data.type === ArticleType.BUYING_GUIDE && !parsed.data.toolId) {
+      throw new HttpException("BUYING_GUIDE bài cần chọn tool", HttpStatus.BAD_REQUEST);
+    }
+    if (parsed.data.type === ArticleType.REVIEW && !parsed.data.productRef) {
+      throw new HttpException("REVIEW cần nhập tên / slug / URL sản phẩm", HttpStatus.BAD_REQUEST);
+    }
 
-    const { output, derivedBody, promptName, modelName } = await this.articleService.generateDraft({
-      type: parsed.data.type,
-      topic: parsed.data.topic,
-      toolId: parsed.data.toolId ?? null,
-      productIds: parsed.data.productIds ?? []
-    });
-
-    const uniqueSlug = await this.articleService.ensureUniqueSlug(output.slug);
-
+    const placeholderSlug = `ai-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
     const article = await this.prisma.article.create({
       data: {
-        slug: uniqueSlug,
-        title: output.title,
-        excerpt: output.excerpt,
-        body: derivedBody,
-        blocks: output.blocks as Prisma.InputJsonValue,
+        slug: placeholderSlug,
+        title: parsed.data.topic.slice(0, 120),
+        body: "(đang sinh nội dung...)",
         type: parsed.data.type,
-        status: "DRAFT",
+        status: "GENERATING",
         toolId: parsed.data.toolId ?? null,
-        productIds: parsed.data.productIds ?? [],
-        metaTitle: output.metaTitle || null,
-        metaDescription: output.metaDescription || null,
-        aiModel: modelName,
-        aiPromptName: promptName
+        productIds: [],
+        pinnedProductIds: parsed.data.pinnedProductIds ?? []
       }
     });
 
-    return article;
+    // Fire-and-forget. Caller polls /admin/articles/:id for status transitions.
+    setImmediate(() => {
+      this.runArticleGeneration(article.id, parsed.data).catch((err) => {
+        this.logger.error(`Background article generation crashed for ${article.id}`, err);
+      });
+    });
+
+    return { id: article.id, status: article.status };
+  }
+
+  private async runArticleGeneration(
+    articleId: string,
+    input: z.infer<typeof generateArticleSchema>
+  ): Promise<void> {
+    try {
+      const draft = await this.articleService.generateDraft({
+        type: input.type,
+        topic: input.topic,
+        toolId: input.toolId ?? null,
+        pinnedProductIds: input.pinnedProductIds ?? [],
+        productRef: input.productRef ?? null
+      });
+      const uniqueSlug = await this.articleService.ensureUniqueSlug(draft.output.slug, articleId);
+
+      await this.prisma.article.update({
+        where: { id: articleId },
+        data: {
+          slug: uniqueSlug,
+          title: draft.output.title,
+          excerpt: draft.output.excerpt,
+          body: draft.derivedBody,
+          blocks: draft.output.blocks as Prisma.InputJsonValue,
+          status: "DRAFT",
+          productIds: draft.resolvedProductIds,
+          coverImage: draft.coverImage,
+          metaTitle: draft.output.metaTitle || null,
+          metaDescription: draft.output.metaDescription || null,
+          aiModel: draft.modelName,
+          aiPromptName: draft.promptName,
+          generationError: null
+        }
+      });
+    } catch (err) {
+      const rawMessage = err instanceof Error ? err.message : String(err);
+      const redacted = redactSecrets(rawMessage);
+      this.logger.error(`Article generation failed for ${articleId}: ${redacted}`);
+      await this.prisma.article.update({
+        where: { id: articleId },
+        data: { status: "FAILED", generationError: redacted.slice(0, 1000) }
+      });
+    }
   }
 
   @Put("articles/:id")

@@ -32,6 +32,7 @@ export class ToolsController {
         where: { slug },
         include: {
           products: {
+            where: { isPublic: true },
             orderBy: { createdAt: "desc" }
           }
         }

@@ -51,7 +51,7 @@ export interface ProductView {
 }
 
 export type ArticleType = "BUYING_GUIDE" | "REVIEW";
-export type ArticleStatus = "DRAFT" | "PUBLISHED" | "ARCHIVED";
+export type ArticleStatus = "GENERATING" | "DRAFT" | "PUBLISHED" | "ARCHIVED" | "FAILED";
 
 export interface ArticleSummary {
   id: string;
@@ -98,6 +98,7 @@ export interface ArticleDetail extends ArticleSummary {
   metaDescription: string | null;
   productIds: string[];
   products: ProductItem[];
+  // coverImage already on ArticleSummary; restate for clarity in detail consumers.
 }
 
 export interface ArticleAdminDetail {
@@ -106,19 +107,23 @@ export interface ArticleAdminDetail {
   title: string;
   excerpt: string | null;
   body: string;
+  blocks: ArticleBlock[] | null;
+  coverImage: string | null;
   type: ArticleType;
   status: ArticleStatus;
   toolId: string | null;
   productIds: string[];
+  pinnedProductIds: string[];
   metaTitle: string | null;
   metaDescription: string | null;
   aiModel: string | null;
   aiPromptName: string | null;
+  generationError: string | null;
   reviewedBy: string | null;
   reviewedAt: string | null;
   publishedAt: string | null;
   createdAt: string;
   updatedAt: string;
   tool: { id: string; slug: string; name: string } | null;
-  products: Array<{ id: string; name: string; slug: string | null; network: string }>;
+  products: Array<{ id: string; name: string; slug: string | null; network: string; isPublic: boolean }>;
 }

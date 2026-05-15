@@ -75,18 +75,26 @@ export async function generateArticleAction(formData: FormData): Promise<void> {
   const type = String(formData.get("type") ?? "BUYING_GUIDE");
   const topic = String(formData.get("topic") ?? "").trim();
   const toolId = String(formData.get("toolId") ?? "") || undefined;
-  const productIdsRaw = formData.getAll("productIds");
-  const productIds = productIdsRaw.map((v) => String(v)).filter(Boolean);
+  const pinnedProductIdsRaw = formData.getAll("pinnedProductIds");
+  const pinnedProductIds = pinnedProductIdsRaw.map((v) => String(v)).filter(Boolean);
+  const productRef = String(formData.get("productRef") ?? "").trim() || undefined;
 
   if (!topic || topic.length < 5) {
     throw new Error("Vui lòng nhập chủ đề (≥ 5 ký tự).");
+  }
+  if (type === "BUYING_GUIDE" && !toolId) {
+    throw new Error("Cẩm nang chọn mua cần chọn 1 tool (danh mục).");
+  }
+  if (type === "REVIEW" && !productRef) {
+    throw new Error("Review cần nhập tên / slug / URL sản phẩm.");
   }
 
   const created = (await adminFetch<{ id: string }>("/admin/articles/generate", "POST", {
     type,
     topic,
     toolId,
-    productIds
+    pinnedProductIds,
+    productRef
   }));
 
   revalidatePath("/admin/articles");

@@ -34,9 +34,11 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
       title: article.title,
       description: article.excerpt || undefined,
       url: `${SITE_URL}/blog/${article.slug}`,
-      images: article.products[0]?.scrapedData
-        ? [(article.products[0].scrapedData as Record<string, unknown>).image as string].filter(Boolean) as string[]
-        : undefined
+      images: article.coverImage
+        ? [article.coverImage]
+        : article.products[0]?.scrapedData
+          ? [(article.products[0].scrapedData as Record<string, unknown>).image as string].filter(Boolean) as string[]
+          : undefined
     },
     twitter: {
       card: "summary_large_image",
@@ -60,10 +62,11 @@ export default async function ArticleDetailPage({ params }: PageProps): Promise<
 
   const isReview = article.type === "REVIEW";
   const heroProduct = article.products[0];
-  const heroImages = article.products.slice(0, 3).map((p) => {
+  const productImages = article.products.slice(0, 3).map((p) => {
     const sd = (p.scrapedData ?? {}) as Record<string, unknown>;
     return typeof sd.image === "string" ? sd.image : null;
   }).filter((img): img is string => Boolean(img));
+  const heroImages = article.coverImage ? [article.coverImage, ...productImages].slice(0, 3) : productImages;
 
   // Chèn 1 CTA inline sau H2 đầu tiên (nếu có heroProduct)
   const bodyParts = splitAfterFirstH2(article.body);

@@ -3,6 +3,7 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 import { ArticleType, Prisma } from "@prisma/client";
 import { z } from "zod";
 import { PrismaService } from "../prisma/prisma.service";
+import { ProductDiscoveryService } from "../modules/crawler/product-discovery.service";
 
 const blockSchema = z.discriminatedUnion("type", [
   z.object({
@@ -26,7 +27,7 @@ const blockSchema = z.discriminatedUnion("type", [
   }),
   z.object({
     type: z.literal("product_spotlight"),
-    productId: z.string().min(8),
+    productId: z.string().min(1),
     angle: z.string().min(3).max(200),
     pros: z.array(z.string()).max(8).optional(),
     cons: z.array(z.string()).max(8).optional(),
@@ -72,9 +73,21 @@ const aiOutputSchema = z.object({
   title: z.string().min(5).max(200),
   slug: z.string().min(3).max(120).regex(/^[a-z0-9-]+$/),
   excerpt: z.string().max(300),
-  blocks: z.array(blockSchema).min(3).max(15),
+  blocks: z.array(blockSchema).min(3).max(20),
   metaTitle: z.string().max(120).optional().default(""),
-  metaDescription: z.string().max(300).optional().default("")
+  metaDescription: z.string().max(300).optional().default(""),
+  selectedRefs: z.array(z.string()).max(10).default([]),
+  discoveredProducts: z
+    .array(
+      z.object({
+        ref: z.string().min(1).max(40),
+        name: z.string().min(2).max(200),
+        sourceUrl: z.string().url(),
+        reason: z.string().max(300).optional()
+      })
+    )
+    .max(6)
+    .default([])
 });
 
 export type ArticleAiOutput = z.infer<typeof aiOutputSchema>;
@@ -83,17 +96,99 @@ export interface GenerateArticleInput {
   type: ArticleType;
   topic: string;
   toolId?: string | null;
-  productIds?: string[];
+  pinnedProductIds?: string[];
+  productRef?: string | null;
 }
+
+export interface GeneratedDraft {
+  output: ArticleAiOutput;
+  derivedBody: string;
+  promptName: string;
+  modelName: string;
+  resolvedProductIds: string[];
+  coverImage: string | null;
+}
+
+const DEFAULT_ALLOWED_DOMAINS = ["shopee.vn", "tiki.vn", "lazada.vn", "fptshop.com.vn", "thegioididong.com", "dienmayxanh.com"];
+
+const IP_LITERAL_REGEX = /^(?:\d{1,3}\.){3}\d{1,3}$|^\[?[0-9a-f:]+\]?$/i;
+const PRIVATE_HOST_BLOCKLIST = new Set(["localhost", "metadata.google.internal", "169.254.169.254"]);
+
+export function isSafeDiscoveredUrl(
+  rawUrl: string,
+  allowedDomains: string[],
+  logger?: { warn(msg: string): void }
+): boolean {
+  let url: URL;
+  try {
+    url = new URL(rawUrl);
+  } catch {
+    logger?.warn(`Discovered product invalid URL: ${rawUrl}`);
+    return false;
+  }
+  if (url.protocol !== "http:" && url.protocol !== "https:") {
+    logger?.warn(`Discovered product rejected (bad protocol): ${url.protocol}`);
+    return false;
+  }
+  let host = url.hostname.toLowerCase();
+  // Strip trailing dot
+  while (host.endsWith(".")) host = host.slice(0, -1);
+  host = host.replace(/^www\./, "");
+  // Reject IP literals (v4 + v6)
+  if (IP_LITERAL_REGEX.test(host)) {
+    logger?.warn(`Discovered product rejected (IP literal): ${host}`);
+    return false;
+  }
+  // Reject private/internal hostnames
+  if (PRIVATE_HOST_BLOCKLIST.has(host) || host.endsWith(".local") || host.endsWith(".internal")) {
+    logger?.warn(`Discovered product rejected (private host): ${host}`);
+    return false;
+  }
+  // Reject punycode (xn--) — mixed-script homograph attack vector
+  if (host.includes("xn--")) {
+    logger?.warn(`Discovered product rejected (punycode): ${host}`);
+    return false;
+  }
+  if (!allowedDomains.some((d) => host === d || host.endsWith(`.${d}`))) {
+    logger?.warn(`Discovered product rejected (domain not in whitelist): ${host}`);
+    return false;
+  }
+  return true;
+}
+
+const candidateSelect = {
+  id: true,
+  name: true,
+  slug: true,
+  affiliateUrl: true,
+  network: true,
+  scrapedData: true,
+  updatedAt: true,
+  createdAt: true
+} satisfies Prisma.ProductSelect;
+
+type CandidateRow = Prisma.ProductGetPayload<{ select: typeof candidateSelect }>;
 
 @Injectable()
 export class ArticleService {
   private readonly logger = new Logger(ArticleService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly discovery: ProductDiscoveryService
+  ) {}
 
   private get modelName(): string {
     return process.env.GEMINI_MODEL ?? "gemini-2.0-flash";
+  }
+
+  private get allowedDomains(): string[] {
+    const raw = process.env.ALLOWED_PRODUCT_DOMAINS;
+    if (!raw) return DEFAULT_ALLOWED_DOMAINS;
+    return raw
+      .split(",")
+      .map((d) => d.trim().toLowerCase())
+      .filter(Boolean);
   }
 
   private promptNameFor(type: ArticleType): string {
@@ -107,12 +202,7 @@ export class ArticleService {
     }
   }
 
-  async generateDraft(input: GenerateArticleInput): Promise<{
-    output: ArticleAiOutput;
-    derivedBody: string;
-    promptName: string;
-    modelName: string;
-  }> {
+  async generateDraft(input: GenerateArticleInput): Promise<GeneratedDraft> {
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
       throw new HttpException("GEMINI_API_KEY is not configured", HttpStatus.INTERNAL_SERVER_ERROR);
@@ -133,30 +223,77 @@ export class ArticleService {
     const contextTool = input.toolId
       ? await this.prisma.tool.findUnique({ where: { id: input.toolId } })
       : null;
+    if (!contextTool && input.type === "BUYING_GUIDE") {
+      throw new HttpException("BUYING_GUIDE bài cần chọn tool", HttpStatus.BAD_REQUEST);
+    }
 
-    const contextProducts =
-      input.productIds && input.productIds.length > 0
-        ? await this.prisma.product.findMany({
-            where: { id: { in: input.productIds } },
-            select: { id: true, name: true, scrapedData: true, network: true }
-          })
-        : [];
+    const pinnedIds = input.pinnedProductIds ?? [];
+    const pinned: CandidateRow[] = pinnedIds.length
+      ? await this.prisma.product.findMany({
+          where: { id: { in: pinnedIds } },
+          select: candidateSelect
+        })
+      : [];
 
-    const validProductIds = new Set(contextProducts.map((p) => p.id));
+    // Top candidates of the tool (excluding already-pinned)
+    const candidatesFromTool: CandidateRow[] = contextTool
+      ? await this.prisma.product.findMany({
+          where: {
+            toolId: contextTool.id,
+            id: { notIn: pinnedIds.length ? pinnedIds : ["00000000-0000-0000-0000-000000000000"] }
+          },
+          select: candidateSelect,
+          orderBy: { updatedAt: "desc" },
+          take: 15
+        })
+      : [];
+
+    // For REVIEW: resolve productRef → 1 specific product (always pinned)
+    if (input.type === "REVIEW" && input.productRef) {
+      const resolvedRef = await this.resolveProductRef(input.productRef, contextTool?.id ?? null);
+      if (resolvedRef && !pinned.find((p) => p.id === resolvedRef.id)) {
+        pinned.unshift(resolvedRef);
+      }
+    }
+
+    const candidates = [...pinned, ...candidatesFromTool];
+    const refToId = new Map<string, string>();
+    const candidateCards = candidates.map((p, i) => {
+      const ref = `P${i + 1}`;
+      refToId.set(ref, p.id);
+      return this.toCandidateCard(p, ref);
+    });
+
+    const now = new Date();
+    const currentDate = now.toISOString().slice(0, 10);
+    const month = now.getUTCMonth() + 1;
+    const year = now.getUTCFullYear();
+    const seasonHint = this.deriveSeasonHint(month);
+    const allowedDomains = this.allowedDomains;
+
+    const pinnedRefs = pinned
+      .map((p) => {
+        const idx = candidates.findIndex((c) => c.id === p.id);
+        return idx >= 0 ? `P${idx + 1}` : null;
+      })
+      .filter((r): r is string => Boolean(r));
 
     const userBlock = [
-      `Chủ đề: ${input.topic}`,
-      contextTool ? `Danh mục: ${contextTool.name} (slug: ${contextTool.slug})` : null,
-      contextProducts.length > 0
-        ? `contextProducts (chỉ dùng productId trong list này, KHÔNG bịa): ${JSON.stringify(
-            contextProducts.map((p) => ({
-              id: p.id,
-              name: p.name,
-              network: p.network,
-              specs: p.scrapedData
-            }))
-          )}`
-        : "contextProducts: [] (không có sản phẩm — bỏ qua block product_spotlight và comparison)"
+      `[currentDate]: ${currentDate} (writing for Vietnam market in ${month}/${year}, season: ${seasonHint})`,
+      `[topic]: ${input.topic}`,
+      contextTool ? `[tool]: ${contextTool.name} (slug: ${contextTool.slug})` : null,
+      `[allowedDomains]: ${allowedDomains.join(", ")}`,
+      pinnedRefs.length > 0 ? `[pinnedRefs] (BẮT BUỘC dùng tất cả trong block product_spotlight): ${pinnedRefs.join(", ")}` : null,
+      `[candidates] (DÙNG ref P1, P2... trong productId/productIds/selectedRefs):\n${JSON.stringify(candidateCards, null, 2)}`,
+      `\n=== QUY TẮC BẮT BUỘC ===`,
+      `1. Khi nhắc tới sản phẩm trong block product_spotlight (field "productId") và comparison (field "productIds"), BẮT BUỘC ĐIỀN REF (vd "P1","P2","D1") — KHÔNG điền UUID. Hệ thống sẽ tự thay ref bằng UUID thật.`,
+      `2. Field "selectedRefs" liệt kê các ref đã dùng trong bài (để hệ thống biết bài này gắn sản phẩm nào).`,
+      pinnedRefs.length > 0 ? `3a. PHẢI có block product_spotlight cho MỖI ref trong [pinnedRefs] (${pinnedRefs.join(", ")}). Đây là sản phẩm admin pin, không được drop.` : null,
+      `3. CHỈ trích giá/khuyến mãi/tính năng từ data trong [candidates]. Không tự suy diễn năm ra mắt cũ hơn ${year - 1}.`,
+      `4. Nếu cần thêm sản phẩm KHÔNG có trong [candidates] (vd model mới ra trên thị trường), liệt kê trong "discoveredProducts" với sourceUrl từ web search; ref đặt là D1, D2... và DÙNG ref đó trong block. URL phải nằm trong [allowedDomains].`,
+      `5. Giọng văn tươi, sinh động, có hook ở đầu bài. Tránh viết liền 2 prose. Xen kẽ visual block (criteria_grid, product_spotlight, comparison, callout, pros_cons, faq, verdict) để bài đa dạng.`,
+      `6. Trả về JSON thuần (không bọc markdown fence). Schema:`,
+      `{ "title", "slug", "excerpt", "blocks": [...], "metaTitle", "metaDescription", "selectedRefs": ["P1","D1",...], "discoveredProducts": [{ "ref": "D1", "name", "sourceUrl", "reason" }] }`
     ]
       .filter(Boolean)
       .join("\n\n");
@@ -165,11 +302,12 @@ export class ArticleService {
     const modelName = this.modelName;
 
     const client = new GoogleGenerativeAI(apiKey);
+    const useGrounding = process.env.ARTICLE_GROUNDING !== "false";
     const model = client.getGenerativeModel({
       model: modelName,
-      generationConfig: {
-        responseMimeType: "application/json"
-      }
+      ...(useGrounding
+        ? { tools: [{ googleSearch: {} } as unknown as Record<string, unknown>] as never }
+        : { generationConfig: { responseMimeType: "application/json" } })
     });
 
     const maxAttempts = 3;
@@ -178,18 +316,37 @@ export class ArticleService {
     for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
       try {
         const result = await model.generateContent(fullPrompt);
-        const text = result.response.text();
-        const parsedJson = JSON.parse(text) as unknown;
+        const rawText = result.response.text();
+        const parsedJson = this.extractJson(rawText);
         const validated = aiOutputSchema.safeParse(parsedJson);
         if (!validated.success) {
           throw new Error(`Invalid AI output shape: ${validated.error.message}`);
         }
 
-        // Lọc block có productId/productIds bịa
-        const cleanBlocks = filterInvalidProductRefs(validated.data.blocks, validProductIds);
+        // Resolve discoveredProducts → real Product rows (PENDING_REVIEW)
+        const discoveredRefToId = await this.ingestDiscovered(
+          validated.data.discoveredProducts,
+          contextTool?.id ?? null,
+          contextTool?.slug ?? null,
+          allowedDomains
+        );
 
-        // Validate ảnh trong product_spotlight (HEAD check, song song, timeout 3s mỗi cái)
-        const blocksWithValidImages = await this.validateImageUrls(cleanBlocks);
+        const allRefToId = new Map<string, string>([...refToId, ...discoveredRefToId]);
+
+        // Filter blocks with unknown refs
+        const cleanBlocks = filterInvalidProductRefs(validated.data.blocks, allRefToId);
+
+        // Replace ref → real productId in blocks for renderer
+        const resolvedBlocks = resolveRefsInBlocks(cleanBlocks, allRefToId);
+
+        // Validate images
+        const blocksWithValidImages = await this.validateImageUrls(resolvedBlocks);
+
+        // Stale-year hint reject (soft, retry once if too old)
+        if (attempt === 1 && this.hasStaleYearMention(blocksWithValidImages, year)) {
+          this.logger.warn("Article mentions stale year, retrying once");
+          throw new Error("STALE_YEAR_RETRY");
+        }
 
         const finalOutput: ArticleAiOutput = {
           ...validated.data,
@@ -198,17 +355,34 @@ export class ArticleService {
 
         const derivedBody = blocksToMarkdown(blocksWithValidImages);
 
-        return { output: finalOutput, derivedBody, promptName, modelName };
+        // Compute resolvedProductIds: refs used in selectedRefs + all refs found in blocks
+        // After resolveRefsInBlocks(), block fields already contain UUIDs (not refs),
+        // so we re-derive from the original (pre-resolve) cleanBlocks via reverse mapping.
+        const usedRefs = new Set<string>(validated.data.selectedRefs);
+        for (const b of cleanBlocks) {
+          if (b.type === "product_spotlight") usedRefs.add(b.productId);
+          if (b.type === "comparison") b.productIds.forEach((r) => usedRefs.add(r));
+        }
+        const resolvedProductIds = Array.from(usedRefs)
+          .map((r) => allRefToId.get(r))
+          .filter((id): id is string => Boolean(id));
+
+        const coverImage = await this.pickCoverImage(resolvedProductIds);
+
+        return { output: finalOutput, derivedBody, promptName, modelName, resolvedProductIds, coverImage };
       } catch (error: unknown) {
         const message = error instanceof Error ? error.message : String(error);
         lastError = message;
         const isRateLimit = /429|rate limit|quota/i.test(message);
+        const isStaleRetry = message === "STALE_YEAR_RETRY";
 
-        if (isRateLimit && attempt < maxAttempts) {
-          const backoffMs = Math.min(60000, attempt * 15000);
-          this.logger.warn(
-            `Gemini rate limited (article), retrying in ${backoffMs}ms (attempt ${attempt}/${maxAttempts})`
-          );
+        if ((isRateLimit || isStaleRetry) && attempt < maxAttempts) {
+          const backoffMs = isStaleRetry ? 500 : Math.min(60000, attempt * 15000);
+          if (isRateLimit) {
+            this.logger.warn(
+              `Gemini rate limited (article), retrying in ${backoffMs}ms (attempt ${attempt}/${maxAttempts})`
+            );
+          }
           await new Promise((resolve) => setTimeout(resolve, backoffMs));
           continue;
         }
@@ -229,6 +403,134 @@ export class ArticleService {
       `Unexpected article AI generation state: ${lastError ?? "unknown"}`,
       HttpStatus.INTERNAL_SERVER_ERROR
     );
+  }
+
+  private toCandidateCard(p: CandidateRow, ref: string): Record<string, unknown> {
+    const data = (p.scrapedData ?? {}) as Record<string, unknown>;
+    const num = (v: unknown): number | undefined => (typeof v === "number" ? v : undefined);
+    const str = (v: unknown): string | undefined => (typeof v === "string" ? v : undefined);
+    return {
+      ref,
+      name: p.name,
+      price: num(data.price ?? data.currentPrice ?? data.salePrice),
+      originalPrice: num(data.originalPrice),
+      discountPercent: num(data.discountPercent),
+      brand: str(data.brand),
+      store: str(data.store),
+      image: str(data.image ?? data.imageUrl ?? data.thumbnail),
+      description: str(data.description)?.slice(0, 300),
+      crawledAt: p.createdAt.toISOString().slice(0, 10),
+      priceUpdatedAt: p.updatedAt.toISOString().slice(0, 10)
+    };
+  }
+
+  private async resolveProductRef(ref: string, toolId: string | null): Promise<CandidateRow | null> {
+    const trimmed = ref.trim();
+    if (!trimmed) return null;
+    const isUrl = /^https?:\/\//i.test(trimmed);
+    if (isUrl) {
+      return this.prisma.product.findFirst({
+        where: { affiliateUrl: trimmed },
+        select: candidateSelect
+      });
+    }
+    return this.prisma.product.findFirst({
+      where: {
+        ...(toolId ? { toolId } : {}),
+        OR: [{ slug: trimmed }, { name: { contains: trimmed, mode: "insensitive" } }]
+      },
+      select: candidateSelect
+    });
+  }
+
+  private async ingestDiscovered(
+    discovered: ArticleAiOutput["discoveredProducts"],
+    toolId: string | null,
+    toolSlug: string | null,
+    allowedDomains: string[]
+  ): Promise<Map<string, string>> {
+    const out = new Map<string, string>();
+    if (!toolId || !toolSlug || discovered.length === 0) return out;
+
+    for (const item of discovered) {
+      if (!isSafeDiscoveredUrl(item.sourceUrl, allowedDomains, this.logger)) continue;
+
+      try {
+        const productId = await this.discovery.ingest({
+          name: item.name,
+          sourceUrl: item.sourceUrl,
+          toolId,
+          toolSlug,
+          reason: item.reason
+        });
+        if (productId) out.set(item.ref, productId);
+      } catch (e) {
+        this.logger.warn(`Failed to ingest discovered product ${item.name}: ${(e as Error).message}`);
+      }
+    }
+    return out;
+  }
+
+  private async pickCoverImage(productIds: string[]): Promise<string | null> {
+    if (productIds.length === 0) return null;
+    const products = await this.prisma.product.findMany({
+      where: { id: { in: productIds } },
+      select: { id: true, scrapedData: true }
+    });
+    const byId = new Map(products.map((p) => [p.id, p]));
+    for (const id of productIds) {
+      const p = byId.get(id);
+      if (!p) continue;
+      const data = (p.scrapedData ?? {}) as Record<string, unknown>;
+      const img = (data.image ?? data.imageUrl ?? data.thumbnail) as string | undefined;
+      if (typeof img === "string" && img.startsWith("http")) return img;
+    }
+    return null;
+  }
+
+  private deriveSeasonHint(month: number): string {
+    if (month === 1 || month === 2) return "Tết Nguyên Đán";
+    if (month === 11) return "11.11 / Black Friday";
+    if (month === 12) return "Cuối năm / 12.12";
+    if (month >= 6 && month <= 8) return "Mùa hè";
+    if (month === 9) return "Tựu trường";
+    return "Bình thường";
+  }
+
+  private extractJson(text: string): unknown {
+    const cleaned = text
+      .replace(/^\s*```(?:json)?\s*/i, "")
+      .replace(/\s*```\s*$/i, "")
+      .trim();
+    try {
+      return JSON.parse(cleaned);
+    } catch {
+      // Try to find first { and last }
+      const start = cleaned.indexOf("{");
+      const end = cleaned.lastIndexOf("}");
+      if (start >= 0 && end > start) {
+        return JSON.parse(cleaned.slice(start, end + 1));
+      }
+      throw new Error("AI response was not valid JSON");
+    }
+  }
+
+  private hasStaleYearMention(blocks: ArticleBlock[], currentYear: number): boolean {
+    const cutoff = currentYear - 2;
+    const yearRegex = /\b(19\d\d|20\d\d)\b/g;
+    const scan = (text: string): boolean => {
+      for (const m of text.matchAll(yearRegex)) {
+        const y = Number(m[1]);
+        if (Number.isFinite(y) && y < cutoff) return true;
+      }
+      return false;
+    };
+    for (const b of blocks) {
+      if (b.type === "prose" && scan(b.markdown)) return true;
+      if (b.type === "callout" && scan(b.body)) return true;
+      if (b.type === "verdict" && scan(b.summary)) return true;
+    }
+    return false;
   }
 
   private async validateImageUrls(blocks: ArticleBlock[]): Promise<ArticleBlock[]> {
@@ -279,6 +581,10 @@ export class ArticleService {
       if (!existing || existing.id === excludeId) return slug;
       suffix += 1;
       slug = `${candidate}-${suffix}`;
+      if (suffix > 50) {
+        // Race fallback — append timestamp to break the loop
+        return `${candidate}-${Date.now().toString(36)}`;
+      }
     }
   }
 
@@ -293,17 +599,16 @@ export class ArticleService {
 }
 
 /**
- * Strip ra các block có productId/productIds AI bịa (không thuộc context).
- * comparison → giữ nếu còn ≥ 2 id hợp lệ; product_spotlight → drop nếu id sai.
+ * Strip blocks referencing unknown refs. After this pass, every ref is guaranteed valid.
  */
-function filterInvalidProductRefs(blocks: ArticleBlock[], validIds: Set<string>): ArticleBlock[] {
+function filterInvalidProductRefs(blocks: ArticleBlock[], validRefs: Map<string, string>): ArticleBlock[] {
   return blocks
     .map((b): ArticleBlock | null => {
       if (b.type === "product_spotlight") {
-        return validIds.has(b.productId) ? b : null;
+        return validRefs.has(b.productId) ? b : null;
       }
       if (b.type === "comparison") {
-        const keep = b.productIds.filter((id) => validIds.has(id));
+        const keep = b.productIds.filter((r) => validRefs.has(r));
         if (keep.length < 2) return null;
         return { ...b, productIds: keep };
       }
@@ -313,10 +618,26 @@ function filterInvalidProductRefs(blocks: ArticleBlock[], validIds: Set<string>)
 }
 
 /**
- * Sinh body markdown fallback từ blocks. Dùng cho:
- * - DB column body (NOT NULL)
- * - Sitemap / preview plain text
- * - Fallback render nếu blocks rendering hỏng
+ * Replace ref strings (P1, D1) with real productId UUIDs in blocks.
+ * Renderer downstream consumes productId.
+ */
+function resolveRefsInBlocks(blocks: ArticleBlock[], refToId: Map<string, string>): ArticleBlock[] {
+  return blocks.map((b) => {
+    if (b.type === "product_spotlight") {
+      const id = refToId.get(b.productId);
+      return { ...b, productId: id ?? b.productId } as ArticleBlock;
+    }
+    if (b.type === "comparison") {
+      const ids = b.productIds.map((r) => refToId.get(r) ?? r);
+      return { ...b, productIds: ids } as ArticleBlock;
+    }
+    return b;
+  });
+}
+
+/**
+ * Markdown fallback (body NOT NULL column). Refs already resolved to UUIDs here,
+ * but we don't dereference — body is for SEO plaintext fallback, not detailed render.
  */
 export function blocksToMarkdown(blocks: ArticleBlock[]): string {
   const parts: string[] = [];

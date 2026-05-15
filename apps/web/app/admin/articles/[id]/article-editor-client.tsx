@@ -26,6 +26,8 @@ export interface ArticleEditorInitial {
   metaDescription: string | null;
   toolId: string | null;
   productIds: string[];
+  hasBlocks?: boolean;
+  coverImage?: string | null;
 }
 
 interface Props {
@@ -54,6 +56,30 @@ export function ArticleEditorClient({ initial, tools, products }: Props): React.
       className="space-y-5 rounded-2xl border border-admin-line bg-admin-surface p-6"
     >
       <input type="hidden" name="id" value={initial.id} />
+
+      {initial.hasBlocks ? (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
+          <strong>Bài này dùng blocks JSON</strong> làm source-of-truth khi render storefront.
+          Chỉnh sửa textarea Markdown bên dưới <strong>KHÔNG</strong> đổi nội dung public — chỉ
+          dùng làm fallback SEO. Để chỉnh nội dung thật, mở Prompt Studio sửa prompt rồi sinh lại
+          bài, hoặc chờ tính năng block-level editor (Iter 2).
+        </div>
+      ) : null}
+
+      {initial.coverImage ? (
+        <div className="flex items-center gap-3 rounded-lg border border-admin-line bg-canvas p-3">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={initial.coverImage}
+            alt="Cover"
+            className="size-16 rounded object-cover"
+          />
+          <div className="text-xs text-admin-mute">
+            <p className="font-semibold text-admin-ink">Cover image (auto-pick)</p>
+            <p className="mt-0.5 break-all">{initial.coverImage}</p>
+          </div>
+        </div>
+      ) : null}
 
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label="Tiêu đề" htmlFor="title" hint="60–70 ký tự cho SEO tốt.">

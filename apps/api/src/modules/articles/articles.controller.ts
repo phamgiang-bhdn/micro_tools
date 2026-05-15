@@ -45,10 +45,16 @@ export class ArticlesController {
     const allProductIds = [...new Set(articles.flatMap((a) => a.productIds))];
     const products = allProductIds.length
       ? await this.prisma.product.findMany({
-          where: { id: { in: allProductIds } },
+          where: { id: { in: allProductIds }, isPublic: true },
           select: { id: true, scrapedData: true }
         })
       : [];
+
+    const articleCovers = await this.prisma.article.findMany({
+      where: { id: { in: articles.map((a) => a.id) } },
+      select: { id: true, coverImage: true }
+    });
+    const coverById = new Map(articleCovers.map((a) => [a.id, a.coverImage]));
 
     const imageMap = new Map<string, string>();
     for (const p of products) {
@@ -59,7 +65,10 @@ export class ArticlesController {
 
     return articles.map(({ productIds, ...rest }) => ({
       ...rest,
-      coverImage: productIds.map((id) => imageMap.get(id)).find(Boolean) ?? null
+      coverImage:
+        coverById.get(rest.id) ??
+        productIds.map((id) => imageMap.get(id)).find(Boolean) ??
+        null
     }));
   }
 
@@ -71,6 +80,7 @@ export class ArticlesController {
         tool: { select: { slug: true, name: true } }
       }
     });
+    // article.coverImage included via spread below.
 
     if (!article || article.status !== "PUBLISHED") {
       throw new HttpException("Article not found", HttpStatus.NOT_FOUND);
@@ -79,7 +89,7 @@ export class ArticlesController {
     const products =
       article.productIds.length > 0
         ? await this.prisma.product.findMany({
-            where: { id: { in: article.productIds } },
+            where: { id: { in: article.productIds }, isPublic: true },
             include: { tool: { select: { slug: true, name: true } } }
           })
         : [];

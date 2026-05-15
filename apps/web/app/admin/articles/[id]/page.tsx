@@ -5,6 +5,7 @@ import { fetchTools, fetchToolBySlug } from "../../../../lib/api";
 import type { ArticleAdminDetail, ArticleStatus } from "../../../../lib/types";
 import { archiveArticleAction, publishArticleAction } from "../../actions";
 import { ArticleEditorClient } from "./article-editor-client";
+import { GeneratingScreen } from "./generating-screen";
 
 export const dynamic = "force-dynamic";
 
@@ -23,15 +24,19 @@ async function getJson<T>(path: string): Promise<T | null> {
 }
 
 const STATUS_BADGE: Record<ArticleStatus, string> = {
+  GENERATING: "bg-sky-50 text-sky-700 ring-sky-200",
   DRAFT: "bg-amber-50 text-amber-700 ring-amber-200",
   PUBLISHED: "bg-emerald-50 text-emerald-700 ring-emerald-200",
-  ARCHIVED: "bg-slate-100 text-slate-600 ring-slate-200"
+  ARCHIVED: "bg-slate-100 text-slate-600 ring-slate-200",
+  FAILED: "bg-rose-50 text-rose-700 ring-rose-200"
 };
 
 const STATUS_LABEL: Record<ArticleStatus, string> = {
+  GENERATING: "AI đang sinh nội dung...",
   DRAFT: "Bản nháp — chưa public",
   PUBLISHED: "Đã đăng",
-  ARCHIVED: "Đã lưu trữ"
+  ARCHIVED: "Đã lưu trữ",
+  FAILED: "Sinh bài thất bại"
 };
 
 const TYPE_LABEL: Record<string, string> = {
@@ -47,6 +52,10 @@ export default async function AdminArticleDetail({ params }: PageProps): Promise
   const { id } = await params;
   const article = await getJson<ArticleAdminDetail>(`/admin/articles/${id}`);
   if (!article) notFound();
+
+  if (article.status === "GENERATING") {
+    return <GeneratingScreen articleId={article.id} topic={article.title} />;
+  }
 
   const { tools } = await fetchTools();
   const toolDetails = await Promise.all(tools.map((t) => fetchToolBySlug(t.slug)));
@@ -120,6 +129,44 @@ export default async function AdminArticleDetail({ params }: PageProps): Promise
         </div>
       </header>
 
+      {article.status === "FAILED" && article.generationError ? (
+        <div className="rounded-lg border border-rose-200 bg-rose-50 p-4 text-sm text-rose-900">
+          <strong>AI sinh bài thất bại:</strong>
+          <pre className="mt-1 whitespace-pre-wrap text-xs">{article.generationError}</pre>
+          <p className="mt-2 text-xs">Xoá bài này và tạo lại, hoặc tự fill nội dung tay.</p>
+        </div>
+      ) : null}
+
+      {article.products.length > 0 ? (
+        <div className="rounded-lg border border-admin-line bg-admin-surface p-4 text-sm">
+          <div className="mb-2 font-semibold text-admin-ink">Sản phẩm gắn trong bài</div>
+          <ul className="space-y-1">
+            {article.products.map((p) => (
+              <li key={p.id} className="flex items-center justify-between gap-3">
+                <span className="text-admin-ink">{p.name}</span>
+                <span className="flex items-center gap-1.5 text-xs">
+                  <span className="text-admin-mute">{p.network}</span>
+                  {!p.isPublic ? (
+                    <span className="rounded-full bg-amber-100 px-2 py-0.5 font-semibold text-amber-800 ring-1 ring-amber-200">
+                      Chờ duyệt Refinery
+                    </span>
+                  ) : (
+                    <span className="rounded-full bg-emerald-100 px-2 py-0.5 font-semibold text-emerald-800 ring-1 ring-emerald-200">
+                      Public
+                    </span>
+                  )}
+                </span>
+              </li>
+            ))}
+          </ul>
+          {article.products.some((p) => !p.isPublic) ? (
+            <p className="mt-2 text-xs text-admin-mute">
+              Sản phẩm &quot;Chờ duyệt&quot; sẽ ẨN trên storefront tới khi bạn approve ở Refinery.
+            </p>
+          ) : null}
+        </div>
+      ) : null}
+
       <ArticleEditorClient
         initial={{
           id: article.id,
@@ -130,7 +177,9 @@ export default async function AdminArticleDetail({ params }: PageProps): Promise
           metaTitle: article.metaTitle,
           metaDescription: article.metaDescription,
           toolId: article.toolId,
-          productIds: article.productIds
+          productIds: article.productIds,
+          hasBlocks: Array.isArray(article.blocks) && article.blocks.length > 0,
+          coverImage: article.coverImage
         }}
         tools={tools.map((t) => ({ id: t.id, name: t.name }))}
         products={productOptions}

@@ -11,6 +11,7 @@ import { CrawlerScheduler } from "./crawler.scheduler";
 import { CrawlerService } from "./crawler.service";
 import { EnrichmentService } from "./enrichment.service";
 import { ImportService } from "./import.service";
+import { ProductDiscoveryService } from "./product-discovery.service";
 
 @Module({
   imports: [ScheduleModule.forRoot()],
@@ -24,8 +25,10 @@ import { ImportService } from "./import.service";
     WebScrapeClient,
     EnrichmentService,
     ImportService,
+    ProductDiscoveryService,
     CrawlerService,
     CrawlerScheduler
-  ]
+  ],
+  exports: [ProductDiscoveryService]
 })
 export class CrawlerModule {}

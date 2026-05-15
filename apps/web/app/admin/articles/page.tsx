@@ -23,15 +23,19 @@ const TYPE_LABEL: Record<ArticleType, string> = {
 };
 
 const STATUS_LABEL: Record<ArticleStatus, string> = {
+  GENERATING: "Đang sinh...",
   DRAFT: "Bản nháp",
   PUBLISHED: "Đã đăng",
-  ARCHIVED: "Đã lưu trữ"
+  ARCHIVED: "Đã lưu trữ",
+  FAILED: "Sinh thất bại"
 };
 
 const STATUS_BADGE: Record<ArticleStatus, string> = {
+  GENERATING: "bg-sky-50 text-sky-700 ring-sky-200",
   DRAFT: "bg-amber-50 text-amber-700 ring-amber-200",
   PUBLISHED: "bg-emerald-50 text-emerald-700 ring-emerald-200",
-  ARCHIVED: "bg-slate-100 text-slate-600 ring-slate-200"
+  ARCHIVED: "bg-slate-100 text-slate-600 ring-slate-200",
+  FAILED: "bg-rose-50 text-rose-700 ring-rose-200"
 };
 
 interface PageProps {
@@ -77,11 +81,17 @@ export default async function AdminArticlesPage({ searchParams }: PageProps): Pr
         <FilterPill href="/admin/articles" active={!status && !type}>
           Tất cả
         </FilterPill>
+        <FilterPill href="/admin/articles?status=GENERATING" active={status === "GENERATING"}>
+          Đang sinh
+        </FilterPill>
         <FilterPill href="/admin/articles?status=DRAFT" active={status === "DRAFT"}>
           Bản nháp (cần duyệt)
         </FilterPill>
         <FilterPill href="/admin/articles?status=PUBLISHED" active={status === "PUBLISHED"}>
           Đã đăng
+        </FilterPill>
+        <FilterPill href="/admin/articles?status=FAILED" active={status === "FAILED"}>
+          Lỗi
         </FilterPill>
         <FilterPill href="/admin/articles?status=ARCHIVED" active={status === "ARCHIVED"}>
           Đã lưu trữ

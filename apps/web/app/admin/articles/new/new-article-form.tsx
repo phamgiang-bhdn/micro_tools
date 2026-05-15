@@ -2,6 +2,7 @@
 
 import type React from "react";
 import { useFormStatus } from "react-dom";
+import { useMemo, useState } from "react";
 import { generateArticleAction } from "../../actions";
 
 interface ToolOption {
@@ -25,6 +26,12 @@ export function NewArticleForm({ tools }: Props): React.ReactElement {
 
 function FormBody({ tools }: { tools: ToolOption[] }): React.ReactElement {
   const { pending } = useFormStatus();
+  const [type, setType] = useState<"BUYING_GUIDE" | "REVIEW">("BUYING_GUIDE");
+  const [toolId, setToolId] = useState<string>("");
+  const [pinned, setPinned] = useState<string[]>([]);
+
+  const selectedTool = useMemo(() => tools.find((t) => t.id === toolId) ?? null, [tools, toolId]);
+  const productsForPin = selectedTool?.products ?? [];
 
   return (
     <>
@@ -34,17 +41,31 @@ function FormBody({ tools }: { tools: ToolOption[] }): React.ReactElement {
           <p className="mt-0.5 text-xs text-admin-mute">Chọn loại để AI dùng prompt phù hợp.</p>
           <div className="mt-2 grid gap-2 sm:grid-cols-2">
             <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-admin-line p-3 hover:border-admin-accent has-[input:checked]:border-admin-accent has-[input:checked]:bg-admin-accent-soft">
-              <input type="radio" name="type" value="BUYING_GUIDE" defaultChecked className="mt-0.5" />
+              <input
+                type="radio"
+                name="type"
+                value="BUYING_GUIDE"
+                checked={type === "BUYING_GUIDE"}
+                onChange={() => setType("BUYING_GUIDE")}
+                className="mt-0.5"
+              />
               <span>
                 <span className="block text-sm font-semibold text-admin-ink">Cẩm nang chọn mua</span>
-                <span className="block text-xs text-admin-mute">Hướng dẫn theo tiêu chí. ROI SEO cao nhất.</span>
+                <span className="block text-xs text-admin-mute">AI tự shortlist sản phẩm trong tool. Bắt buộc chọn tool.</span>
               </span>
             </label>
             <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-admin-line p-3 hover:border-admin-accent has-[input:checked]:border-admin-accent has-[input:checked]:bg-admin-accent-soft">
-              <input type="radio" name="type" value="REVIEW" className="mt-0.5" />
+              <input
+                type="radio"
+                name="type"
+                value="REVIEW"
+                checked={type === "REVIEW"}
+                onChange={() => setType("REVIEW")}
+                className="mt-0.5"
+              />
               <span>
                 <span className="block text-sm font-semibold text-admin-ink">Review chi tiết</span>
-                <span className="block text-xs text-admin-mute">Một sản phẩm cụ thể, có trải nghiệm.</span>
+                <span className="block text-xs text-admin-mute">Bài review 1 sản phẩm cụ thể.</span>
               </span>
             </label>
           </div>
@@ -55,25 +76,37 @@ function FormBody({ tools }: { tools: ToolOption[] }): React.ReactElement {
             Chủ đề
           </label>
           <p className="mt-0.5 text-xs text-admin-mute">
-            Mô tả ngắn cho AI biết viết về cái gì. Ví dụ: "Cách chọn robot hút bụi cho căn hộ có thú cưng".
+            Mô tả cho AI biết góc nhìn của bài. Ví dụ: &quot;Robot hút bụi cho căn hộ có thú cưng&quot;.
           </p>
           <input
             id="topic"
             name="topic"
             required
             minLength={5}
-            placeholder="Cách chọn máy lọc không khí cho phòng ngủ"
+            placeholder={type === "REVIEW" ? "Trải nghiệm sau 1 tháng dùng…" : "Cách chọn máy lọc không khí cho phòng ngủ"}
             className={input}
           />
         </div>
 
         <div>
           <label htmlFor="toolId" className="block text-sm font-medium text-admin-ink">
-            Tool (tuỳ chọn)
+            Tool {type === "BUYING_GUIDE" ? "(bắt buộc)" : "(tuỳ chọn)"}
           </label>
-          <p className="mt-0.5 text-xs text-admin-mute">Gắn bài vào 1 micro-tool để filter blog theo danh mục.</p>
-          <select id="toolId" name="toolId" defaultValue="" className={`${input} mt-2`}>
-            <option value="">— Không gắn —</option>
+          <p className="mt-0.5 text-xs text-admin-mute">
+            AI sẽ chỉ shortlist sản phẩm thuộc tool này. Bài sẽ hiện trong filter blog theo tool.
+          </p>
+          <select
+            id="toolId"
+            name="toolId"
+            required={type === "BUYING_GUIDE"}
+            value={toolId}
+            onChange={(e) => {
+              setToolId(e.target.value);
+              setPinned([]);
+            }}
+            className={`${input} mt-2`}
+          >
+            <option value="">— Chọn tool —</option>
             {tools.map((tool) => (
               <option key={tool.id} value={tool.id}>
                 {tool.name}
@@ -82,29 +115,54 @@ function FormBody({ tools }: { tools: ToolOption[] }): React.ReactElement {
           </select>
         </div>
 
-        <div>
-          <label className="block text-sm font-medium text-admin-ink">Sản phẩm gợi ý (tuỳ chọn)</label>
-          <p className="mt-0.5 text-xs text-admin-mute">
-            Chọn sản phẩm để AI nhắc tên trong bài. Cuối bài tự hiển thị card "Xem deal".
-          </p>
-          <div className="mt-2 max-h-72 space-y-3 overflow-y-auto rounded-lg border border-admin-line bg-canvas p-3">
-            {tools.map((tool) => (
-              <fieldset key={tool.id}>
-                <legend className="text-xs font-semibold uppercase tracking-wider text-admin-mute">{tool.name}</legend>
-                <div className="mt-1 space-y-1">
-                  {tool.products.map((product) => (
-                    <label
-                      key={product.id}
-                      className="flex cursor-pointer items-center gap-2 rounded px-2 py-1 text-sm hover:bg-admin-subtle"
-                    >
-                      <input type="checkbox" name="productIds" value={product.id} />
-                      <span className="text-admin-ink">{product.name}</span>
-                    </label>
-                  ))}
-                </div>
-              </fieldset>
+        {type === "REVIEW" && (
+          <div>
+            <label htmlFor="productRef" className="block text-sm font-medium text-admin-ink">
+              Sản phẩm review (bắt buộc)
+            </label>
+            <p className="mt-0.5 text-xs text-admin-mute">
+              Gõ tên, slug, hoặc paste URL affiliate. Gợi ý từ DB hiện ra khi gõ.
+            </p>
+            <input
+              id="productRef"
+              name="productRef"
+              required
+              list="product-suggestions"
+              placeholder="Roborock S8 Pro Ultra…"
+              className={`${input} mt-2`}
+            />
+            <datalist id="product-suggestions">
+              {(selectedTool?.products ?? tools.flatMap((t) => t.products)).map((p) => (
+                <option key={p.id} value={p.name} />
+              ))}
+            </datalist>
+          </div>
+        )}
+
+        {type === "BUYING_GUIDE" && selectedTool && productsForPin.length > 0 && (
+          <div>
+            <label className="block text-sm font-medium text-admin-ink">
+              Pin sản phẩm (tuỳ chọn, tối đa 5)
+            </label>
+            <p className="mt-0.5 text-xs text-admin-mute">
+              Sản phẩm bạn muốn AI bắt buộc nhắc tới trong bài (vd sản phẩm mới ra hoặc đang sale). Để trống = AI tự shortlist.
+            </p>
+            <PinnedProductPicker
+              products={productsForPin}
+              value={pinned}
+              onChange={setPinned}
+              maxSelectable={5}
+            />
+            {pinned.map((id) => (
+              <input key={id} type="hidden" name="pinnedProductIds" value={id} />
             ))}
           </div>
+        )}
+
+        <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
+          <strong>Mẹo:</strong> AI có thể phát hiện sản phẩm mới ngoài DB qua web search và tự kéo vào pipeline Refinery
+          (status PENDING_REVIEW). Sau khi sinh xong, vào{" "}
+          <a href="/admin" className="underline">Refinery</a> để duyệt sản phẩm mới.
         </div>
       </fieldset>
 
@@ -116,19 +174,100 @@ function FormBody({ tools }: { tools: ToolOption[] }): React.ReactElement {
   );
 }
 
+function PinnedProductPicker({
+  products,
+  value,
+  onChange,
+  maxSelectable
+}: {
+  products: Array<{ id: string; name: string }>;
+  value: string[];
+  onChange: (next: string[]) => void;
+  maxSelectable: number;
+}): React.ReactElement {
+  const [query, setQuery] = useState("");
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return products.slice(0, 20);
+    return products.filter((p) => p.name.toLowerCase().includes(q)).slice(0, 20);
+  }, [products, query]);
+
+  const toggle = (id: string): void => {
+    if (value.includes(id)) {
+      onChange(value.filter((v) => v !== id));
+    } else if (value.length < maxSelectable) {
+      onChange([...value, id]);
+    }
+  };
+
+  const selected = products.filter((p) => value.includes(p.id));
+
+  return (
+    <div className="mt-2 space-y-2">
+      <input
+        type="search"
+        placeholder="Gõ tên sản phẩm để tìm..."
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        className={input}
+      />
+      {selected.length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          {selected.map((p) => (
+            <button
+              key={p.id}
+              type="button"
+              onClick={() => toggle(p.id)}
+              className="inline-flex items-center gap-1 rounded-full bg-admin-accent-soft px-2.5 py-1 text-xs font-medium text-admin-accent hover:bg-admin-accent hover:text-white"
+            >
+              {p.name} <span aria-hidden>×</span>
+            </button>
+          ))}
+        </div>
+      )}
+      <div className="max-h-40 space-y-0.5 overflow-y-auto rounded-lg border border-admin-line bg-canvas p-1.5">
+        {filtered.length === 0 && (
+          <p className="px-2 py-3 text-xs text-admin-mute">Không tìm thấy sản phẩm.</p>
+        )}
+        {filtered.map((p) => {
+          const checked = value.includes(p.id);
+          const disabled = !checked && value.length >= maxSelectable;
+          return (
+            <button
+              key={p.id}
+              type="button"
+              disabled={disabled}
+              onClick={() => toggle(p.id)}
+              className={`flex w-full items-center justify-between rounded px-2 py-1.5 text-sm transition hover:bg-admin-subtle disabled:cursor-not-allowed disabled:opacity-50 ${
+                checked ? "bg-admin-accent-soft text-admin-accent" : "text-admin-ink"
+              }`}
+            >
+              <span className="truncate text-left">{p.name}</span>
+              {checked && <span className="text-xs">✓</span>}
+            </button>
+          );
+        })}
+      </div>
+      <p className="text-[11px] text-admin-mute">
+        Đã pin {value.length}/{maxSelectable}.
+      </p>
+    </div>
+  );
+}
+
 function PendingHint(): React.ReactElement {
   const { pending } = useFormStatus();
   if (pending) {
     return (
       <p className="flex items-center gap-2 text-xs text-admin-accent">
         <SpinnerIcon />
-        <span>AI đang viết... thường mất 15–30 giây, đôi khi tới 1 phút nếu Gemini bị rate-limit. Đừng đóng tab.</span>
+        <span>Đang khởi tạo bài. Sẽ chuyển sang trang detail để theo dõi tiến trình.</span>
       </p>
     );
   }
   return (
     <p className="text-xs text-admin-mute">
-      Mất ~15–30 giây để AI sinh xong. Sau đó bạn duyệt ở trang chi tiết.
+      AI chạy nền ~30s–2 phút (nếu cần khám phá sản phẩm mới). Bạn theo dõi ở trang detail.
     </p>
   );
 }
@@ -144,7 +283,7 @@ function SubmitButton(): React.ReactElement {
       {pending ? (
         <>
           <SpinnerIcon />
-          Đang sinh bài...
+          Đang khởi tạo...
         </>
       ) : (
         <>

@@ -25,9 +25,11 @@ enum ArticleType {
 }
 
 enum ArticleStatus {
+  GENERATING
   DRAFT
   PUBLISHED
   ARCHIVED
+  FAILED
 }
 
 model Tool {
@@ -50,6 +52,7 @@ model Product {
   slug         String?
   affiliateUrl String
   scrapedData  Json       @db.JsonB
+  isPublic     Boolean    @default(true)
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
   tool         Tool       @relation(fields: [toolId], references: [id], onDelete: Cascade)
@@ -120,14 +123,17 @@ model Article {
   excerpt         String?
   body            String
   blocks          Json?         @db.JsonB
+  coverImage      String?
   type            ArticleType
   status          ArticleStatus @default(DRAFT)
   toolId          String?       @db.Uuid
   productIds      String[]      @db.Uuid
+  pinnedProductIds String[]     @db.Uuid
   metaTitle       String?
   metaDescription String?
   aiModel         String?
   aiPromptName    String?
+  generationError String?
   reviewedBy      String?
   reviewedAt      DateTime?
   publishedAt     DateTime?

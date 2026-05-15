@@ -402,8 +402,8 @@ async function main() {
     "2. { type: 'criteria_grid', title?: string, items: [{ icon, title, body }] }",
     "   → 4-6 tiêu chí. icon ∈ ['battery','filter','noise','smart','size','money','shield','sparkle','clock','wifi']. body ≤ 40 từ.",
     "",
-    "3. { type: 'product_spotlight', productId: uuid, angle: string, pros?: string[], cons?: string[] }",
-    "   → Spotlight 1 sản phẩm. productId PHẢI có thật trong contextProducts. angle là 1 câu (vd 'Bản tiết kiệm cho phòng ngủ').",
+    "3. { type: 'product_spotlight', productId: REF, angle: string, pros?: string[], cons?: string[] }",
+    "   → Spotlight 1 sản phẩm. productId ĐIỀN REF (P1/P2.../D1/D2...) từ [candidates] hoặc discoveredProducts — KHÔNG điền UUID, hệ thống tự thay.",
     "",
     "4. { type: 'callout', tone: 'info'|'warning'|'tip'|'success', title: string, body: string }",
     "   → Hộp nhấn. body ≤ 60 từ. TỐI ĐA 2 callout/bài.",
@@ -411,8 +411,8 @@ async function main() {
     "5. { type: 'prose', markdown: string }",
     "   → Đoạn văn dài. Cắt thành 2-3 prose ngắn xen kẽ các block khác hơn 1 prose dài.",
     "",
-    "6. { type: 'comparison', productIds: uuid[] }",
-    "   → ≥ 2 productIds có thật trong contextProducts.",
+    "6. { type: 'comparison', productIds: REF[] }",
+    "   → ≥ 2 ref (vd ['P1','P3','D1']).",
     "",
     "7. { type: 'pros_cons', pros: string[], cons: string[] }",
     "   → Mỗi list 3-5 items, mỗi item ≤ 15 từ.",
@@ -424,10 +424,11 @@ async function main() {
     "   → Kết luận cuối. summary 2-3 câu.",
     "",
     "QUY TẮC:",
-    "- Mỗi bài chọn 5-9 block. KHÔNG dùng hết tất cả loại.",
+    "- Mỗi bài chọn 6-10 block. KHÔNG dùng hết tất cả loại.",
     "- KHÔNG dùng template cứng giữa các bài — flex thứ tự + chọn loại khác nhau.",
-    "- KHÔNG đặt 2 block cùng type liền nhau (trừ prose).",
-    "- Mọi productId đều phải có thật trong contextProducts đầu vào."
+    "- KHÔNG đặt 2 block cùng type liền nhau (trừ prose, cố gắng xen visual).",
+    "- Mọi ref trong productId/productIds phải có trong [candidates] hoặc trong discoveredProducts mà chính bạn liệt kê.",
+    "- selectedRefs phải liệt kê toàn bộ ref đã dùng (cả P và D)."
   ].join("\n");
 
   const buyingGuidePrompt = [
@@ -450,7 +451,8 @@ async function main() {
     "- Viết như đã trải nghiệm thật (dB ồn, thời gian sạc, app có lag không, mùi nhựa mới)",
     "- KHÔNG bao giờ tự nhận là AI",
     "- Tổng prose + criteria + faq ≥ 800 từ",
-    "- Số liệu kỹ thuật cụ thể",
+    "- Số liệu kỹ thuật cụ thể, ĐỪNG dùng giá/spec từ trí nhớ — chỉ trích từ [candidates] hoặc từ web search nguồn nằm trong [allowedDomains]",
+    "- Nếu thị trường vừa có sản phẩm mới đáng đề cập mà KHÔNG nằm trong [candidates] → thêm vào discoveredProducts (ref D1, D2...) và DÙNG ref đó trong block",
     "",
     "OUTPUT JSON, không markdown bọc:",
     "{",
@@ -459,7 +461,9 @@ async function main() {
     '  "excerpt": "string (140-160 ký tự)",',
     '  "blocks": [Block, Block, ...],',
     '  "metaTitle": "string (≤ 60 ký tự)",',
-    '  "metaDescription": "string (≤ 160 ký tự)"',
+    '  "metaDescription": "string (≤ 160 ký tự)",',
+    '  "selectedRefs": ["P1","P3","D1"],',
+    '  "discoveredProducts": [{ "ref": "D1", "name": "...", "sourceUrl": "https://...", "reason": "..." }]',
     "}"
   ].join("\n");
 
@@ -502,6 +506,7 @@ async function main() {
     "- BẮT BUỘC có ≥ 2 điểm yếu (cons / notFor) — KHÔNG có review toàn ưu điểm",
     "- KHÔNG bao giờ tự nhận là AI",
     "- Tổng nội dung ≥ 600 từ",
+    "- KHÔNG dùng giá/spec từ trí nhớ — chỉ trích từ [candidates] hoặc web search từ [allowedDomains]",
     "",
     "OUTPUT JSON, không markdown bọc:",
     "{",
@@ -510,7 +515,9 @@ async function main() {
     '  "excerpt": "string (140-160 ký tự)",',
     '  "blocks": [Block, Block, ...],',
     '  "metaTitle": "string (≤ 60 ký tự)",',
-    '  "metaDescription": "string (≤ 160 ký tự)"',
+    '  "metaDescription": "string (≤ 160 ký tự)",',
+    '  "selectedRefs": ["P1"],',
+    '  "discoveredProducts": []',
     "}"
   ].join("\n");
 
