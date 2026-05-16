@@ -4,7 +4,9 @@ import { PrismaService } from "../../prisma/prisma.service";
 import { AiService } from "../../services/ai.service";
 import { ScraperService } from "../../services/scraper.service";
 import { AccesstradeClient } from "./clients/accesstrade.client";
+import { LazadaAffiliateClient } from "./clients/lazada.client";
 import { ShopeeAffiliateClient } from "./clients/shopee.client";
+import { TiktokAffiliateClient } from "./clients/tiktok.client";
 import { WebScrapeClient } from "./clients/web-scrape.client";
 import { CrawlerController } from "./crawler.controller";
 import { CrawlerScheduler } from "./crawler.scheduler";
@@ -22,6 +24,8 @@ import { ProductDiscoveryService } from "./product-discovery.service";
     ScraperService,
     AccesstradeClient,
     ShopeeAffiliateClient,
+    TiktokAffiliateClient,
+    LazadaAffiliateClient,
     WebScrapeClient,
     EnrichmentService,
     ImportService,

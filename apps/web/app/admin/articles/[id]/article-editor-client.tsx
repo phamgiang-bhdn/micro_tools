@@ -5,7 +5,7 @@ import { useState } from "react";
 import ReactMarkdown from "react-markdown";
 import { updateArticleAction } from "../../actions";
 
-interface ToolOption {
+interface CategoryOption {
   id: string;
   name: string;
 }
@@ -13,7 +13,7 @@ interface ToolOption {
 interface ProductOption {
   id: string;
   name: string;
-  toolName: string;
+  categoryName: string;
 }
 
 export interface ArticleEditorInitial {
@@ -24,7 +24,7 @@ export interface ArticleEditorInitial {
   body: string;
   metaTitle: string | null;
   metaDescription: string | null;
-  toolId: string | null;
+  categoryId: string | null;
   productIds: string[];
   hasBlocks?: boolean;
   coverImage?: string | null;
@@ -32,11 +32,11 @@ export interface ArticleEditorInitial {
 
 interface Props {
   initial: ArticleEditorInitial;
-  tools: ToolOption[];
+  categories: CategoryOption[];
   products: ProductOption[];
 }
 
-export function ArticleEditorClient({ initial, tools, products }: Props): React.ReactElement {
+export function ArticleEditorClient({ initial, categories, products }: Props): React.ReactElement {
   const [tab, setTab] = useState<"edit" | "preview">("edit");
   const [body, setBody] = useState(initial.body);
   const [pending, setPending] = useState(false);
@@ -169,12 +169,12 @@ export function ArticleEditorClient({ initial, tools, products }: Props): React.
         </Field>
       </div>
 
-      <Field label="Tool gắn kèm" htmlFor="toolId">
-        <select id="toolId" name="toolId" defaultValue={initial.toolId ?? ""} className={input}>
+      <Field label="Danh mục gắn kèm" htmlFor="categoryId">
+        <select id="categoryId" name="categoryId" defaultValue={initial.categoryId ?? ""} className={input}>
           <option value="">— Không gắn —</option>
-          {tools.map((tool) => (
-            <option key={tool.id} value={tool.id}>
-              {tool.name}
+          {categories.map((category) => (
+            <option key={category.id} value={category.id}>
+              {category.name}
             </option>
           ))}
         </select>
@@ -198,7 +198,7 @@ export function ArticleEditorClient({ initial, tools, products }: Props): React.
                 defaultChecked={initial.productIds.includes(product.id)}
               />
               <span className="text-admin-ink">{product.name}</span>
-              <span className="text-xs text-admin-mute">— {product.toolName}</span>
+              <span className="text-xs text-admin-mute">— {product.categoryName}</span>
             </label>
           ))}
         </div>

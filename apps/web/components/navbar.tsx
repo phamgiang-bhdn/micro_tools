@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Button } from "./ui/button";
+import { Icon } from "./ui/icon";
 
 /**
  * Header công khai (storefront).
@@ -57,18 +58,14 @@ export function Navbar(): React.ReactElement | null {
             Mới về
           </NavLink>
           <NavLink href="/blog" active={pathname?.startsWith("/blog") ?? false}>
-            Blog
+            Cẩm nang
           </NavLink>
         </nav>
 
         <form onSubmit={submit} className="ml-auto flex flex-1 items-center md:max-w-md">
-          <div
-            className={`relative w-full transition-all ${
-              open ? "block" : "hidden md:block"
-            }`}
-          >
-            <span aria-hidden className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ink-mute">
-              <SearchIcon />
+          <div className={`relative w-full transition-all ${open ? "block" : "hidden md:block"}`}>
+            <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ink-mute">
+              <Icon name="search" size="md" />
             </span>
             <input
               ref={inputRef}
@@ -86,7 +83,7 @@ export function Navbar(): React.ReactElement | null {
                 aria-label="Xoá tìm kiếm"
                 className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full p-1 text-ink-mute hover:bg-line hover:text-ink"
               >
-                <CloseIcon />
+                <Icon name="close" size="sm" />
               </button>
             ) : null}
           </div>
@@ -99,11 +96,11 @@ export function Navbar(): React.ReactElement | null {
             aria-label="Tìm kiếm"
             className="grid size-9 place-items-center rounded-full text-ink-soft hover:bg-canvas md:hidden"
           >
-            <SearchIcon />
+            <Icon name="search" size="md" />
           </button>
           <Button asChild variant="brand" size="sm" className="hidden sm:inline-flex">
             <Link href="/?sort=top">
-              <FlameIcon />
+              <Icon name="flame" size="md" />
               <span>Săn deal</span>
             </Link>
           </Button>
@@ -112,7 +109,7 @@ export function Navbar(): React.ReactElement | null {
             className="hidden items-center gap-1.5 rounded-full border border-line bg-card px-3 py-1.5 text-xs font-medium text-ink-soft transition hover:border-admin-accent hover:text-admin-accent lg:inline-flex"
             title="Admin Console"
           >
-            <ShieldIcon />
+            <Icon name="shield" size="sm" />
             <span>Admin</span>
           </Link>
         </div>
@@ -139,38 +136,5 @@ function NavLink({
     >
       {children}
     </Link>
-  );
-}
-
-function SearchIcon(): React.ReactElement {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="size-4">
-      <circle cx="11" cy="11" r="7" />
-      <path d="m20 20-3.5-3.5" />
-    </svg>
-  );
-}
-
-function CloseIcon(): React.ReactElement {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className="size-3.5">
-      <path d="m6 6 12 12M6 18 18 6" />
-    </svg>
-  );
-}
-
-function FlameIcon(): React.ReactElement {
-  return (
-    <svg viewBox="0 0 24 24" fill="currentColor" className="size-4">
-      <path d="M12 2c.7 3.4-.6 5.9-2.6 7.7-2 1.9-3.4 4-3.4 6.7A6 6 0 0 0 12 22a6 6 0 0 0 6-5.6c0-3.3-2.4-4.7-2.4-7.2 0-1.2.5-2 .9-2.9-1.7.6-2.7 1.5-2.7 3.3 0 1 .4 1.7.4 2.6 0 1-.7 1.8-1.6 1.8-1 0-1.6-.9-1.6-2 0-3.2 3-4 1-10Z" />
-    </svg>
-  );
-}
-
-function ShieldIcon(): React.ReactElement {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="size-3.5">
-      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z" />
-    </svg>
   );
 }

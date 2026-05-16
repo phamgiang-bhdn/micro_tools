@@ -95,7 +95,7 @@ export type ArticleAiOutput = z.infer<typeof aiOutputSchema>;
 export interface GenerateArticleInput {
   type: ArticleType;
   topic: string;
-  toolId?: string | null;
+  categoryId?: string | null;
   pinnedProductIds?: string[];
   productRef?: string | null;
 }
@@ -220,11 +220,11 @@ export class ArticleService {
       );
     }
 
-    const contextTool = input.toolId
-      ? await this.prisma.tool.findUnique({ where: { id: input.toolId } })
+    const contextCategory = input.categoryId
+      ? await this.prisma.category.findUnique({ where: { id: input.categoryId } })
       : null;
-    if (!contextTool && input.type === "BUYING_GUIDE") {
-      throw new HttpException("BUYING_GUIDE bài cần chọn tool", HttpStatus.BAD_REQUEST);
+    if (!contextCategory && input.type === "BUYING_GUIDE") {
+      throw new HttpException("BUYING_GUIDE bài cần chọn danh mục", HttpStatus.BAD_REQUEST);
     }
 
     const pinnedIds = input.pinnedProductIds ?? [];
@@ -235,11 +235,11 @@ export class ArticleService {
         })
       : [];
 
-    // Top candidates of the tool (excluding already-pinned)
-    const candidatesFromTool: CandidateRow[] = contextTool
+    // Top candidates of the category (excluding already-pinned)
+    const candidatesFromCategory: CandidateRow[] = contextCategory
       ? await this.prisma.product.findMany({
           where: {
-            toolId: contextTool.id,
+            categoryId: contextCategory.id,
             id: { notIn: pinnedIds.length ? pinnedIds : ["00000000-0000-0000-0000-000000000000"] }
           },
           select: candidateSelect,
@@ -250,13 +250,13 @@ export class ArticleService {
 
     // For REVIEW: resolve productRef → 1 specific product (always pinned)
     if (input.type === "REVIEW" && input.productRef) {
-      const resolvedRef = await this.resolveProductRef(input.productRef, contextTool?.id ?? null);
+      const resolvedRef = await this.resolveProductRef(input.productRef, contextCategory?.id ?? null);
       if (resolvedRef && !pinned.find((p) => p.id === resolvedRef.id)) {
         pinned.unshift(resolvedRef);
       }
     }
 
-    const candidates = [...pinned, ...candidatesFromTool];
+    const candidates = [...pinned, ...candidatesFromCategory];
     const refToId = new Map<string, string>();
     const candidateCards = candidates.map((p, i) => {
       const ref = `P${i + 1}`;
@@ -281,7 +281,7 @@ export class ArticleService {
     const userBlock = [
       `[currentDate]: ${currentDate} (writing for Vietnam market in ${month}/${year}, season: ${seasonHint})`,
       `[topic]: ${input.topic}`,
-      contextTool ? `[tool]: ${contextTool.name} (slug: ${contextTool.slug})` : null,
+      contextCategory ? `[category]: ${contextCategory.name} (slug: ${contextCategory.slug})` : null,
       `[allowedDomains]: ${allowedDomains.join(", ")}`,
       pinnedRefs.length > 0 ? `[pinnedRefs] (BẮT BUỘC dùng tất cả trong block product_spotlight): ${pinnedRefs.join(", ")}` : null,
       `[candidates] (DÙNG ref P1, P2... trong productId/productIds/selectedRefs):\n${JSON.stringify(candidateCards, null, 2)}`,
@@ -298,7 +298,13 @@ export class ArticleService {
       .filter(Boolean)
       .join("\n\n");
 
-    const fullPrompt = `${promptTemplate.content}\n\n---\n\n${userBlock}`;
+    // Replace {categoryName} placeholder if present in active prompt template.
+    const renderedTemplate = promptTemplate.content.replace(
+      /\{categoryName\}/g,
+      contextCategory?.name ?? ""
+    );
+
+    const fullPrompt = `${renderedTemplate}\n\n---\n\n${userBlock}`;
     const modelName = this.modelName;
 
     const client = new GoogleGenerativeAI(apiKey);
@@ -326,8 +332,8 @@ export class ArticleService {
         // Resolve discoveredProducts → real Product rows (PENDING_REVIEW)
         const discoveredRefToId = await this.ingestDiscovered(
           validated.data.discoveredProducts,
-          contextTool?.id ?? null,
-          contextTool?.slug ?? null,
+          contextCategory?.id ?? null,
+          contextCategory?.slug ?? null,
           allowedDomains
         );
 
@@ -424,7 +430,7 @@ export class ArticleService {
     };
   }
 
-  private async resolveProductRef(ref: string, toolId: string | null): Promise<CandidateRow | null> {
+  private async resolveProductRef(ref: string, categoryId: string | null): Promise<CandidateRow | null> {
     const trimmed = ref.trim();
     if (!trimmed) return null;
     const isUrl = /^https?:\/\//i.test(trimmed);
@@ -436,7 +442,7 @@ export class ArticleService {
     }
     return this.prisma.product.findFirst({
       where: {
-        ...(toolId ? { toolId } : {}),
+        ...(categoryId ? { categoryId } : {}),
         OR: [{ slug: trimmed }, { name: { contains: trimmed, mode: "insensitive" } }]
       },
       select: candidateSelect
@@ -445,12 +451,12 @@ export class ArticleService {
 
   private async ingestDiscovered(
     discovered: ArticleAiOutput["discoveredProducts"],
-    toolId: string | null,
-    toolSlug: string | null,
+    categoryId: string | null,
+    categorySlug: string | null,
     allowedDomains: string[]
   ): Promise<Map<string, string>> {
     const out = new Map<string, string>();
-    if (!toolId || !toolSlug || discovered.length === 0) return out;
+    if (!categoryId || !categorySlug || discovered.length === 0) return out;
 
     for (const item of discovered) {
       if (!isSafeDiscoveredUrl(item.sourceUrl, allowedDomains, this.logger)) continue;
@@ -459,8 +465,8 @@ export class ArticleService {
         const productId = await this.discovery.ingest({
           name: item.name,
           sourceUrl: item.sourceUrl,
-          toolId,
-          toolSlug,
+          categoryId,
+          categorySlug,
           reason: item.reason
         });
         if (productId) out.set(item.ref, productId);

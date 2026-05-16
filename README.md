@@ -128,13 +128,13 @@ micro_tools/
 ├── apps/
 │   ├── api/                       # NestJS backend
 │   │   ├── prisma/
-│   │   │   ├── schema.prisma      # Tool, Product, ClickLog, ConversionWebhook…
+│   │   │   ├── schema.prisma      # Category, Product, ClickLog, ConversionWebhook…
 │   │   │   ├── migrations/
-│   │   │   └── seed.js            # Seed 5 micro-tools + 19 sản phẩm demo
+│   │   │   └── seed.js            # Seed 2 categories + sản phẩm demo
 │   │   └── src/
 │   │       ├── main.ts            # bootstrap, prefix /api/v1
 │   │       ├── modules/
-│   │       │   ├── tools/         # GET /tools, GET /tools/:slug
+│   │       │   ├── categories/    # GET /categories, GET /categories/:slug
 │   │       │   ├── tracking/      # POST /tracking/click
 │   │       │   ├── webhooks/      # POST /webhooks/conversion
 │   │       │   └── admin/         # /admin/war-room, /refinery, /prompts, /money-trail
@@ -143,26 +143,25 @@ micro_tools/
 │   │
 │   └── web/                       # Next.js public + admin UI
 │       ├── app/
-│       │   ├── page.tsx           # Hero + tool grid + deal hot
+│       │   ├── page.tsx           # Hero + category grid + deal hot
 │       │   ├── layout.tsx         # Metadata SEO base, OG, Twitter
-│       │   ├── sitemap.ts         # /tools + product detail URLs
+│       │   ├── sitemap.ts         # /categories + product detail URLs
 │       │   ├── robots.ts          # Chặn /admin
 │       │   ├── not-found.tsx
 │       │   ├── loading.tsx
 │       │   ├── error.tsx
-│       │   ├── tools/[slug]/page.tsx              # Trang micro-tool
-│       │   ├── tools/[slug]/[productId]/page.tsx  # Chi tiết sản phẩm + JSON-LD
-│       │   ├── actions/tracking.ts                # Server action sinh trackingCode
+│       │   ├── categories/[slug]/page.tsx                # Trang category
+│       │   ├── categories/[slug]/[productSlug]/page.tsx  # Chi tiết sản phẩm + JSON-LD
+│       │   ├── actions/tracking.ts                       # Server action sinh trackingCode
 │       │   └── admin/             # Refinery, Prompt Studio, Money Trail
 │       ├── components/
 │       │   ├── hero.tsx
 │       │   ├── product-card.tsx
-│       │   ├── tool-card.tsx
 │       │   ├── navbar.tsx
 │       │   ├── footer.tsx
 │       │   └── ui/                # button, badge, card, breadcrumb…
 │       └── lib/
-│           ├── api.ts             # fetchTools, fetchToolBySlug, featuredProducts
+│           ├── api.ts             # fetchCategories, fetchCategoryBySlug, featuredProducts
 │           ├── format.ts          # formatMoney, normalizeProduct
 │           └── types.ts
 │
@@ -257,8 +256,8 @@ Mở:
 ## 🗃 Mô hình dữ liệu
 
 ```prisma
-Tool          (id, slug 🔑, name, status, schemaConfig: Json)
- └─ Product   (id, toolId →, name, affiliateUrl, scrapedData: JsonB, network)
+Category      (id, slug 🔑, name, status, schemaConfig: Json)
+ └─ Product   (id, categoryId →, name, affiliateUrl, scrapedData: JsonB, network)
      ├─ ClickLog        (trackingCode 🔑, ipHash, userAgent, createdAt)
      │   └─ ConversionWebhook (trackingCode →, revenue, status, payload, receivedAt)
      └─ ProductExtraction (rawContent, aiOutput, status: DRAFT_RAW|PENDING_REVIEW|PUBLISHED|ERROR)

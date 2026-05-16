@@ -9,7 +9,7 @@ export class ArticlesController {
   @Get()
   async list(
     @Query("type") type?: string,
-    @Query("toolSlug") toolSlug?: string,
+    @Query("categorySlug") categorySlug?: string,
     @Query("limit") limit = "20"
   ) {
     const parsedLimit = Math.min(Math.max(Number(limit) || 20, 1), 100);
@@ -20,10 +20,10 @@ export class ArticlesController {
       where.type = type as ArticleType;
     }
 
-    if (toolSlug) {
-      const tool = await this.prisma.tool.findUnique({ where: { slug: toolSlug } });
-      if (!tool) return [];
-      where.toolId = tool.id;
+    if (categorySlug) {
+      const category = await this.prisma.category.findUnique({ where: { slug: categorySlug } });
+      if (!category) return [];
+      where.categoryId = category.id;
     }
 
     const articles = await this.prisma.article.findMany({
@@ -38,7 +38,7 @@ export class ArticlesController {
         type: true,
         publishedAt: true,
         productIds: true,
-        tool: { select: { slug: true, name: true } }
+        category: { select: { slug: true, name: true } }
       }
     });
 
@@ -77,7 +77,7 @@ export class ArticlesController {
     const article = await this.prisma.article.findUnique({
       where: { slug },
       include: {
-        tool: { select: { slug: true, name: true } }
+        category: { select: { slug: true, name: true } }
       }
     });
     // article.coverImage included via spread below.
@@ -90,7 +90,7 @@ export class ArticlesController {
       article.productIds.length > 0
         ? await this.prisma.product.findMany({
             where: { id: { in: article.productIds }, isPublic: true },
-            include: { tool: { select: { slug: true, name: true } } }
+            include: { category: { select: { slug: true, name: true } } }
           })
         : [];
 

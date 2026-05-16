@@ -10,17 +10,19 @@ A Vietnam-market affiliate micro-tool platform. Revenue model: every user click 
 
 ## Strategy: "one micro-tool = one niche"
 
-The product is *not* a general catalog. Each `Tool` is a single deeply-comparable category with its own `schemaConfig` of category-specific spec fields. Narrow focus is the conversion thesis.
+The product is *not* a general catalog. Each `Category` is a single deeply-comparable niche with its own `schemaConfig` of category-specific spec fields. Narrow focus is the conversion thesis.
 
-When you're tempted to add cross-tool generic features (a global search, a one-size-fits-all product card), check the per-tool angle first — it's usually the wrong instinct here.
+When you're tempted to add cross-category generic features (a global search, a one-size-fits-all product card), check the per-category angle first — it's usually the wrong instinct here.
+
+> Naming note: the platform is *positioned* as a "micro-tool" platform (marketing copy / strategy framing), but in the codebase the entity is called `Category`. The name `Tool` is reserved for future interactive utilities (price calculators, comparators) that haven't shipped yet.
 
 ## v1 launch scope
 
-Currently only two tools are seeded and live (see `apps/api/prisma/seed.js`):
+Currently only two categories are seeded and live (see `apps/api/prisma/seed.js`):
 - `robot-hut-bui-lau-nha` — Robot hút bụi / lau nhà
 - `may-loc-khong-khi` — Máy lọc không khí
 
-Don't reintroduce or assume the older 5-tool seed lineup. New micro-tools should follow the same pattern: a slug, a Vietnamese-language `name`, a `schemaConfig` with the 5–10 spec fields that *actually* differentiate buying decisions in that niche, and 3–5 seeded products covering the price range.
+Don't reintroduce or assume the older 5-category seed lineup. New categories should follow the same pattern: a slug, a Vietnamese-language `name`, a `schemaConfig` with the 5–10 spec fields that *actually* differentiate buying decisions in that niche, and 3–5 seeded products covering the price range.
 
 ## Three audiences, three surfaces
 

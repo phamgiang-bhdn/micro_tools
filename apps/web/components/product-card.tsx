@@ -6,7 +6,7 @@ import type { ProductView } from "../lib/types";
 
 interface ProductCardProps {
   product: ProductView & { slug?: string | null };
-  toolSlug: string;
+  categorySlug: string;
   /** Hiển thị compact (cho strip ngang trên hero). */
   compact?: boolean;
 }
@@ -17,9 +17,9 @@ interface ProductCardProps {
  * - Badge urgency khi discount cao (≥30%).
  * - Hover lift + image zoom mượt để cảm giác tương tác cao cấp.
  */
-export function ProductCard({ product, toolSlug, compact = false }: ProductCardProps): React.ReactElement {
+export function ProductCard({ product, categorySlug, compact = false }: ProductCardProps): React.ReactElement {
   const key = product.slug && product.slug.length > 0 ? product.slug : slugify(product.name) || product.id;
-  const detailHref = `/tools/${toolSlug}/${key}`;
+  const detailHref = `/categories/${categorySlug}/${key}`;
   const savings =
     product.originalPrice && product.price && product.originalPrice > product.price
       ? product.originalPrice - product.price

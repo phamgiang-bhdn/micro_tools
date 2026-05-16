@@ -1,5 +1,8 @@
 import { Injectable, Logger } from "@nestjs/common";
+import { AffiliateNetwork } from "@prisma/client";
+import { inferCategorySlug } from "../category-inference.util";
 import { NormalizedOffer } from "../dto/normalized-offer.dto";
+import { AffiliateClient } from "./affiliate-client.interface";
 
 /**
  * Shape mong đợi của response từ Accesstrade Datafeed API.
@@ -26,24 +29,9 @@ interface ListResponse {
   pagination?: { total: number; page: number };
 }
 
-const TOOL_BY_KEYWORD: Array<[RegExp, string]> = [
-  [/laptop|máy tính|tablet|điện thoại|tai nghe|loa|monitor|màn hình|smart\s?tv|console|gaming|bàn phím|chuột/i, "tech-gadgets"],
-  [/làm đẹp|son|kem|chống nắng|serum|skincare|mỹ phẩm|dior|chanel|sk[\s-]?ii|hasaki/i, "beauty-skincare"],
-  [/du lịch|khách sạn|tour|vé|booking|agoda|traveloka|hotel|flight|chuyến bay|vinpearl/i, "travel-deals"],
-  [/gia dụng|nồi|máy lọc|máy hút|robot|airpurifier|home|bếp|nồi chiên/i, "home-appliances"],
-  [/thẻ|card|tín dụng|cashback|visa|mastercard|ngân hàng|amex/i, "credit-card-compare"]
-];
-
-function inferToolSlug(category?: string, name?: string): string {
-  const target = `${category ?? ""} ${name ?? ""}`;
-  for (const [pattern, slug] of TOOL_BY_KEYWORD) {
-    if (pattern.test(target)) return slug;
-  }
-  return "tech-gadgets";
-}
-
 @Injectable()
-export class AccesstradeClient {
+export class AccesstradeClient implements AffiliateClient {
+  readonly network = AffiliateNetwork.ACCESSTRADE;
   private readonly logger = new Logger(AccesstradeClient.name);
 
   isConfigured(): boolean {
@@ -105,7 +93,7 @@ export class AccesstradeClient {
       discountPercent,
       campaign: p.campaign,
       merchantName: p.merchant,
-      toolSlug: inferToolSlug(p.category, p.name)
+      categorySlug: inferCategorySlug(p.category, p.name)
     };
   }
 }

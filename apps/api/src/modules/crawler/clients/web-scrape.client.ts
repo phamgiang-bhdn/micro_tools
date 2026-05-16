@@ -35,7 +35,7 @@ export class WebScrapeClient {
 
   constructor(private readonly scraper: ScraperService, private readonly ai: AiService) {}
 
-  async fetchByUrl(url: string, toolSlug: string, affiliateUrl?: string): Promise<NormalizedOffer | null> {
+  async fetchByUrl(url: string, categorySlug: string, affiliateUrl?: string): Promise<NormalizedOffer | null> {
     try {
       const raw = await this.scraper.scrapeTextContent(url);
       const parsed = await this.ai.parseBySchema<ExtractedShape>(raw, EXTRACTION_SCHEMA);
@@ -61,7 +61,7 @@ export class WebScrapeClient {
         store: parsed.store,
         category: parsed.category,
         discountPercent,
-        toolSlug
+        categorySlug
       };
     } catch (error: unknown) {
       this.logger.error(`WebScrape failed ${url}`, error instanceof Error ? error.message : String(error));

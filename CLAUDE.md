@@ -54,7 +54,9 @@ These bind the two apps together — changing one side requires understanding th
 
 Nothing reaches the public storefront in either pipeline until a human reviews. See `docs/CONTEXT.md` for *why* this is non-negotiable.
 
-**Schema is per-tool dynamic.** `Tool.schemaConfig` (Json) defines what fields each micro-tool extracts. The api's AI extractor must match it; the web side reads via `apps/web/lib/format.ts → normalizeProduct()`. Don't bypass `normalizeProduct` on the web side, and don't hard-code field names on the api side.
+**Schema is per-category dynamic.** `Category.schemaConfig` (Json) defines what fields each category extracts. The api's AI extractor must match it; the web side reads via `apps/web/lib/format.ts → normalizeProduct()`. Don't bypass `normalizeProduct` on the web side, and don't hard-code field names on the api side.
+
+**Note on naming.** The platform is positioned as "micro-tool platform" in product strategy (marketing copy in `docs/CONTEXT.md`), but the entity that groups products in the schema is `Category` (slug + name + dynamic schemaConfig). The name `Tool` is intentionally reserved for future interactive tools (calculators, comparators) — do not reuse it for the product grouping concept.
 
 ## Conventions
 

@@ -7,7 +7,7 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-enum ToolStatus {
+enum CategoryStatus {
   ACTIVE
   INACTIVE
 }
@@ -32,22 +32,105 @@ enum ArticleStatus {
   FAILED
 }
 
-model Tool {
-  id           String     @id @default(uuid()) @db.Uuid
-  slug         String     @unique
-  name         String
-  status       ToolStatus @default(ACTIVE)
-  schemaConfig Json
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
-  products     Product[]
-  articles     Article[]
+enum AffiliateNetwork {
+  ACCESSTRADE
+  SHOPEE
+  TIKTOK
+  LAZADA
+}
+
+enum CampaignStatus {
+  APPLIED
+  APPROVED
+  REJECTED
+  PAUSED
+  INACTIVE
+}
+
+model CrawlerLog {
+  id            String   @id @default(uuid()) @db.Uuid
+  startedAt     DateTime @default(now())
+  finishedAt    DateTime?
+  fetched       Int      @default(0)
+  passedFilter  Int      @default(0)
+  created       Int      @default(0)
+  updated       Int      @default(0)
+  skipped       Int      @default(0)
+  success       Boolean  @default(false)
+  errorReason   String?
+  durationMs    Int?
+  triggeredBy   String?
+
+  @@index([startedAt])
+}
+
+/// Campaign = mỗi merchant trên một affiliate network (Accesstrade Shopee CPS, Lazada CPS...).
+/// Cron crawler tự upsert khi gặp campaign mới trong datafeed (status = APPLIED mặc định).
+/// Admin sync tay status APPROVED/REJECTED/PAUSED dựa trên dashboard publisher của network.
+model Campaign {
+  id              String              @id @default(uuid()) @db.Uuid
+  network         AffiliateNetwork
+  externalId      String
+  name            String
+  merchantName    String?
+  status          CampaignStatus      @default(APPLIED)
+  appliedAt       DateTime?
+  approvedAt      DateTime?
+  commissionNote  String?
+  notes           String?
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+  products        Product[]
+  conversions     ConversionWebhook[]
+
+  @@unique([network, externalId])
+  @@index([status])
+  @@index([network, status])
+}
+
+model Coupon {
+  id              String          @id @default(uuid()) @db.Uuid
+  code            String          @unique
+  description     String?
+  discountPercent Int?
+  discountAmount  Decimal?        @db.Decimal(10, 2)
+  network         AffiliateNetwork?
+  productId       String?         @db.Uuid
+  categoryId      String?         @db.Uuid
+  affiliateUrl    String?
+  startsAt        DateTime?
+  expiresAt       DateTime?
+  isActive        Boolean         @default(true)
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  product         Product?        @relation(fields: [productId], references: [id], onDelete: SetNull)
+  category        Category?       @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+
+  @@index([isActive, expiresAt])
+  @@index([categoryId, isActive])
+  @@index([productId, isActive])
+}
+
+model Category {
+  id              String         @id @default(uuid()) @db.Uuid
+  slug            String         @unique
+  name            String
+  status          CategoryStatus @default(ACTIVE)
+  schemaConfig    Json
+  seoTitle        String?
+  seoDescription  String?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  products        Product[]
+  articles        Article[]
+  coupons         Coupon[]
 }
 
 model Product {
   id           String     @id @default(uuid()) @db.Uuid
-  toolId       String     @db.Uuid
-  network      String     @default("ACCESSTRADE")
+  categoryId   String     @db.Uuid
+  network      AffiliateNetwork @default(ACCESSTRADE)
+  campaignId   String?    @db.Uuid
   name         String
   slug         String?
   affiliateUrl String
@@ -55,12 +138,15 @@ model Product {
   isPublic     Boolean    @default(true)
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
-  tool         Tool       @relation(fields: [toolId], references: [id], onDelete: Cascade)
+  category     Category   @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  campaign     Campaign?  @relation(fields: [campaignId], references: [id], onDelete: SetNull)
   clickLogs    ClickLog[]
   extractions  ProductExtraction[]
+  coupons      Coupon[]
 
-  @@unique([toolId, slug])
-  @@index([toolId])
+  @@unique([categoryId, slug])
+  @@index([categoryId])
+  @@index([campaignId])
 }
 
 model ClickLog {
@@ -77,15 +163,20 @@ model ClickLog {
 }
 
 model ConversionWebhook {
-  id           String    @id @default(uuid()) @db.Uuid
+  id           String           @id @default(uuid()) @db.Uuid
   trackingCode String
-  revenue      Decimal   @db.Decimal(10, 2)
+  network      AffiliateNetwork @default(ACCESSTRADE)
+  campaignId   String?          @db.Uuid
+  revenue      Decimal          @db.Decimal(10, 2)
   status       String
-  payload      Json      @db.JsonB
-  receivedAt   DateTime  @default(now())
-  clickLog     ClickLog  @relation(fields: [trackingCode], references: [trackingCode], onDelete: Restrict)
+  payload      Json             @db.JsonB
+  receivedAt   DateTime         @default(now())
+  clickLog     ClickLog         @relation(fields: [trackingCode], references: [trackingCode], onDelete: Restrict)
+  campaign     Campaign?        @relation(fields: [campaignId], references: [id], onDelete: SetNull)
 
   @@index([trackingCode, receivedAt])
+  @@index([network, receivedAt])
+  @@index([campaignId, receivedAt])
 }
 
 model ProductExtraction {
@@ -126,7 +217,7 @@ model Article {
   coverImage      String?
   type            ArticleType
   status          ArticleStatus @default(DRAFT)
-  toolId          String?       @db.Uuid
+  categoryId      String?       @db.Uuid
   productIds      String[]      @db.Uuid
   pinnedProductIds String[]     @db.Uuid
   metaTitle       String?
@@ -136,12 +227,14 @@ model Article {
   generationError String?
   reviewedBy      String?
   reviewedAt      DateTime?
+  scheduledAt     DateTime?
   publishedAt     DateTime?
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
-  tool            Tool?         @relation(fields: [toolId], references: [id], onDelete: SetNull)
+  category        Category?     @relation(fields: [categoryId], references: [id], onDelete: SetNull)
 
   @@index([status, publishedAt])
-  @@index([toolId, status])
+  @@index([categoryId, status])
   @@index([type, status])
+  @@index([scheduledAt])
 }

@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import type React from "react";
+import { Suspense } from "react";
 import { Plus_Jakarta_Sans } from "next/font/google";
 import { Footer } from "../components/footer";
 import { Navbar } from "../components/navbar";
@@ -55,7 +56,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }):
   return (
     <html lang="vi">
       <body className={`${display.className} min-h-screen bg-canvas text-ink antialiased`}>
-        <Navbar />
+        <Suspense fallback={<div className="h-16 border-b border-line bg-card/80" />}>
+          <Navbar />
+        </Suspense>
         <main className="mx-auto min-h-[calc(100vh-200px)] w-full">{children}</main>
         <Footer />
       </body>
