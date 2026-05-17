@@ -26,6 +26,7 @@ So sánh ưu đãi affiliate đa nguồn, trích dữ liệu sản phẩm bằng
 - [Tech stack](#-tech-stack)
 - [Cấu trúc dự án](#-cấu-trúc-dự-án)
 - [Bắt đầu nhanh](#-bắt-đầu-nhanh)
+- [Troubleshooting](#-troubleshooting)
 - [Biến môi trường](#-biến-môi-trường)
 - [NPM scripts](#-npm-scripts)
 - [Mô hình dữ liệu](#-mô-hình-dữ-liệu)
@@ -208,11 +209,94 @@ Mở:
 - 🛍️ Public storefront → http://localhost:3100
 - 🛠️ Admin panel → http://localhost:3100/admin
 - 📡 API → http://localhost:4000/api/v1
-- 🐘 pgAdmin → http://localhost:5050
+-  pgAdmin → http://localhost:5050
 
 ---
 
-## 🔐 Biến môi trường
+## Troubleshooting
+
+### Lỗi "EADDRINUSE: address already in use" (port bị chiếm)
+
+Port 4000 hoặc 3100 đang có process khác sử dụng. Tìm và kill process:
+
+**Windows:**
+```powershell
+# Tìm process chiếm port:
+netstat -ano | findstr :4000
+netstat -ano | findstr :3100
+
+# Kill process (thay <PID> bằng số tìm được):
+taskkill /PID <PID> /F
+```
+
+**Linux/Mac:**
+```bash
+# Tìm và kill process:
+lsof -i :4000 | awk 'NR>1 {print $2}' | xargs kill -9
+```
+
+### Lỗi seed không chạy được (không load được .env)
+
+File `apps/api/prisma/seed.js` đã được fix để tự động load `.env`. Nếu vẫn lỗi, chạy thủ công:
+
+```bash
+cd apps/api
+node -r dotenv/config prisma/seed.js
+```
+
+### Lỗi "Authentication failed" khi connect PostgreSQL
+
+Kiểm tra lại username/password trong `DATABASE_URL`. Đảm bảo:
+- PostgreSQL server đang chạy
+- Database đã được tạo
+- Username/password đúng
+
+Test kết nối:
+```bash
+psql -U postgres -d affiliate_db -c "SELECT 1;"
+```
+
+### Lỗi "PrismaClientInitializationError: DATABASE_URL not found"
+
+Đảm bảo file `apps/api/.env` tồn tại và có `DATABASE_URL`. Kiểm tra:
+
+```bash
+cat apps/api/.env | grep DATABASE_URL
+```
+
+### Tóm tắt các bước (copy-paste nhanh)
+
+```bash
+# 1. Clone & install
+git clone https://github.com/phamgiang-bhdn/micro_tools.git
+cd micro_tools
+npm install
+
+# 2. Cấu hình DATABASE_URL trong apps/api/.env
+# Ví dụ: DATABASE_URL="postgresql://postgres:your_password@localhost:5432/affiliate_db?schema=public"
+
+# 3. Generate Prisma Client
+npm run db:generate
+
+# 4. Chạy migrations
+npm run db:deploy
+
+# 5. Seed dữ liệu mẫu
+npm run db:seed
+
+# 6. Chạy dev (2 terminals)
+npm run dev:api   # Terminal 1 - Backend port 4000
+npm run dev:web   # Terminal 2 - Frontend port 3100
+
+# 7. Nếu port bị chiếm, tìm và kill process:
+netstat -ano | findstr :4000    # Tìm PID
+netstat -ano | findstr :3100    # Tìm PID
+taskkill /PID <PID> /F          # Kill process
+```
+
+---
+
+## � Biến môi trường
 
 ### `apps/api/.env`
 | Tên | Mô tả | Bắt buộc |
