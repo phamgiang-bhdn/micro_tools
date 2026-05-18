@@ -167,13 +167,64 @@ process.on("SIGTERM", handleShutdown);
 // Build command line string for shell execution
 const npmCmd = isWin ? "npm" : "npm";
 
+// ========== Port conflict resolution ==========
+
+function findAndKillProcessOnPort(port) {
+  return new Promise((resolve) => {
+    const cmd = isWin 
+      ? `netstat -ano | findstr :${port}`
+      : `lsof -i :${port} -t`;
+    
+    const result = spawnSync(cmd, { shell: true, stdio: ["pipe", "pipe", "pipe"] });
+    const output = result.stdout.toString().trim();
+    
+    if (!output) {
+      resolve();
+      return;
+    }
+    
+    const pids = isWin
+      ? output.split('\n').map(line => line.trim().split(/\s+/).pop()).filter(Boolean)
+      : output.split('\n').filter(Boolean);
+    
+    const uniquePids = [...new Set(pids)];
+    
+    if (uniquePids.length > 0) {
+      console.log(`${c.yellow}[PORT]${c.reset} Port ${port} đang bị chiếm bởi PID: ${uniquePids.join(", ")}`);
+      console.log(`${c.yellow}[PORT]${c.reset} Đang giải phóng port ${port}...`);
+      
+      uniquePids.forEach(pid => {
+        try {
+          process.kill(parseInt(pid), "SIGTERM");
+        } catch {
+          try {
+            process.kill(parseInt(pid), "SIGKILL");
+          } catch {
+            // Ignore if process already exited
+          }
+        }
+      });
+      
+      // Đợi processes dừng
+      setTimeout(resolve, 1000);
+    } else {
+      resolve();
+    }
+  });
+}
+
 // Run auto-setup before starting servers
 console.log(`\n${c.cyan}${c.bold}🔍 Kiểm tra môi trường...${c.reset}`);
 await autoSetup();
 
+// Giải phóng ports nếu cần
+console.log(`\n${c.yellow}[PORT]${c.reset} Kiểm tra ports 4000 và 3100...`);
+await findAndKillProcessOnPort(4000);
+await findAndKillProcessOnPort(3100);
+
 console.log(`\n${c.magenta}${c.bold}═══════════════════════════════════════════════════${c.reset}`);
 console.log(`${c.magenta}${c.bold}         🚀 STARTING DEVELOPMENT SERVERS${c.reset}`);
-console.log(`${c.magenta}${c.bold}         API:  http://localhost:3000 (default)${c.reset}`);
+console.log(`${c.magenta}${c.bold}         API:  http://localhost:4000${c.reset}`);
 console.log(`${c.magenta}${c.bold}         WEB:  http://localhost:3100${c.reset}`);
 console.log(`${c.magenta}${c.bold}═══════════════════════════════════════════════════${c.reset}\n`);
 
