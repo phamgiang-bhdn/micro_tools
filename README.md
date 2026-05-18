@@ -197,19 +197,29 @@ npm run bootstrap
 
 ### Chạy dev
 
-```bash
-# Terminal 1 — backend (NestJS, cổng 4000)
-npm run dev:api
+Chỉ cần **1 lệnh duy nhất** — tự động kiểm tra & setup môi trường nếu cần:
 
-# Terminal 2 — frontend (Next.js, cổng 3100)
-npm run dev:web
+```bash
+npm run dev
 ```
+
+Script sẽ tự động:
+1. ✅ Cài đặt dependencies nếu chưa có (`npm install`)
+2. ✅ Tạo `.env` từ `.env.example` nếu chưa có
+3. ✅ Khởi động Docker containers + deploy migrations
+4. ✅ Chạy cả **API** (localhost:4000) và **WEB** (localhost:3100) cùng lúc
+
+> 💡 Nếu muốn chạy riêng từng server:
+> ```bash
+> npm run dev:api   # Backend NestJS, cổng 4000
+> npm run dev:web   # Frontend Next.js, cổng 3100
+> ```
 
 Mở:
 - 🛍️ Public storefront → http://localhost:3100
 - 🛠️ Admin panel → http://localhost:3100/admin
 - 📡 API → http://localhost:4000/api/v1
--  pgAdmin → http://localhost:5050
+- 🐘 pgAdmin → http://localhost:5050
 
 ---
 
