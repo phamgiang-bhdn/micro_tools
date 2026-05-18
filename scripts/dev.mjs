@@ -4,9 +4,11 @@
  * Chỉ cần 1 lệnh: npm run dev
  */
 import { spawn, spawnSync } from "child_process";
-import { dirname, join, existsSync } from "path";
+import { dirname, join } from "path";
 import { fileURLToPath } from "url";
 import fs from "fs";
+
+const { existsSync } = fs;
 import { bannerOk, bannerRun, bannerFail, c } from "./colors.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
