@@ -100,6 +100,10 @@ class FakePrisma {
       return row;
     })
   };
+
+  campaign = {
+    findMany: jest.fn(async () => [] as Array<{ name: string; merchantName: string | null }>)
+  };
 }
 
 class FakeAccesstradeClient {

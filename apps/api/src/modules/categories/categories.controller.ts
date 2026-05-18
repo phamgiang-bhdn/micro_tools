@@ -33,7 +33,12 @@ export class CategoriesController {
         include: {
           products: {
             where: { isPublic: true },
-            orderBy: { createdAt: "desc" }
+            orderBy: { createdAt: "desc" },
+            include: {
+              campaign: {
+                select: { id: true, name: true, merchantName: true }
+              }
+            }
           }
         }
       });

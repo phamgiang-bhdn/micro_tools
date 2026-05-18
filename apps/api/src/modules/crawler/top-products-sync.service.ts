@@ -75,17 +75,36 @@ export class TopProductsSyncService {
     return { created, date: today.toISOString(), skipped: false };
   }
 
-  async getLatestSnapshot(limit = 12): Promise<TopProductSnapshot[]> {
+  async getLatestSnapshot(
+    limit = 12
+  ): Promise<Array<TopProductSnapshot & { merchantDisplay: string | null }>> {
     const latest = await this.prisma.topProductSnapshot.findFirst({
       orderBy: { snapshotDate: "desc" },
       select: { snapshotDate: true }
     });
     if (!latest) return [];
-    return this.prisma.topProductSnapshot.findMany({
+    const rows = await this.prisma.topProductSnapshot.findMany({
       where: { snapshotDate: latest.snapshotDate },
       orderBy: { position: "asc" },
       take: Math.min(Math.max(limit, 1), 50)
     });
+    const merchantSlugs = Array.from(
+      new Set(rows.map((r) => r.merchant?.toLowerCase()).filter((m): m is string => Boolean(m)))
+    );
+    const campaigns = merchantSlugs.length
+      ? await this.prisma.campaign.findMany({
+          where: { merchantName: { in: merchantSlugs, mode: "insensitive" } },
+          select: { name: true, merchantName: true }
+        })
+      : [];
+    const nameBySlug = new Map<string, string>();
+    for (const c of campaigns) {
+      if (c.merchantName) nameBySlug.set(c.merchantName.toLowerCase(), c.name);
+    }
+    return rows.map((r) => ({
+      ...r,
+      merchantDisplay: r.merchant ? nameBySlug.get(r.merchant.toLowerCase()) ?? null : null
+    }));
   }
 }
 

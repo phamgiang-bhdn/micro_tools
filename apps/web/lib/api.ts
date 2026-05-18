@@ -120,6 +120,7 @@ export interface TopProductSnapshotItem {
   price: string | null;
   discount: string | null;
   merchant: string | null;
+  merchantDisplay: string | null;
   snapshotDate: string;
 }
 

@@ -85,7 +85,10 @@ export function normalizeProduct(product: ProductItem): ProductView {
     network: product.network,
     name: product.name,
     brand: pickString(raw, ["brand", "manufacturer", "bank", "issuer"]),
-    store: pickString(raw, ["store", "shop", "merchant", "seller", "network"]) ?? product.network,
+    store:
+      product.campaign?.name?.trim() ||
+      pickString(raw, ["store", "shop", "merchant", "seller", "network"]) ||
+      product.network,
     image: pickString(raw, ["image", "imageUrl", "thumbnail", "photo"]),
     description: pickString(raw, ["description", "summary", "tagline"]),
     category: pickString(raw, ["category", "type"]),

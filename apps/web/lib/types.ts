@@ -17,6 +17,11 @@ export interface ProductItem {
   slug?: string | null;
   affiliateUrl: string;
   scrapedData: Record<string, unknown>;
+  campaign?: {
+    id: string;
+    name: string;
+    merchantName: string | null;
+  } | null;
 }
 
 export interface CategoryDetail extends CategoryItem {

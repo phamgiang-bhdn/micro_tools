@@ -30,9 +30,9 @@ export function TopProductCard({ product }: TopProductCardProps): React.ReactEle
         <span className="absolute left-2 top-2 inline-flex items-center gap-1 rounded-full bg-brand-600 px-2 py-0.5 text-[11px] font-bold text-white shadow">
           #{product.position}
         </span>
-        {product.merchant ? (
-          <span className="absolute right-2 top-2 rounded-full bg-white/90 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-ink-mute ring-1 ring-line">
-            {product.merchant}
+        {product.merchantDisplay || product.merchant ? (
+          <span className="absolute right-2 top-2 max-w-[60%] truncate rounded-full bg-white/90 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-ink-mute ring-1 ring-line">
+            {product.merchantDisplay ?? product.merchant}
           </span>
         ) : null}
       </div>

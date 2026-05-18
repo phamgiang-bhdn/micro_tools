@@ -159,9 +159,6 @@ export function ProductDetailView({
                     {product.discountPercent ? <span className="text-accent-600">· -{product.discountPercent}%</span> : null}
                   </div>
                 ) : null}
-                {product.description ? (
-                  <p className="mt-3 text-sm leading-relaxed text-ink-soft">{product.description}</p>
-                ) : null}
               </>
             ) : (
               <p className="text-base font-medium text-ink-soft">Liên hệ shop</p>
@@ -207,6 +204,8 @@ export function ProductDetailView({
           ) : null}
         </section>
       </div>
+
+      <DescriptionSection description={product.description} />
 
       <SpecTable raw={product.raw} />
 
@@ -313,10 +312,149 @@ function TrustStrip(): React.ReactElement {
   );
 }
 
+function DescriptionSection({ description }: { description?: string }): React.ReactElement | null {
+  if (!description) return null;
+  const blocks = parseDescriptionBlocks(description);
+  if (blocks.length === 0) return null;
+  return (
+    <section className="overflow-hidden rounded-2xl border border-line bg-card shadow-card">
+      <div className="border-b border-line bg-canvas/70 px-5 py-3">
+        <p className="text-sm font-semibold text-ink">Mô tả sản phẩm</p>
+      </div>
+      <div className="space-y-3 px-5 py-4 [overflow-wrap:anywhere]">
+        {blocks.map((block, idx) => {
+          if (block.kind === "heading") {
+            return (
+              <h3 key={idx} className="pt-1 text-sm font-semibold text-ink">
+                {block.text}
+              </h3>
+            );
+          }
+          if (block.kind === "list") {
+            return (
+              <ul key={idx} className="list-disc space-y-1.5 pl-5 text-sm leading-relaxed text-ink-soft">
+                {block.items.map((item, i) => (
+                  <li key={i}>{item}</li>
+                ))}
+              </ul>
+            );
+          }
+          return (
+            <p key={idx} className="text-sm leading-relaxed text-ink-soft">
+              {block.text}
+            </p>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
+type DescBlock =
+  | { kind: "paragraph"; text: string }
+  | { kind: "heading"; text: string }
+  | { kind: "list"; items: string[] };
+
+function parseDescriptionBlocks(raw: string): DescBlock[] {
+  const normalized = raw.replace(/\r\n/g, "\n");
+  // AT descriptions thường dùng 2+ space giữa các câu/đoạn (không có \n) làm separator.
+  const chunks = normalized
+    .split(/\n+|\s{2,}/g)
+    .map((c) => c.trim())
+    .filter((c) => c.length > 0);
+
+  const blocks: DescBlock[] = [];
+  let listBuffer: string[] = [];
+
+  const flushList = (): void => {
+    if (listBuffer.length > 0) {
+      blocks.push({ kind: "list", items: listBuffer });
+      listBuffer = [];
+    }
+  };
+
+  for (let i = 0; i < chunks.length; i += 1) {
+    const chunk = chunks[i];
+    const bulletMatch = chunk.match(/^[-•·*]\s+(.+)$/);
+    if (bulletMatch) {
+      listBuffer.push(bulletMatch[1].trim());
+      continue;
+    }
+    flushList();
+    const isShortColonHeading = chunk.length <= 60 && /:$/.test(chunk);
+    const next = chunks[i + 1];
+    const isLeadIntoList =
+      chunk.length <= 60 && next !== undefined && /^[-•·*]\s+/.test(next);
+    if (isShortColonHeading || isLeadIntoList) {
+      blocks.push({ kind: "heading", text: chunk.replace(/:$/, "") });
+    } else {
+      blocks.push({ kind: "paragraph", text: chunk });
+    }
+  }
+  flushList();
+  return blocks;
+}
+
+const SPEC_TABLE_DENYLIST = new Set([
+  // already shown elsewhere in the page
+  "description",
+  "image",
+  "imageUrl",
+  "thumbnail",
+  "photo",
+  "name",
+  "brand",
+  "price",
+  "originalPrice",
+  "salePrice",
+  "currentPrice",
+  "listPrice",
+  "msrp",
+  "regularPrice",
+  "currency",
+  "discount",
+  "discountPercent",
+  "discountRate",
+  "discountAmount",
+  "rating",
+  "stars",
+  "score",
+  "reviewCount",
+  "reviews",
+  "ratingCount",
+  "badge",
+  "tag",
+  "label",
+  "highlights",
+  "features",
+  "perks",
+  "benefits",
+  // source / internal context — không thuộc "thông số sản phẩm"
+  "store",
+  "shop",
+  "merchant",
+  "seller",
+  "network",
+  "campaign",
+  "sourceId",
+  "sourceNetwork",
+  "sourceProductId",
+  "sku",
+  "atCategorySlug",
+  "category",
+  "type",
+  "updateTime",
+  "statusDiscount",
+  "promotion",
+  "metadata"
+]);
+
 function SpecTable({ raw }: { raw: Record<string, unknown> }): React.ReactElement | null {
-  const entries = Object.entries(raw).filter(([, value]) => {
+  const entries = Object.entries(raw).filter(([key, value]) => {
+    if (SPEC_TABLE_DENYLIST.has(key)) return false;
     if (value === null || value === undefined) return false;
     if (typeof value === "object") return false;
+    if (typeof value === "string" && value.trim().length === 0) return false;
     return true;
   });
   if (entries.length === 0) return null;
