@@ -2,15 +2,7 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import {
-  Plus,
-  Pause,
-  Play,
-  X as XIcon,
-  CheckCircle2,
-  PlayCircle,
-  Eye
-} from "lucide-react";
+import { Plus, PlayCircle } from "lucide-react";
 import {
   AdminButton,
   DataTable,
@@ -32,7 +24,6 @@ import { useRowSelection } from "../../../components/admin/use-row-selection";
 import {
   NETWORK_OPTIONS,
   CAMPAIGN_STATUS_META,
-  CAMPAIGN_STATUS_OPTIONS,
   type CampaignStatus,
   type AffiliateNetwork
 } from "../../../lib/admin/constants";
@@ -46,11 +37,19 @@ import { summarizeFilterRules } from "../../../lib/admin/filter-rules.schema";
 import {
   createCampaignAction,
   updateCampaignAction,
-  updateCampaignStatusAction,
   deleteCampaignAction,
-  runCampaignCrawlerAction,
-  bulkCampaignAction
+  runSelectedCampaignsCrawlerAction,
+  updateCampaignFilterRulesAction,
+  getCrawlerProgressAction,
+  type RunSelectedCrawlerResult,
+  type CrawlerProgress
 } from "../actions";
+import { withToast } from "../../../lib/admin/notify";
+import {
+  type FilterRules,
+  filterRulesSchema as clientFilterRulesSchema
+} from "../../../lib/admin/filter-rules.schema";
+import { Sliders } from "lucide-react";
 
 export interface CampaignRow {
   id: string;
@@ -95,12 +94,8 @@ const EMPTY_CREATE: CampaignCreateInput = {
   notes: null
 };
 
-const BULK_ACTIONS: BulkAction[] = [
-  { value: "status:APPROVED", label: "→ APPROVED", confirm: "Đổi status các campaign sang APPROVED?" },
-  { value: "status:PAUSED", label: "→ PAUSED", confirm: "Tạm dừng các campaign?" },
-  { value: "status:REJECTED", label: "→ REJECTED", confirm: "Đánh dấu REJECTED?" },
-  { value: "status:INACTIVE", label: "→ INACTIVE", confirm: "Vô hiệu hoá?" }
-];
+// Bulk status đổi tay đã bị bỏ — trạng thái chiến dịch lấy từ Accesstrade khi đồng bộ.
+const BULK_ACTIONS: BulkAction[] = [];
 
 const dateFmt = new Intl.DateTimeFormat("vi-VN", {
   day: "2-digit",
@@ -160,40 +155,123 @@ export function CampaignsTable({
     router.refresh();
   };
 
-  const handleSetStatus = async (id: string, status: CampaignStatus) => {
-    const fd = new FormData();
-    fd.set("id", id);
-    fd.set("status", status);
-    await updateCampaignStatusAction(fd);
-    router.refresh();
+  const [crawlDialogRows, setCrawlDialogRows] = React.useState<CampaignRow[] | null>(null);
+  const [crawlPending, setCrawlPending] = React.useState(false);
+  const [crawlLimit, setCrawlLimit] = React.useState<number>(100);
+  const [crawlResult, setCrawlResult] = React.useState<RunSelectedCrawlerResult | null>(null);
+  const [crawlProgress, setCrawlProgress] = React.useState<CrawlerProgress | null>(null);
+
+  const [filterRulesCampaign, setFilterRulesCampaign] = React.useState<CampaignRow | null>(null);
+  const [filterRulesDraft, setFilterRulesDraft] = React.useState<FilterRulesFormState>(EMPTY_FILTER_RULES_FORM);
+  const [filterRulesPending, setFilterRulesPending] = React.useState(false);
+  const [filterRulesError, setFilterRulesError] = React.useState<string | null>(null);
+
+  const openFilterRulesDialog = (c: CampaignRow) => {
+    setFilterRulesDraft(toFilterRulesFormState(c.filterRules));
+    setFilterRulesError(null);
+    setFilterRulesCampaign(c);
   };
 
-  const handleRunCrawler = async (atCampaignId: string | null) => {
-    if (!atCampaignId) {
-      window.alert("Campaign chưa có atCampaignId — Sync from Accesstrade trước.");
+  const handleSaveFilterRules = async () => {
+    if (!filterRulesCampaign) return;
+    const parsed = parseFilterRulesForm(filterRulesDraft);
+    if (!parsed.ok) {
+      setFilterRulesError(parsed.error);
       return;
     }
-    await runCampaignCrawlerAction(atCampaignId);
-    router.refresh();
+    setFilterRulesError(null);
+    setFilterRulesPending(true);
+    const result = await withToast(
+      () =>
+        updateCampaignFilterRulesAction({
+          id: filterRulesCampaign.id,
+          filterRules: parsed.value
+        }),
+      {
+        loading: "Đang lưu filter rules…",
+        success: "Đã lưu filter rules",
+        error: (e) => (e instanceof Error ? e.message : "Lưu filter rules thất bại")
+      }
+    );
+    setFilterRulesPending(false);
+    if (result !== null) {
+      setFilterRulesCampaign(null);
+      router.refresh();
+    }
   };
 
-  const handleBulk = async () => {
-    if (!bulkAction || selected.size === 0) return;
-    const cfg = BULK_ACTIONS.find((b) => b.value === bulkAction);
-    const msg = buildBulkConfirmMessage(cfg, selected.size);
-    if (msg && !window.confirm(msg)) return;
-    const fd = new FormData();
-    fd.set("action", bulkAction);
-    for (const id of selected) fd.append("ids", id);
-    setBulkPending(true);
-    try {
-      await bulkCampaignAction(fd);
-      clear();
-      setBulkAction("");
-      router.refresh();
-    } finally {
-      setBulkPending(false);
+  const openCrawlDialog = (campaigns: CampaignRow[]) => {
+    const eligible = campaigns.filter((c) => c.atCampaignId && c.merchantName);
+    const skipped = campaigns.length - eligible.length;
+    if (eligible.length === 0) {
+      window.alert(
+        skipped > 0
+          ? `Tất cả ${skipped} campaign đã chọn chưa đủ điều kiện (cần atCampaignId + merchantName). Sync from Accesstrade trước.`
+          : "Chưa chọn campaign nào."
+      );
+      return;
     }
+    setCrawlLimit(100);
+    setCrawlResult(null);
+    setCrawlDialogRows(eligible);
+  };
+
+  const handleConfirmCrawl = async () => {
+    if (!crawlDialogRows || crawlDialogRows.length === 0) return;
+    setCrawlPending(true);
+    setCrawlProgress({
+      isRunning: true,
+      total: crawlDialogRows.length,
+      done: 0,
+      currentLabel: "Đang khởi tạo…",
+      startedAt: Date.now(),
+      finishedAt: null,
+      lastError: null
+    });
+
+    let cancelled = false;
+    const poll = async (): Promise<void> => {
+      while (!cancelled) {
+        try {
+          const p = await getCrawlerProgressAction();
+          if (!cancelled) setCrawlProgress(p);
+          if (!p.isRunning) break;
+        } catch {
+          // ignore transient errors — tiếp tục poll
+        }
+        await new Promise((r) => setTimeout(r, 800));
+      }
+    };
+    const pollPromise = poll();
+
+    const result = await withToast(
+      () =>
+        runSelectedCampaignsCrawlerAction({
+          campaignIds: crawlDialogRows.map((c) => c.id),
+          overrideLimit: crawlLimit
+        }),
+      {
+        loading: `Đang lấy sản phẩm — ${crawlDialogRows.length} campaign (limit ${crawlLimit})…`,
+        success: (raw) => {
+          const r = raw as RunSelectedCrawlerResult;
+          return `Xong: +${r.created} mới, ~${r.updated} update, fetched ${r.fetched}`;
+        },
+        error: (e) => (e instanceof Error ? e.message : "Lấy sản phẩm thất bại")
+      }
+    );
+    cancelled = true;
+    await pollPromise;
+    setCrawlPending(false);
+    if (result) {
+      setCrawlResult(result);
+      router.refresh();
+    }
+  };
+
+  // Bulk thao tác đã bị bỏ — trạng thái chiến dịch chỉ đồng bộ từ Accesstrade.
+  // Giữ state để BulkBar render nhưng không có action nào — chỉ tick để dùng "Lấy sản phẩm đã chọn".
+  const handleBulk = async () => {
+    /* no-op */
   };
 
   const sel = selectionColumnRenderers<CampaignRow>({
@@ -213,7 +291,7 @@ export function CampaignsTable({
     },
     {
       key: "name",
-      header: "Campaign",
+      header: "Chiến dịch",
       cell: (c) => (
         <div className="flex min-w-0 items-center gap-3">
           {c.atLogo ? (
@@ -248,7 +326,7 @@ export function CampaignsTable({
     },
     {
       key: "merchant",
-      header: "Merchant",
+      header: "Cửa hàng",
       hideOnMobile: true,
       cell: (c) => (
         <div className="text-sm">
@@ -261,12 +339,18 @@ export function CampaignsTable({
     },
     {
       key: "rules",
-      header: "Filter rules",
+      header: "Bộ lọc",
       hideOnMobile: true,
       cell: (c) => (
-        <span className="text-[12px] text-admin-mute">
-          {c.filterRules ? summarizeFilterRules(c.filterRules as never) : "—"}
-        </span>
+        <button
+          type="button"
+          onClick={() => openFilterRulesDialog(c)}
+          className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[12px] text-admin-mute transition hover:bg-admin-subtle hover:text-admin-accent"
+          title="Sửa filter rules"
+        >
+          <Sliders className="size-3" />
+          {c.filterRules ? summarizeFilterRules(c.filterRules as never) : "Default"}
+        </button>
       )
     },
     {
@@ -302,31 +386,26 @@ export function CampaignsTable({
       width: "140px",
       cell: (c) => {
         const lock = c._count.products > 0 || c._count.conversions > 0;
-        const statusMore = CAMPAIGN_STATUS_OPTIONS.filter((s) => s.value !== c.status).map((s) => ({
-          label: `→ ${s.label}`,
-          icon: iconForStatus(s.value as CampaignStatus),
-          onSelect: () => handleSetStatus(c.id, s.value as CampaignStatus)
-        }));
         return (
           <RowActions
+            onView={() => setViewing(c)}
             onEdit={() => setEditing(c)}
             onDelete={lock ? undefined : () => handleDelete(c.id)}
-            deleteConfirm={`Xoá campaign "${c.name}"?`}
+            deleteConfirm={`Xoá chiến dịch "${c.name}"?`}
             deleteDisabled={lock}
-            deleteDisabledReason="Có sản phẩm/conversion — chuyển INACTIVE thay vì xoá"
+            deleteDisabledReason="Có sản phẩm/đơn hàng — không xoá được"
             more={[
               {
-                label: "Xem chi tiết",
-                icon: <Eye />,
-                onSelect: () => setViewing(c)
+                label: "Lấy sản phẩm…",
+                icon: <PlayCircle />,
+                disabled: !c.atCampaignId || !c.merchantName,
+                onSelect: () => openCrawlDialog([c])
               },
               {
-                label: "Chạy crawler cho campaign này",
-                icon: <PlayCircle />,
-                disabled: !c.atCampaignId || c.status !== "APPROVED",
-                onSelect: () => handleRunCrawler(c.atCampaignId)
-              },
-              ...statusMore
+                label: "Bộ lọc lấy sản phẩm…",
+                icon: <Sliders />,
+                onSelect: () => openFilterRulesDialog(c)
+              }
             ]}
           />
         );
@@ -351,6 +430,17 @@ export function CampaignsTable({
                 Đang hiển thị: <span className="font-semibold text-admin-ink">{filteredCount}</span>
                 {filteredCount !== totalCount ? <span> / {totalCount}</span> : null}
               </div>
+              <AdminButton
+                size="sm"
+                variant="secondary"
+                iconLeft={<PlayCircle />}
+                disabled={selected.size === 0}
+                onClick={() =>
+                  openCrawlDialog(rows.filter((r) => selected.has(r.id)))
+                }
+              >
+                Lấy sản phẩm đã chọn{selected.size > 0 ? ` (${selected.size})` : ""}
+              </AdminButton>
               <AdminButton size="sm" iconLeft={<Plus />} onClick={() => setCreateOpen(true)}>
                 Tạo campaign
               </AdminButton>
@@ -411,7 +501,7 @@ export function CampaignsTable({
                 <span>{viewing.name}</span>
               </div>
             ) : (
-              "Campaign"
+              "Chiến dịch"
             )
           }
           description={
@@ -449,7 +539,7 @@ export function CampaignsTable({
               <div className="grid grid-cols-2 gap-3 text-xs">
                 <KV label="externalId" mono value={viewing.externalId} />
                 <KV label="atCampaignId" mono value={viewing.atCampaignId ?? "—"} />
-                <KV label="Merchant" value={viewing.merchantName ?? "—"} />
+                <KV label="Cửa hàng (merchant)" value={viewing.merchantName ?? "—"} />
                 <KV
                   label="Merchant URL"
                   value={
@@ -508,7 +598,351 @@ export function CampaignsTable({
           ) : null}
         </DialogContent>
       </Dialog>
+
+      {/* FILTER RULES DIALOG */}
+      <Dialog
+        open={filterRulesCampaign !== null}
+        onOpenChange={(o) => {
+          if (!o && !filterRulesPending) setFilterRulesCampaign(null);
+        }}
+      >
+        <DialogContent
+          size="xl"
+          title={
+            filterRulesCampaign
+              ? `Filter rules: ${filterRulesCampaign.name}`
+              : "Bộ lọc"
+          }
+          description="Push xuống AT để pre-filter offer khi crawl. Bỏ trống = không filter field đó."
+          footer={
+            <DialogFooter>
+              <AdminButton
+                variant="ghost"
+                size="sm"
+                disabled={filterRulesPending}
+                onClick={() => setFilterRulesCampaign(null)}
+              >
+                Huỷ
+              </AdminButton>
+              <AdminButton
+                variant="secondary"
+                size="sm"
+                disabled={filterRulesPending}
+                onClick={() => setFilterRulesDraft(EMPTY_FILTER_RULES_FORM)}
+              >
+                Xoá hết (về Default)
+              </AdminButton>
+              <AdminButton size="sm" loading={filterRulesPending} onClick={handleSaveFilterRules}>
+                Lưu
+              </AdminButton>
+            </DialogFooter>
+          }
+        >
+          {filterRulesCampaign ? (
+            <FilterRulesForm
+              value={filterRulesDraft}
+              onChange={setFilterRulesDraft}
+              error={filterRulesError}
+              disabled={filterRulesPending}
+            />
+          ) : null}
+        </DialogContent>
+      </Dialog>
+
+      {/* CRAWL CONFIG DIALOG */}
+      <Dialog
+        open={crawlDialogRows !== null}
+        onOpenChange={(o) => {
+          if (!o && !crawlPending) {
+            setCrawlDialogRows(null);
+            setCrawlResult(null);
+          }
+        }}
+      >
+        <DialogContent
+          size="lg"
+          title={
+            crawlResult
+              ? "Kết quả lấy sản phẩm"
+              : crawlPending
+                ? "Đang lấy sản phẩm…"
+                : crawlDialogRows && crawlDialogRows.length === 1
+                  ? `Lấy sản phẩm: ${crawlDialogRows[0].name}`
+                  : `Lấy sản phẩm — ${crawlDialogRows?.length ?? 0} chiến dịch`
+          }
+          description={
+            crawlResult
+              ? "Xem chi tiết kết quả bên dưới. Bấm Đóng để quay lại danh sách."
+              : crawlPending
+                ? "Đang gọi Accesstrade — vui lòng không đóng tab cho đến khi xong."
+                : "Xác nhận trước khi chạy. Có thể chỉnh số lượng tối đa mỗi chiến dịch."
+          }
+          footer={
+            <DialogFooter>
+              <AdminButton
+                variant="ghost"
+                size="sm"
+                disabled={crawlPending}
+                onClick={() => {
+                  setCrawlDialogRows(null);
+                  setCrawlResult(null);
+                }}
+              >
+                {crawlResult ? "Đóng" : "Huỷ"}
+              </AdminButton>
+              {!crawlResult && crawlDialogRows ? (
+                <AdminButton
+                  size="sm"
+                  iconLeft={<PlayCircle />}
+                  loading={crawlPending}
+                  onClick={handleConfirmCrawl}
+                >
+                  {crawlPending ? "Đang lấy…" : "Lấy sản phẩm"}
+                </AdminButton>
+              ) : null}
+            </DialogFooter>
+          }
+        >
+          {crawlPending && crawlProgress ? (
+            <CrawlProgressView progress={crawlProgress} />
+          ) : crawlDialogRows ? (
+            crawlResult ? (
+              <CrawlResultView result={crawlResult} />
+            ) : (
+              <div className="space-y-4 text-sm">
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-admin-mute">
+                    Số sản phẩm tối đa / chiến dịch (1–500)
+                  </label>
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="number"
+                      min={1}
+                      max={500}
+                      value={crawlLimit}
+                      disabled={crawlPending}
+                      onChange={(e) => {
+                        const v = Number.parseInt(e.target.value, 10);
+                        if (Number.isFinite(v)) setCrawlLimit(Math.min(500, Math.max(1, v)));
+                      }}
+                      className="h-9 w-28 rounded-md border border-admin-line bg-admin-surface px-2 text-sm text-admin-ink"
+                    />
+                    <div className="flex gap-1">
+                      {[50, 100, 200, 500].map((n) => (
+                        <button
+                          key={n}
+                          type="button"
+                          disabled={crawlPending}
+                          onClick={() => setCrawlLimit(n)}
+                          className={
+                            "rounded-md border px-2 py-1 text-[11px] transition " +
+                            (crawlLimit === n
+                              ? "border-admin-accent bg-admin-accent-soft text-admin-accent-ink"
+                              : "border-admin-line text-admin-mute hover:border-admin-accent")
+                          }
+                        >
+                          {n}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <p className="mt-1 text-[11px] text-admin-mute">
+                    Mặc định khi chạy nền là 100. Số càng lớn → Accesstrade trả càng chậm và tốn quota.
+                    Bộ lọc của từng chiến dịch vẫn được áp dụng — vào "Bộ lọc lấy sản phẩm" để chỉnh.
+                  </p>
+                </div>
+                <div>
+                  <p className="mb-1 text-xs font-medium text-admin-mute">
+                    {crawlDialogRows.length} chiến dịch sẽ chạy
+                  </p>
+                  <div className="max-h-56 overflow-auto rounded-md border border-admin-line">
+                    <ul className="divide-y divide-admin-line">
+                      {crawlDialogRows.map((c) => (
+                        <li
+                          key={c.id}
+                          className="flex items-center justify-between gap-2 px-3 py-1.5 text-[12.5px]"
+                        >
+                          <div className="min-w-0">
+                            <div className="truncate text-admin-ink">{c.name}</div>
+                            <div className="truncate font-mono text-[10.5px] text-admin-mute">
+                              {c.merchantName ?? "—"} · {c.atCampaignId ?? c.externalId}
+                            </div>
+                          </div>
+                          <StatusPill tone={CAMPAIGN_STATUS_META[c.status].tone} dot>
+                            {CAMPAIGN_STATUS_META[c.status].label}
+                          </StatusPill>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            )
+          ) : null}
+        </DialogContent>
+      </Dialog>
     </>
+  );
+}
+
+function CrawlProgressView({ progress }: { progress: CrawlerProgress }): React.ReactElement {
+  const pct =
+    progress.total > 0
+      ? Math.min(100, Math.round((progress.done / progress.total) * 100))
+      : 0;
+  const elapsedMs =
+    progress.startedAt
+      ? (progress.finishedAt ?? Date.now()) - progress.startedAt
+      : 0;
+  const elapsedS = Math.floor(elapsedMs / 1000);
+  return (
+    <div className="space-y-3 text-sm">
+      <div>
+        <div className="mb-1 flex items-center justify-between text-[12px]">
+          <span className="font-medium text-admin-ink">
+            Đã xử lý {progress.done} / {progress.total || "?"} chiến dịch
+          </span>
+          <span className="font-mono text-admin-mute">{pct}% · {elapsedS}s</span>
+        </div>
+        <div className="h-2 w-full overflow-hidden rounded-full bg-admin-subtle">
+          <div
+            className="h-full bg-admin-accent transition-all duration-300"
+            style={{ width: `${pct}%` }}
+          />
+        </div>
+      </div>
+      <div className="rounded-md border border-admin-line bg-admin-subtle/30 p-3">
+        <div className="text-[10.5px] uppercase tracking-wide text-admin-mute">
+          Đang xử lý
+        </div>
+        <div className="mt-0.5 truncate text-[12.5px] text-admin-ink">
+          {progress.currentLabel ?? "—"}
+        </div>
+      </div>
+      {progress.lastError ? (
+        <div className="rounded-md border border-red-300 bg-red-50 px-3 py-2 text-[12px] text-red-700">
+          {progress.lastError}
+        </div>
+      ) : null}
+      <p className="text-[11px] text-admin-mute">
+        Sau khi lấy xong tất cả chiến dịch, hệ thống còn bước AI làm giàu dữ liệu + lưu vào kho
+        (thanh tiến trình có thể đứng yên 1–2 phút cuối — đây là bình thường).
+      </p>
+    </div>
+  );
+}
+
+function CrawlResultView({ result }: { result: RunSelectedCrawlerResult }): React.ReactElement {
+  const fmt = (n: number): string => n.toLocaleString("vi-VN");
+  const noFetch = result.fetched === 0;
+  const noNew = result.created === 0 && result.updated === 0;
+
+  let banner: { tone: "success" | "warning" | "error"; text: string };
+  if (noFetch) {
+    banner = {
+      tone: "warning",
+      text: "Không lấy được sản phẩm nào — kiểm tra lại bộ lọc hoặc trạng thái chiến dịch trên Accesstrade."
+    };
+  } else if (noNew) {
+    banner = {
+      tone: "warning",
+      text: `Lấy về ${fmt(result.fetched)} sản phẩm nhưng không có thay đổi — dữ liệu trong kho đã trùng khớp.`
+    };
+  } else {
+    banner = {
+      tone: "success",
+      text: `Hoàn tất — thêm mới ${fmt(result.created)}, cập nhật ${fmt(result.updated)} sản phẩm.`
+    };
+  }
+
+  const bannerClass =
+    banner.tone === "success"
+      ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+      : banner.tone === "warning"
+        ? "border-amber-200 bg-amber-50 text-amber-800"
+        : "border-rose-200 bg-rose-50 text-rose-800";
+
+  return (
+    <div className="space-y-4 text-sm">
+      <div className={`rounded-lg border px-3 py-2 text-[13px] ${bannerClass}`}>{banner.text}</div>
+
+      <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
+        <StatTile label="Lấy về" value={fmt(result.fetched)} />
+        <StatTile label="Qua bộ lọc" value={fmt(result.passedFilter)} tone="info" />
+        <StatTile label="Thêm mới" value={fmt(result.created)} tone="success" />
+        <StatTile label="Cập nhật" value={fmt(result.updated)} tone="muted" />
+      </div>
+
+      <div>
+        <p className="mb-1.5 text-xs font-semibold text-admin-ink">Chi tiết theo chiến dịch</p>
+        <div className="max-h-64 overflow-auto rounded-md border border-admin-line">
+          <table className="w-full text-[12.5px]">
+            <thead className="sticky top-0 bg-admin-subtle/70 text-[11px] uppercase tracking-wide text-admin-mute">
+              <tr>
+                <th className="px-3 py-2 text-left font-medium">Chiến dịch</th>
+                <th className="px-3 py-2 text-right font-medium">Lấy về</th>
+                <th className="px-3 py-2 text-right font-medium">Hợp lệ</th>
+                <th className="px-3 py-2 text-right font-medium">Bỏ qua</th>
+              </tr>
+            </thead>
+            <tbody>
+              {result.campaigns.map((c) => {
+                const zero = c.fetched === 0;
+                return (
+                  <tr key={c.campaignId} className="border-t border-admin-line">
+                    <td className="px-3 py-2">
+                      <div className="font-medium text-admin-ink">{c.campaignName}</div>
+                      <div className="font-mono text-[10.5px] text-admin-mute">
+                        {c.merchantSlug}
+                      </div>
+                    </td>
+                    <td className={`px-3 py-2 text-right tabular-nums ${zero ? "text-amber-600" : "text-admin-ink"}`}>
+                      {fmt(c.fetched)}
+                    </td>
+                    <td className="px-3 py-2 text-right tabular-nums text-admin-ink">
+                      {fmt(c.routed)}
+                    </td>
+                    <td className="px-3 py-2 text-right tabular-nums text-admin-mute">
+                      {fmt(c.failedFilter)}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+        <p className="mt-2 text-[11px] text-admin-mute">
+          <span className="font-semibold">Lấy về</span> = số offer Accesstrade trả về ·{" "}
+          <span className="font-semibold">Hợp lệ</span> = qua bộ lọc, được nạp ·{" "}
+          <span className="font-semibold">Bỏ qua</span> = không khớp bộ lọc.
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function StatTile({
+  label,
+  value,
+  tone
+}: {
+  label: string;
+  value: string;
+  tone?: "info" | "success" | "muted";
+}): React.ReactElement {
+  const toneClass =
+    tone === "success"
+      ? "text-emerald-700"
+      : tone === "info"
+        ? "text-admin-accent"
+        : tone === "muted"
+          ? "text-admin-mute"
+          : "text-admin-ink";
+  return (
+    <div className="rounded-lg border border-admin-line bg-admin-subtle/30 p-2.5">
+      <div className="text-[11px] font-medium text-admin-mute">{label}</div>
+      <div className={`mt-0.5 text-xl font-semibold tabular-nums ${toneClass}`}>{value}</div>
+    </div>
   );
 }
 
@@ -544,7 +978,7 @@ function CampaignFields({ editing }: { editing?: boolean }): React.ReactElement 
     <>
       <ControlledSelectField<CampaignCreateInput>
         name="network"
-        label="Network"
+        label="Mạng affiliate"
         options={NETWORK_OPTIONS}
         required
         disabled={editing}
@@ -566,23 +1000,18 @@ function CampaignFields({ editing }: { editing?: boolean }): React.ReactElement 
       />
       <ControlledTextField<CampaignCreateInput>
         name="merchantName"
-        label="Merchant"
+        label="Tên cửa hàng (merchant)"
         placeholder="Shopee"
-      />
-      <ControlledSelectField<CampaignCreateInput>
-        name="status"
-        label="Trạng thái"
-        options={CAMPAIGN_STATUS_OPTIONS}
       />
       <ControlledTextField<CampaignCreateInput>
         name="commissionNote"
         label="Ghi chú hoa hồng"
-        placeholder="2–8% theo niche, cookie 1d"
+        placeholder="2–8% theo ngành hàng, cookie 1 ngày"
       />
       {editing ? (
         <>
-          <ControlledDateField<CampaignUpdateInput> name="appliedAt" label="Đã apply lúc" />
-          <ControlledDateField<CampaignUpdateInput> name="approvedAt" label="Đã duyệt lúc" />
+          <ControlledDateField<CampaignUpdateInput> name="appliedAt" label="Ngày apply" />
+          <ControlledDateField<CampaignUpdateInput> name="approvedAt" label="Ngày duyệt" />
         </>
       ) : null}
       <ControlledTextareaField<CampaignCreateInput>
@@ -611,22 +1040,6 @@ function toFormValues(row: CampaignRow): CampaignUpdateInput {
   };
 }
 
-function iconForStatus(s: CampaignStatus): React.ReactNode {
-  switch (s) {
-    case "APPROVED":
-      return <CheckCircle2 />;
-    case "PAUSED":
-      return <Pause />;
-    case "REJECTED":
-      return <XIcon />;
-    case "INACTIVE":
-      return <XIcon />;
-    case "APPLIED":
-    default:
-      return <Play />;
-  }
-}
-
 function relativeTime(iso: string | null): string {
   if (!iso) return "Chưa sync";
   const ms = Date.now() - new Date(iso).getTime();
@@ -637,4 +1050,300 @@ function relativeTime(iso: string | null): string {
   if (hrs < 24) return `${hrs}h trước`;
   const days = Math.floor(hrs / 24);
   return `${days} ngày trước`;
+}
+
+// ===== Filter rules form =====
+
+interface FilterRulesFormState {
+  minDiscountPercent: string;
+  maxDiscountPercent: string;
+  priceMin: string;
+  priceMax: string;
+  salePriceMin: string;
+  salePriceMax: string;
+  discountAmountMin: string;
+  discountAmountMax: string;
+  updateLookbackDays: string;
+  statusDiscount: "" | "0" | "1";
+  domainsText: string;
+}
+
+const EMPTY_FILTER_RULES_FORM: FilterRulesFormState = {
+  minDiscountPercent: "",
+  maxDiscountPercent: "",
+  priceMin: "",
+  priceMax: "",
+  salePriceMin: "",
+  salePriceMax: "",
+  discountAmountMin: "",
+  discountAmountMax: "",
+  updateLookbackDays: "",
+  statusDiscount: "",
+  domainsText: ""
+};
+
+function toFilterRulesFormState(raw: Record<string, unknown> | null): FilterRulesFormState {
+  if (!raw) return EMPTY_FILTER_RULES_FORM;
+  const r = raw as Partial<FilterRules>;
+  const numStr = (v: number | undefined): string =>
+    typeof v === "number" && Number.isFinite(v) ? String(v) : "";
+  return {
+    minDiscountPercent: numStr(r.minDiscountPercent),
+    maxDiscountPercent: numStr(r.maxDiscountPercent),
+    priceMin: numStr(r.priceMin),
+    priceMax: numStr(r.priceMax),
+    salePriceMin: numStr(r.salePriceMin),
+    salePriceMax: numStr(r.salePriceMax),
+    discountAmountMin: numStr(r.discountAmountMin),
+    discountAmountMax: numStr(r.discountAmountMax),
+    updateLookbackDays: numStr(r.updateLookbackDays),
+    statusDiscount:
+      r.status_discount === 0 ? "0" : r.status_discount === 1 ? "1" : "",
+    domainsText: Array.isArray(r.domains) ? r.domains.join(", ") : ""
+  };
+}
+
+function parseFilterRulesForm(
+  form: FilterRulesFormState
+): { ok: true; value: FilterRules | null } | { ok: false; error: string } {
+  const parseNum = (s: string): number | undefined => {
+    const t = s.trim();
+    if (!t) return undefined;
+    const n = Number(t);
+    if (!Number.isFinite(n)) return undefined;
+    return n;
+  };
+  const out: Record<string, unknown> = {};
+  const minD = parseNum(form.minDiscountPercent);
+  const maxD = parseNum(form.maxDiscountPercent);
+  if (minD !== undefined) out.minDiscountPercent = minD;
+  if (maxD !== undefined) out.maxDiscountPercent = maxD;
+  const pMin = parseNum(form.priceMin);
+  const pMax = parseNum(form.priceMax);
+  if (pMin !== undefined) out.priceMin = pMin;
+  if (pMax !== undefined) out.priceMax = pMax;
+  const sMin = parseNum(form.salePriceMin);
+  const sMax = parseNum(form.salePriceMax);
+  if (sMin !== undefined) out.salePriceMin = sMin;
+  if (sMax !== undefined) out.salePriceMax = sMax;
+  const dMin = parseNum(form.discountAmountMin);
+  const dMax = parseNum(form.discountAmountMax);
+  if (dMin !== undefined) out.discountAmountMin = dMin;
+  if (dMax !== undefined) out.discountAmountMax = dMax;
+  const lookback = parseNum(form.updateLookbackDays);
+  if (lookback !== undefined) out.updateLookbackDays = lookback;
+  if (form.statusDiscount === "0") out.status_discount = 0;
+  else if (form.statusDiscount === "1") out.status_discount = 1;
+  const domains = form.domainsText
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+  if (domains.length > 0) out.domains = domains;
+
+  if (Object.keys(out).length === 0) return { ok: true, value: null };
+
+  const parsed = clientFilterRulesSchema.safeParse(out);
+  if (!parsed.success) {
+    const issue = parsed.error.issues[0];
+    return {
+      ok: false,
+      error: `${issue.path.join(".") || "Form"}: ${issue.message}`
+    };
+  }
+  if (
+    parsed.data.minDiscountPercent !== undefined &&
+    parsed.data.maxDiscountPercent !== undefined &&
+    parsed.data.minDiscountPercent > parsed.data.maxDiscountPercent
+  ) {
+    return { ok: false, error: "minDiscountPercent > maxDiscountPercent" };
+  }
+  return { ok: true, value: parsed.data };
+}
+
+function FilterRulesForm({
+  value,
+  onChange,
+  error,
+  disabled
+}: {
+  value: FilterRulesFormState;
+  onChange: (next: FilterRulesFormState) => void;
+  error: string | null;
+  disabled?: boolean;
+}): React.ReactElement {
+  const set = <K extends keyof FilterRulesFormState>(
+    key: K,
+    v: FilterRulesFormState[K]
+  ): void => {
+    onChange({ ...value, [key]: v });
+  };
+  return (
+    <div className="space-y-4 text-sm">
+      {error ? (
+        <div className="rounded-md border border-red-300 bg-red-50 px-3 py-2 text-[12.5px] text-red-700">
+          {error}
+        </div>
+      ) : null}
+      <FRSection title="Discount %" hint="0–100, push xuống AT discount_rate_from/to">
+        <FRInput
+          label="Min %"
+          value={value.minDiscountPercent}
+          onChange={(v) => set("minDiscountPercent", v)}
+          disabled={disabled}
+          placeholder="0"
+        />
+        <FRInput
+          label="Max %"
+          value={value.maxDiscountPercent}
+          onChange={(v) => set("maxDiscountPercent", v)}
+          disabled={disabled}
+          placeholder="100"
+        />
+      </FRSection>
+      <FRSection title="Giá gốc (VND)" hint="AT price_from/to">
+        <FRInput
+          label="Min"
+          value={value.priceMin}
+          onChange={(v) => set("priceMin", v)}
+          disabled={disabled}
+          placeholder="0"
+        />
+        <FRInput
+          label="Max"
+          value={value.priceMax}
+          onChange={(v) => set("priceMax", v)}
+          disabled={disabled}
+          placeholder="∞"
+        />
+      </FRSection>
+      <FRSection title="Giá sau giảm (VND)" hint="AT discount_from/to">
+        <FRInput
+          label="Min"
+          value={value.salePriceMin}
+          onChange={(v) => set("salePriceMin", v)}
+          disabled={disabled}
+        />
+        <FRInput
+          label="Max"
+          value={value.salePriceMax}
+          onChange={(v) => set("salePriceMax", v)}
+          disabled={disabled}
+        />
+      </FRSection>
+      <FRSection title="Số tiền giảm tuyệt đối (VND)" hint="AT discount_amount_from/to">
+        <FRInput
+          label="Min"
+          value={value.discountAmountMin}
+          onChange={(v) => set("discountAmountMin", v)}
+          disabled={disabled}
+        />
+        <FRInput
+          label="Max"
+          value={value.discountAmountMax}
+          onChange={(v) => set("discountAmountMax", v)}
+          disabled={disabled}
+        />
+      </FRSection>
+      <FRSection
+        title="Incremental sync"
+        hint="Chỉ pull offer có update_time trong N ngày qua (1–365)"
+      >
+        <FRInput
+          label="N ngày"
+          value={value.updateLookbackDays}
+          onChange={(v) => set("updateLookbackDays", v)}
+          disabled={disabled}
+          placeholder="vd 7"
+        />
+      </FRSection>
+      <FRSection title="Discount status" hint="AT status_discount: 0/1/bỏ trống">
+        <div className="col-span-2 flex flex-wrap gap-2">
+          {[
+            { v: "", label: "Bỏ trống (cả 2)" },
+            { v: "1", label: "Có discount (1)" },
+            { v: "0", label: "Không discount (0)" }
+          ].map((opt) => (
+            <button
+              key={opt.v}
+              type="button"
+              disabled={disabled}
+              onClick={() => set("statusDiscount", opt.v as "" | "0" | "1")}
+              className={
+                "rounded-md border px-2.5 py-1 text-[12px] transition " +
+                (value.statusDiscount === opt.v
+                  ? "border-admin-accent bg-admin-accent-soft text-admin-accent-ink"
+                  : "border-admin-line text-admin-mute hover:border-admin-accent")
+              }
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+      </FRSection>
+      <FRSection
+        title="Domains"
+        hint="Phẩy ngăn cách. AT chỉ push xuống khi đúng 1 domain — nhiều domain → filter client-side"
+      >
+        <div className="col-span-2">
+          <input
+            type="text"
+            disabled={disabled}
+            value={value.domainsText}
+            onChange={(e) => set("domainsText", e.target.value)}
+            placeholder="shopee.vn, lazada.vn"
+            className="h-9 w-full rounded-md border border-admin-line bg-admin-surface px-2 text-sm text-admin-ink"
+          />
+        </div>
+      </FRSection>
+    </div>
+  );
+}
+
+function FRSection({
+  title,
+  hint,
+  children
+}: {
+  title: string;
+  hint?: string;
+  children: React.ReactNode;
+}): React.ReactElement {
+  return (
+    <div className="grid grid-cols-1 gap-2 sm:grid-cols-[180px_1fr]">
+      <div>
+        <div className="text-[12.5px] font-semibold text-admin-ink">{title}</div>
+        {hint ? <div className="text-[10.5px] text-admin-mute">{hint}</div> : null}
+      </div>
+      <div className="grid grid-cols-2 gap-2">{children}</div>
+    </div>
+  );
+}
+
+function FRInput({
+  label,
+  value,
+  onChange,
+  disabled,
+  placeholder
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  disabled?: boolean;
+  placeholder?: string;
+}): React.ReactElement {
+  return (
+    <label className="flex flex-col gap-1">
+      <span className="text-[10.5px] uppercase tracking-wide text-admin-mute">{label}</span>
+      <input
+        type="number"
+        inputMode="numeric"
+        disabled={disabled}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        className="h-9 rounded-md border border-admin-line bg-admin-surface px-2 text-sm text-admin-ink"
+      />
+    </label>
+  );
 }

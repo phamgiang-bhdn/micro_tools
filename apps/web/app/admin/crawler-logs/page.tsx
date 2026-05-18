@@ -124,7 +124,7 @@ export default async function CrawlerLogsPage({ searchParams }: PageProps): Prom
     <div className="space-y-6">
       <PageHeader
         eyebrow="Vận hành"
-        title="Nhật ký crawler"
+        title="Nhật ký lấy sản phẩm"
         subtitle={
           <span>
             Lần thành công cuối:{" "}

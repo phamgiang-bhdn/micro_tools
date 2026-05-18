@@ -26,6 +26,8 @@ interface ProductsPageProps {
     categoryId?: string;
     sourceId?: string;
     brandId?: string;
+    shopId?: string;
+    shopStatus?: "assigned" | "unassigned";
     network?: string;
     isPublic?: string;
     search?: string;
@@ -38,11 +40,23 @@ const NICHE_STATUS_OPTIONS = [
   { value: "assigned", label: "Đã gán niche" }
 ];
 
+const SHOP_STATUS_OPTIONS = [
+  { value: "unassigned", label: "Chưa gán shop" },
+  { value: "assigned", label: "Đã gán shop" }
+];
+
 interface LookupLite {
   id: string;
   slug: string;
   rawValue: string;
   displayName: string | null;
+  _count: { products: number };
+}
+
+interface ShopLite {
+  id: string;
+  slug: string;
+  name: string;
   _count: { products: number };
 }
 
@@ -56,17 +70,20 @@ export default async function ProductsPage({
   if (filters.categoryId) qs.set("categoryId", filters.categoryId);
   if (filters.sourceId) qs.set("sourceId", filters.sourceId);
   if (filters.brandId) qs.set("brandId", filters.brandId);
+  if (filters.shopId) qs.set("shopId", filters.shopId);
+  if (filters.shopStatus) qs.set("shopStatus", filters.shopStatus);
   if (filters.network) qs.set(ADMIN_PARAMS.network, filters.network);
   if (filters.isPublic) qs.set(ADMIN_PARAMS.isPublic, filters.isPublic);
   if (filters.search) qs.set(ADMIN_PARAMS.search, filters.search);
   qs.set("limit", "500");
 
-  const [products, niches, categories, sources, brands] = await Promise.all([
+  const [products, niches, categories, sources, brands, shops] = await Promise.all([
     adminGet<ProductRow[]>(`/admin/products?${qs.toString()}`),
     adminGet<NicheLite[]>("/admin/niches"),
     adminGet<LookupLite[]>("/admin/categories"),
     adminGet<LookupLite[]>("/admin/sources"),
-    adminGet<LookupLite[]>("/admin/brands")
+    adminGet<LookupLite[]>("/admin/brands"),
+    adminGet<ShopLite[]>("/admin/shops")
   ]);
 
   const pageNum = Math.max(1, Number.parseInt(filters.page ?? "1", 10) || 1);
@@ -79,6 +96,8 @@ export default async function ProductsPage({
     if (filters.categoryId) params.set("categoryId", filters.categoryId);
     if (filters.sourceId) params.set("sourceId", filters.sourceId);
     if (filters.brandId) params.set("brandId", filters.brandId);
+    if (filters.shopId) params.set("shopId", filters.shopId);
+    if (filters.shopStatus) params.set("shopStatus", filters.shopStatus);
     if (filters.network) params.set(ADMIN_PARAMS.network, filters.network);
     if (filters.isPublic) params.set(ADMIN_PARAMS.isPublic, filters.isPublic);
     if (filters.search) params.set(ADMIN_PARAMS.search, filters.search);
@@ -94,6 +113,8 @@ export default async function ProductsPage({
       filters.categoryId ||
       filters.sourceId ||
       filters.brandId ||
+      filters.shopId ||
+      filters.shopStatus ||
       filters.network ||
       filters.isPublic
   );
@@ -112,6 +133,10 @@ export default async function ProductsPage({
   const categoryOptions = categories.map(lookupToOption);
   const sourceOptions = sources.map(lookupToOption);
   const brandOptions = brands.map(lookupToOption);
+  const shopOptions = shops.map((s) => ({
+    value: s.id,
+    label: `${s.name} (${s._count.products})`
+  }));
 
   return (
     <ListPageShell
@@ -137,7 +162,7 @@ export default async function ProductsPage({
           icon: <EyeOff className="size-4" />
         },
         {
-          label: "Network",
+          label: "Mạng",
           value: networkCount.toLocaleString("vi-VN"),
           icon: <Network className="size-4" />
         }
@@ -175,13 +200,25 @@ export default async function ProductsPage({
             options={sourceOptions}
           />
           <NativeFilterSelect
-            label="Thương hiệu"
+            label="Domain"
             name="brandId"
             defaultValue={filters.brandId ?? ""}
             options={brandOptions}
           />
           <NativeFilterSelect
-            label="Network"
+            label="Trạng thái shop"
+            name="shopStatus"
+            defaultValue={filters.shopStatus ?? ""}
+            options={SHOP_STATUS_OPTIONS}
+          />
+          <NativeFilterSelect
+            label="Shop"
+            name="shopId"
+            defaultValue={filters.shopId ?? ""}
+            options={shopOptions}
+          />
+          <NativeFilterSelect
+            label="Mạng affiliate"
             name={ADMIN_PARAMS.network}
             defaultValue={filters.network ?? ""}
             options={NETWORK_OPTIONS}
@@ -202,6 +239,7 @@ export default async function ProductsPage({
           <ProductsTable
             rows={items}
             niches={niches}
+            shops={shops}
             totalCount={products.length}
             hasFilter={hasFilter}
           />

@@ -33,7 +33,13 @@ interface CampaignTask {
 }
 
 const PER_CAMPAIGN_LIMIT = 100;
+const MAX_PER_CAMPAIGN_LIMIT = 500;
 const SLEEP_BETWEEN_FETCH_MS = 500;
+
+function clampLimit(n: number | undefined): number {
+  if (typeof n !== "number" || !Number.isFinite(n) || n <= 0) return PER_CAMPAIGN_LIMIT;
+  return Math.min(Math.max(Math.floor(n), 1), MAX_PER_CAMPAIGN_LIMIT);
+}
 
 /**
  * Orchestrator (per-campaign fetch — push filterRules xuống AT để pre-filter server-side):
@@ -102,7 +108,10 @@ export class CrawlerService {
     }
   }
 
-  async runFullCycle(triggeredBy = "cron"): Promise<CycleResult> {
+  async runFullCycle(
+    triggeredBy = "cron",
+    options?: { campaignIds?: string[]; overrideLimit?: number }
+  ): Promise<CycleResult> {
     this.logger.log("Crawler cycle started (per-assignment mode)");
     const log = await this.prisma.crawlerLog.create({ data: { triggeredBy } });
     const start = Date.now();
@@ -116,8 +125,12 @@ export class CrawlerService {
       lastError: null
     };
 
+    const limit = clampLimit(options?.overrideLimit);
+
     try {
-      const campaigns = this.accesstradeEnabled ? await this.loadEligibleCampaigns() : [];
+      const campaigns = this.accesstradeEnabled
+        ? await this.loadEligibleCampaigns(options?.campaignIds)
+        : [];
       this.progress.total = campaigns.length;
       if (campaigns.length === 0) {
         this.progress.currentLabel = "Không có campaign nào eligible";
@@ -132,7 +145,7 @@ export class CrawlerService {
       for (let i = 0; i < campaigns.length; i++) {
         const c = campaigns[i];
         this.progress.currentLabel = c.merchantSlug;
-        const result = await this.runForCampaign(c);
+        const result = await this.runForCampaign(c, limit);
         breakdowns.push(result.breakdown);
         allOffers.push(...result.offers);
         this.progress.done = i + 1;
@@ -198,13 +211,24 @@ export class CrawlerService {
     }
   }
 
-  private async loadEligibleCampaigns(): Promise<CampaignTask[]> {
+  /**
+   * Load campaigns eligible to crawl. Khi `restrictIds` cho trước: chỉ load đúng các id đó
+   * (vẫn require `atCampaignId` + `merchantName`, nhưng KHÔNG bắt buộc `status=APPROVED` để
+   * admin có thể trigger tay 1 campaign PAUSED/APPLIED để debug). Khi không có: dùng filter
+   * cron mặc định (`APPROVED` + `atCampaignId` + `merchantName`).
+   */
+  private async loadEligibleCampaigns(restrictIds?: string[]): Promise<CampaignTask[]> {
+    const baseWhere: Prisma.CampaignWhereInput = {
+      atCampaignId: { not: null },
+      merchantName: { not: null }
+    };
+    const where: Prisma.CampaignWhereInput =
+      restrictIds && restrictIds.length > 0
+        ? { ...baseWhere, id: { in: restrictIds } }
+        : { ...baseWhere, status: "APPROVED" };
+
     const rows = await this.prisma.campaign.findMany({
-      where: {
-        status: "APPROVED",
-        atCampaignId: { not: null },
-        merchantName: { not: null }
-      },
+      where,
       select: {
         id: true,
         name: true,
@@ -225,12 +249,13 @@ export class CrawlerService {
   }
 
   private async runForCampaign(
-    c: CampaignTask
+    c: CampaignTask,
+    limit: number = PER_CAMPAIGN_LIMIT
   ): Promise<{ breakdown: CampaignBreakdown; offers: NormalizedOffer[] }> {
     const rules = this.parseFilterRules(c.filterRules, c.name, c.id);
     const fetchOpts: FetchProductsOpts = {
       campaign: c.merchantSlug,
-      limit: PER_CAMPAIGN_LIMIT,
+      limit,
       page: 1,
       ...rulesToFetchOpts(rules)
     };

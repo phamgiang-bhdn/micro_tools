@@ -15,6 +15,11 @@ export interface NormalizedOffer {
   description?: string;
   category?: string;
   brand?: string;
+  /**
+   * Domain của sản phẩm (AT field `domain`, vd "shopee.vn", "lazada.vn").
+   * Dùng làm dedup key cho Brand model (Brand giờ đại diện cho Domain, không phải thương hiệu).
+   */
+  domain?: string;
   store?: string;
   discountPercent?: number;
   campaign?: string;

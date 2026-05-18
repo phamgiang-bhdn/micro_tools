@@ -199,7 +199,7 @@ export function CouponsTable({
     },
     {
       key: "merchant",
-      header: "Merchant",
+      header: "Cửa hàng",
       hideOnMobile: true,
       cell: (c) =>
         c.merchantSlug ? (

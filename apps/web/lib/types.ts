@@ -17,10 +17,12 @@ export interface ProductItem {
   slug?: string | null;
   affiliateUrl: string;
   scrapedData: Record<string, unknown>;
-  campaign?: {
+  shop?: {
     id: string;
+    slug: string;
     name: string;
-    merchantName: string | null;
+    logoUrl: string | null;
+    websiteUrl: string | null;
   } | null;
 }
 
@@ -53,6 +55,14 @@ export interface ProductView {
   highlights?: string[];
   /** % giảm so với originalPrice */
   discountPercent?: number;
+  /** Shop admin gán tay (replace cho campaign trên storefront). */
+  shop?: {
+    id: string;
+    slug: string;
+    name: string;
+    logoUrl: string | null;
+    websiteUrl: string | null;
+  } | null;
   raw: Record<string, unknown>;
 }
 

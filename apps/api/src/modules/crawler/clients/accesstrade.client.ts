@@ -28,6 +28,8 @@ interface AccesstradeProduct {
   cate?: string;
   category?: string;
   brand?: string;
+  /** Domain của sàn/shop nơi sản phẩm được bán (vd "shopee.vn", "lazada.vn"). */
+  domain?: string;
   merchant?: string;
   campaign?: string;
   desc?: string;
@@ -424,6 +426,7 @@ export class AccesstradeClient implements AffiliateClient {
       description: p.desc,
       category: p.category,
       brand: p.brand,
+      domain: p.domain,
       store: p.merchant,
       discountPercent,
       campaign: p.campaign,

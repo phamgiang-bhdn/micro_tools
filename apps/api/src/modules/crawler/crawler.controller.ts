@@ -11,6 +11,11 @@ const ingestSchema = z.object({
   affiliateUrl: z.string().url().optional()
 });
 
+const runSelectedSchema = z.object({
+  campaignIds: z.array(z.string().uuid()).min(1).max(50),
+  overrideLimit: z.number().int().min(1).max(500).optional()
+});
+
 function authorize(apiKey: string | undefined): void {
   const expected = process.env.ADMIN_API_KEY ?? "change-me";
   if (!apiKey || apiKey !== expected) {
@@ -42,8 +47,8 @@ export class CrawlerController {
   }
 
   /**
-   * Debug helper: chạy 1 full cycle, đặt triggeredBy để admin biết là test 1 campaign mới onboard.
-   * (Không thực sự filter trong server xuống 1 campaign — STORY-03 ghi chú có thể tối ưu sau.)
+   * @deprecated Dùng `POST /admin/crawler/run-selected` (truyền campaignIds + overrideLimit).
+   * Giữ tạm để không phá API cũ; sẽ xoá ở sprint sau.
    */
   @Post("run-campaign/:atCampaignId")
   async runSingleCampaign(
@@ -52,6 +57,24 @@ export class CrawlerController {
   ) {
     authorize(apiKey);
     return this.crawler.runFullCycle(`manual-single:${atCampaignId}`);
+  }
+
+  /**
+   * Chạy crawl đúng các campaign admin chọn (kèm option override limit per-campaign).
+   * Khác `POST /run`: không bị giới hạn `status=APPROVED`, admin có thể test PAUSED/APPLIED.
+   */
+  @Post("run-selected")
+  async runSelected(@Body() body: unknown, @Headers("x-admin-key") apiKey?: string) {
+    authorize(apiKey);
+    const parsed = runSelectedSchema.safeParse(body);
+    if (!parsed.success) {
+      throw new HttpException(parsed.error.flatten(), HttpStatus.BAD_REQUEST);
+    }
+    const { campaignIds, overrideLimit } = parsed.data;
+    return this.crawler.runFullCycle(`manual-selected:${campaignIds.length}`, {
+      campaignIds,
+      overrideLimit
+    });
   }
 
   /** Paste URL bất kỳ → AI bóc dữ liệu → upsert vào DB. */

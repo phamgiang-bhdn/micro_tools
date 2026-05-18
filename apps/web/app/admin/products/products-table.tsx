@@ -34,7 +34,8 @@ import {
   updateProductAction,
   deleteProductAction,
   toggleProductPublicAction,
-  bulkProductAction
+  bulkProductAction,
+  bulkAssignShopAction
 } from "../actions";
 
 export interface ProductRow {
@@ -49,6 +50,7 @@ export interface ProductRow {
   niche: { id: string; slug: string; name: string } | null;
   scrapedData?: Record<string, unknown> | null;
   campaign?: { id: string; name: string; atCampaignId: string | null } | null;
+  shop?: { id: string; slug: string; name: string; logoUrl: string | null } | null;
   _count?: { clickLogs?: number; extractions?: number };
 }
 
@@ -58,9 +60,17 @@ export interface NicheLite {
   name: string;
 }
 
+export interface ShopLite {
+  id: string;
+  slug: string;
+  name: string;
+  _count: { products: number };
+}
+
 interface ProductsTableProps {
   rows: ProductRow[];
   niches: NicheLite[];
+  shops: ShopLite[];
   totalCount: number;
   hasFilter: boolean;
 }
@@ -77,6 +87,8 @@ const EMPTY_CREATE: ProductCreateInput = {
 const BULK_ACTIONS: BulkAction[] = [
   { value: "assign-niche", label: "Gán Niche…", confirm: "" },
   { value: "clear-niche", label: "Bỏ niche", confirm: "Bỏ gán niche + ẩn các sản phẩm đã chọn? Sản phẩm sẽ rời khỏi storefront cho đến khi gán lại." },
+  { value: "assign-shop", label: "Gán Shop…", confirm: "" },
+  { value: "clear-shop", label: "Bỏ shop", confirm: "Bỏ gán shop cho các sản phẩm đã chọn?" },
   { value: "make-public", label: "Đặt public", confirm: "Bật public các sản phẩm đã chọn?" },
   { value: "make-private", label: "Đặt private", confirm: "Ẩn khỏi storefront?" },
   {
@@ -148,6 +160,7 @@ function readScraped(raw: Record<string, unknown> | null | undefined): ScrapedVi
 export function ProductsTable({
   rows,
   niches,
+  shops,
   totalCount,
   hasFilter
 }: ProductsTableProps): React.ReactElement {
@@ -158,11 +171,17 @@ export function ProductsTable({
   const { selected, toggleOne, toggleAll, clear, allSelected } = useRowSelection(rows);
   const [bulkAction, setBulkAction] = React.useState<string>("");
   const [bulkNicheId, setBulkNicheId] = React.useState<string>("");
+  const [bulkShopId, setBulkShopId] = React.useState<string>("");
   const [bulkPending, setBulkPending] = React.useState(false);
 
   const nicheOptions = React.useMemo(
     () => niches.map((c) => ({ value: c.id, label: c.name })),
     [niches]
+  );
+
+  const shopOptions = React.useMemo(
+    () => shops.map((s) => ({ value: s.id, label: s.name })),
+    [shops]
   );
 
   const handleCreate = async (data: ProductCreateInput) => {
@@ -187,6 +206,7 @@ export function ProductsTable({
     if (data.nicheId) fd.set("nicheId", data.nicheId);
     if (data.network) fd.set("network", data.network);
     if (data.isPublic !== undefined) fd.set("isPublic", data.isPublic ? "true" : "false");
+    if (data.shopId !== undefined) fd.set("shopId", data.shopId ?? "");
     await updateProductAction(fd);
     router.refresh();
     return { ok: true };
@@ -213,19 +233,32 @@ export function ProductsTable({
       window.alert("Chọn niche trước khi gán.");
       return;
     }
+    if (bulkAction === "assign-shop" && !bulkShopId) {
+      window.alert("Chọn shop trước khi gán.");
+      return;
+    }
     const cfg = BULK_ACTIONS.find((b) => b.value === bulkAction);
     const msg = buildBulkConfirmMessage(cfg, selected.size);
     if (msg && !window.confirm(msg)) return;
     const fd = new FormData();
-    fd.set("action", bulkAction);
     for (const id of selected) fd.append("ids", id);
-    if (bulkAction === "assign-niche") fd.set("nicheId", bulkNicheId);
     setBulkPending(true);
     try {
-      await bulkProductAction(fd);
+      if (bulkAction === "assign-shop") {
+        fd.set("shopId", bulkShopId);
+        await bulkAssignShopAction(fd);
+      } else if (bulkAction === "clear-shop") {
+        fd.set("shopId", "");
+        await bulkAssignShopAction(fd);
+      } else {
+        fd.set("action", bulkAction);
+        if (bulkAction === "assign-niche") fd.set("nicheId", bulkNicheId);
+        await bulkProductAction(fd);
+      }
       clear();
       setBulkAction("");
       setBulkNicheId("");
+      setBulkShopId("");
       router.refresh();
     } finally {
       setBulkPending(false);
@@ -353,8 +386,29 @@ export function ProductsTable({
         )
     },
     {
+      key: "shop",
+      header: "Shop",
+      hideOnMobile: true,
+      cell: (p) =>
+        p.shop ? (
+          <div className="flex items-center gap-1.5 leading-tight">
+            {p.shop.logoUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={p.shop.logoUrl}
+                alt={p.shop.name}
+                className="size-5 shrink-0 rounded border border-admin-line object-cover"
+              />
+            ) : null}
+            <span className="text-[12.5px] text-admin-ink truncate">{p.shop.name}</span>
+          </div>
+        ) : (
+          <span className="text-[11px] text-admin-mute">—</span>
+        )
+    },
+    {
       key: "network",
-      header: "Network",
+      header: "Mạng",
       hideOnMobile: true,
       cell: (p) => <NetworkBadge network={p.network} />
     },
@@ -390,24 +444,20 @@ export function ProductsTable({
       width: "120px",
       cell: (p) => (
         <RowActions
+          onView={() => setViewing(p)}
           onEdit={() => setEditing(p)}
           onDelete={() => handleDelete(p.id)}
           deleteConfirm={`Xoá sản phẩm "${p.name}"? Hành động không thể hoàn tác.`}
           more={[
             {
-              label: "Xem chi tiết",
-              icon: <Eye />,
-              onSelect: () => setViewing(p)
-            },
-            {
-              label: p.isPublic ? "Ẩn khỏi storefront" : "Hiện trên storefront",
+              label: p.isPublic ? "Ẩn khỏi gian hàng" : "Hiện trên gian hàng",
               icon: p.isPublic ? <EyeOff /> : <Eye />,
               onSelect: () => handleTogglePublic(p.id, !p.isPublic)
             },
             ...(p.isPublic && p.slug && p.niche
               ? [
                   {
-                    label: "Xem trên storefront",
+                    label: "Xem trên gian hàng",
                     icon: <ExternalLink />,
                     onSelect: () => {
                       window.open(
@@ -420,7 +470,7 @@ export function ProductsTable({
                 ]
               : []),
             {
-              label: "Sửa scrapedData (trang chi tiết)",
+              label: "Mở trang chi tiết",
               icon: <ExternalLink />,
               onSelect: () => {
                 window.location.href = `/admin/products/${p.id}`;
@@ -443,6 +493,7 @@ export function ProductsTable({
           setAction={(v) => {
             setBulkAction(v);
             if (v !== "assign-niche") setBulkNicheId("");
+            if (v !== "assign-shop") setBulkShopId("");
           }}
           onApply={handleBulk}
           pending={bulkPending}
@@ -458,6 +509,20 @@ export function ProductsTable({
                 {niches.map((n) => (
                   <option key={n.id} value={n.id}>
                     {n.name}
+                  </option>
+                ))}
+              </select>
+            ) : bulkAction === "assign-shop" ? (
+              <select
+                value={bulkShopId}
+                onChange={(e) => setBulkShopId(e.target.value)}
+                className="h-8 rounded-md border border-admin-line bg-admin-surface px-2 pr-7 text-xs text-admin-ink"
+                aria-label="Chọn shop để gán"
+              >
+                <option value="">— Chọn shop —</option>
+                {shops.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.name}
                   </option>
                 ))}
               </select>
@@ -496,7 +561,7 @@ export function ProductsTable({
         onSubmit={handleCreate}
         submitLabel="Tạo sản phẩm"
       >
-        <ProductFields nicheOptions={nicheOptions} />
+        <ProductFields nicheOptions={nicheOptions} shopOptions={shopOptions} />
       </FormDialog>
 
       <FormDialog<ProductUpdateInput>
@@ -510,7 +575,7 @@ export function ProductsTable({
         onSubmit={handleUpdate}
         submitLabel="Lưu"
       >
-        <ProductFields nicheOptions={nicheOptions} editing />
+        <ProductFields nicheOptions={nicheOptions} shopOptions={shopOptions} editing />
         <Link
           href={editing ? `/admin/products/${editing.id}` : "#"}
           className="sm:col-span-2 inline-flex items-center gap-1.5 text-xs font-medium text-admin-accent hover:underline"
@@ -575,19 +640,23 @@ export function ProductsTable({
                 </div>
               </div>
               <div>
-                <div className="mb-0.5 text-xs font-medium text-admin-mute">Campaign</div>
+                <div className="mb-0.5 text-xs font-medium text-admin-mute">Shop</div>
                 <div className="text-admin-ink">
-                  {viewing.campaign ? (
-                    <span>
-                      {viewing.campaign.name}
-                      {viewing.campaign.atCampaignId ? (
-                        <span className="ml-2 font-mono text-[11px] text-admin-mute">
-                          {viewing.campaign.atCampaignId}
-                        </span>
+                  {viewing.shop ? (
+                    <span className="inline-flex items-center gap-2">
+                      {viewing.shop.logoUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={viewing.shop.logoUrl}
+                          alt={viewing.shop.name}
+                          className="size-5 rounded border border-admin-line object-cover"
+                        />
                       ) : null}
+                      <span>{viewing.shop.name}</span>
+                      <span className="font-mono text-[11px] text-admin-mute">{viewing.shop.slug}</span>
                     </span>
                   ) : (
-                    <span className="text-admin-mute">—</span>
+                    <span className="text-admin-mute">Chưa gán — sửa sản phẩm để gán shop</span>
                   )}
                 </div>
               </div>
@@ -631,9 +700,11 @@ export function ProductsTable({
 
 function ProductFields({
   nicheOptions,
+  shopOptions,
   editing
 }: {
   nicheOptions: Array<{ value: string; label: string }>;
+  shopOptions: Array<{ value: string; label: string }>;
   editing?: boolean;
 }): React.ReactElement {
   return (
@@ -661,10 +732,18 @@ function ProductFields({
       />
       <ControlledSelectField<ProductCreateInput>
         name="network"
-        label="Network"
+        label="Mạng affiliate"
         options={NETWORK_OPTIONS}
         required
       />
+      {editing ? (
+        <ControlledSelectField<ProductUpdateInput>
+          name="shopId"
+          label="Shop"
+          options={[{ value: "", label: "— Không gán —" }, ...shopOptions]}
+          hint="Hiển thị tên shop trên storefront thay cho campaign."
+        />
+      ) : null}
       <ControlledCheckboxField<ProductCreateInput>
         name="isPublic"
         label="Hiển thị trên storefront ngay"
@@ -682,6 +761,7 @@ function toFormValues(row: ProductRow): ProductUpdateInput {
     affiliateUrl: row.affiliateUrl,
     nicheId: row.niche?.id ?? "",
     network: row.network as AffiliateNetwork,
-    isPublic: row.isPublic
+    isPublic: row.isPublic,
+    shopId: row.shop?.id ?? ""
   };
 }

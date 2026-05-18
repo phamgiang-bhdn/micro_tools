@@ -55,7 +55,7 @@ const NAV: NavGroup[] = [
       },
       {
         id: "crawler-logs",
-        label: "Nhật ký crawler",
+        label: "Nhật ký lấy sản phẩm",
         href: "/admin/crawler-logs",
         icon: <LogIcon />,
         match: (p) => p.startsWith("/admin/crawler-logs")
@@ -103,10 +103,17 @@ const NAV: NavGroup[] = [
       },
       {
         id: "brands",
-        label: "Thương hiệu",
+        label: "Domain",
         href: "/admin/brands",
         icon: <CategoryIcon />,
         match: (p) => p.startsWith("/admin/brands")
+      },
+      {
+        id: "shops",
+        label: "Shop",
+        href: "/admin/shops",
+        icon: <ShopIcon />,
+        match: (p) => p.startsWith("/admin/shops")
       },
       {
         id: "products",
@@ -477,6 +484,16 @@ function ReconcileIcon(): React.ReactElement {
       <path d="M21 3v5h-5" />
       <path d="M21 12a9 9 0 0 1-15 6.7L3 16" />
       <path d="M3 21v-5h5" />
+    </svg>
+  );
+}
+
+function ShopIcon(): React.ReactElement {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="size-4">
+      <path d="M3 9h18l-1.5 9.5a2 2 0 0 1-2 1.5h-11a2 2 0 0 1-2-1.5L3 9Z" />
+      <path d="M3 9V7a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v2" />
+      <path d="M8 13h8" />
     </svg>
   );
 }

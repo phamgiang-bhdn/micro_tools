@@ -22,7 +22,7 @@ import { CouponSyncService } from "../crawler/coupon-sync.service";
 import { filterRulesSchema } from "../crawler/dto/filter-rules.dto";
 import { TopProductsSyncService } from "../crawler/top-products-sync.service";
 import { ReconciliationService } from "../reconciliation/reconciliation.service";
-import { uniqueSlugWithin } from "../../utils/slug.util";
+import { slugify, uniqueSlugWithin } from "../../utils/slug.util";
 
 const promptTestSchema = z.object({
   prompt: z.string().min(10),
@@ -91,6 +91,7 @@ const updateProductSchema = z.object({
   nicheId: z.string().uuid().optional(),
   network: z.nativeEnum(AffiliateNetwork).optional(),
   campaignId: z.string().uuid().nullable().optional(),
+  shopId: z.string().uuid().nullable().optional(),
   isPublic: z.boolean().optional(),
   scrapedData: z.record(z.unknown()).optional()
 });
@@ -169,6 +170,27 @@ const updateCategorySchema = z.object({
 
 const updateLookupDisplayNameSchema = z.object({
   displayName: z.string().trim().min(1).max(120).nullable().optional()
+});
+
+const createShopSchema = z.object({
+  name: z.string().trim().min(1).max(160),
+  slug: z
+    .string()
+    .trim()
+    .min(1)
+    .max(120)
+    .regex(/^[a-z0-9-]+$/, "slug chỉ chứa chữ thường, số, gạch ngang")
+    .optional(),
+  description: z.string().trim().max(2000).nullable().optional(),
+  logoUrl: z.string().url().max(500).nullable().optional(),
+  websiteUrl: z.string().url().max(500).nullable().optional()
+});
+
+const updateShopSchema = createShopSchema.partial();
+
+const bulkAssignShopSchema = z.object({
+  ids: z.array(z.string().uuid()).min(1),
+  shopId: z.string().uuid().nullable()
 });
 
 const updateArticleSchema = z.object({
@@ -1353,7 +1375,7 @@ export class AdminController {
     });
   }
 
-  // ───── Brands (thương hiệu — PR3) ─────
+  // ───── Brands (model legacy — ngữ nghĩa hiện tại = Domain, auto từ offer.domain) ─────
 
   @Get("brands")
   async listBrands(
@@ -1398,6 +1420,125 @@ export class AdminController {
     });
   }
 
+  // ───── Shops (admin manual CRUD — AT không trả shop) ─────
+
+  @Get("shops")
+  async listShops(
+    @Query("search") search?: string,
+    @Headers("x-admin-role") role?: string,
+    @Headers("x-admin-key") apiKey?: string
+  ) {
+    this.authorize(role, apiKey, ["viewer", "reviewer", "admin"]);
+    const where: Prisma.ShopWhereInput = {};
+    if (search) {
+      where.OR = [
+        { slug: { contains: search, mode: "insensitive" } },
+        { name: { contains: search, mode: "insensitive" } }
+      ];
+    }
+    return this.prisma.shop.findMany({
+      where,
+      orderBy: { name: "asc" },
+      include: { _count: { select: { products: true } } }
+    });
+  }
+
+  @Get("shops/:id")
+  async getShop(
+    @Param("id") id: string,
+    @Headers("x-admin-role") role?: string,
+    @Headers("x-admin-key") apiKey?: string
+  ) {
+    this.authorize(role, apiKey, ["viewer", "reviewer", "admin"]);
+    const shop = await this.prisma.shop.findUnique({
+      where: { id },
+      include: { _count: { select: { products: true } } }
+    });
+    if (!shop) throw new HttpException("Shop not found", HttpStatus.NOT_FOUND);
+    return shop;
+  }
+
+  @Post("shops")
+  async createShop(
+    @Body() payload: unknown,
+    @Headers("x-admin-role") role?: string,
+    @Headers("x-admin-key") apiKey?: string
+  ) {
+    this.authorize(role, apiKey, ["admin"]);
+    const parsed = createShopSchema.safeParse(payload);
+    if (!parsed.success) {
+      throw new HttpException(parsed.error.flatten(), HttpStatus.BAD_REQUEST);
+    }
+    const slug = (parsed.data.slug ?? slugify(parsed.data.name)).trim();
+    if (!slug) throw new HttpException("slug rỗng sau khi sinh", HttpStatus.BAD_REQUEST);
+    const dupe = await this.prisma.shop.findUnique({ where: { slug } });
+    if (dupe) throw new HttpException("Slug đã tồn tại", HttpStatus.CONFLICT);
+    return this.prisma.shop.create({
+      data: {
+        slug,
+        name: parsed.data.name,
+        description: parsed.data.description ?? null,
+        logoUrl: parsed.data.logoUrl ?? null,
+        websiteUrl: parsed.data.websiteUrl ?? null
+      }
+    });
+  }
+
+  @Put("shops/:id")
+  async updateShop(
+    @Param("id") id: string,
+    @Body() payload: unknown,
+    @Headers("x-admin-role") role?: string,
+    @Headers("x-admin-key") apiKey?: string
+  ) {
+    this.authorize(role, apiKey, ["reviewer", "admin"]);
+    const parsed = updateShopSchema.safeParse(payload);
+    if (!parsed.success) {
+      throw new HttpException(parsed.error.flatten(), HttpStatus.BAD_REQUEST);
+    }
+    const data: Prisma.ShopUpdateInput = {};
+    if (parsed.data.name !== undefined) data.name = parsed.data.name;
+    if (parsed.data.slug !== undefined) data.slug = parsed.data.slug;
+    if (parsed.data.description !== undefined) data.description = parsed.data.description;
+    if (parsed.data.logoUrl !== undefined) data.logoUrl = parsed.data.logoUrl;
+    if (parsed.data.websiteUrl !== undefined) data.websiteUrl = parsed.data.websiteUrl;
+    return this.prisma.shop.update({ where: { id }, data });
+  }
+
+  @Delete("shops/:id")
+  async deleteShop(
+    @Param("id") id: string,
+    @Headers("x-admin-role") role?: string,
+    @Headers("x-admin-key") apiKey?: string
+  ) {
+    this.authorize(role, apiKey, ["admin"]);
+    await this.prisma.shop.delete({ where: { id } });
+    return { success: true };
+  }
+
+  @Post("products/bulk-assign-shop")
+  async bulkAssignShop(
+    @Body() payload: unknown,
+    @Headers("x-admin-role") role?: string,
+    @Headers("x-admin-key") apiKey?: string
+  ) {
+    this.authorize(role, apiKey, ["reviewer", "admin"]);
+    const parsed = bulkAssignShopSchema.safeParse(payload);
+    if (!parsed.success) {
+      throw new HttpException(parsed.error.flatten(), HttpStatus.BAD_REQUEST);
+    }
+    const { ids, shopId } = parsed.data;
+    if (shopId) {
+      const exists = await this.prisma.shop.findUnique({ where: { id: shopId }, select: { id: true } });
+      if (!exists) throw new HttpException("Shop không tồn tại", HttpStatus.BAD_REQUEST);
+    }
+    const result = await this.prisma.product.updateMany({
+      where: { id: { in: ids } },
+      data: { shopId }
+    });
+    return { success: true, count: result.count };
+  }
+
   // ───── Products (admin manual CRUD) ─────
 
   @Get("products")
@@ -1407,6 +1548,8 @@ export class AdminController {
     @Query("categoryId") productCategoryId?: string,
     @Query("sourceId") sourceId?: string,
     @Query("brandId") brandId?: string,
+    @Query("shopId") shopId?: string,
+    @Query("shopStatus") shopStatus?: string,
     @Query("network") network?: string,
     @Query("isPublic") isPublic?: string,
     @Query("search") search?: string,
@@ -1422,6 +1565,9 @@ export class AdminController {
     if (productCategoryId) where.categoryId = productCategoryId;
     if (sourceId) where.sourceId = sourceId;
     if (brandId) where.brandId = brandId;
+    if (shopId) where.shopId = shopId;
+    if (shopStatus === "assigned") where.shopId = { not: null };
+    if (shopStatus === "unassigned") where.shopId = null;
     if (network && (Object.values(AffiliateNetwork) as string[]).includes(network)) {
       where.network = network as AffiliateNetwork;
     }
@@ -1435,6 +1581,7 @@ export class AdminController {
         category: { select: { id: true, slug: true, rawValue: true, displayName: true } },
         source: { select: { id: true, slug: true, rawValue: true, displayName: true } },
         brand: { select: { id: true, slug: true, rawValue: true, displayName: true } },
+        shop: { select: { id: true, slug: true, name: true, logoUrl: true } },
         campaign: { select: { id: true, name: true, atCampaignId: true } },
         _count: { select: { clickLogs: true, extractions: true } }
       },
@@ -1526,6 +1673,12 @@ export class AdminController {
         parsed.data.campaignId === null
           ? { disconnect: true }
           : { connect: { id: parsed.data.campaignId } };
+    }
+    if (parsed.data.shopId !== undefined) {
+      data.shop =
+        parsed.data.shopId === null
+          ? { disconnect: true }
+          : { connect: { id: parsed.data.shopId } };
     }
     return this.prisma.product.update({ where: { id }, data });
   }

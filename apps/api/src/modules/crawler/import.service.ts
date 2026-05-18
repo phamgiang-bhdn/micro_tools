@@ -44,7 +44,7 @@ export class ImportService {
       const campaignId = offer.campaignDbId ?? (await this.resolveCampaignId(network, offer));
       const categoryId = await this.resolveCategoryId(offer);
       const sourceId = await this.resolveSourceId(offer.affiliateUrl);
-      const brandId = await this.resolveBrandId(offer.brand);
+      const brandId = await this.resolveDomainId(offer.domain);
 
       const existing = await this.prisma.product.findFirst({
         where: { affiliateUrl: offer.affiliateUrl }
@@ -202,19 +202,17 @@ export class ImportService {
   }
 
   /**
-   * Idempotent upsert Brand theo `offer.brand` normalize.
-   * AT trả brand không chuẩn ("Samsung" / "SAMSUNG" / "samsung ") → dedupe qua `slug` lowercase.
+   * Idempotent upsert Brand (model giờ đại diện cho "Domain") theo `offer.domain` (vd "shopee.vn").
    * Empty / whitespace → return null (Product.brandId = null).
+   * Lưu slug + rawValue = domain lowercase (strip www). Admin điền `displayName` sau.
    */
-  private async resolveBrandId(rawBrand?: string): Promise<string | null> {
-    const trimmed = rawBrand?.trim();
+  private async resolveDomainId(rawDomain?: string): Promise<string | null> {
+    const trimmed = rawDomain?.trim().toLowerCase().replace(/^www\./, "");
     if (!trimmed) return null;
-    const slug = normalizeLookupSlug(trimmed);
-    if (!slug) return null;
     const brand = await this.prisma.brand.upsert({
-      where: { slug },
+      where: { slug: trimmed },
       create: {
-        slug,
+        slug: trimmed,
         rawValue: trimmed,
         source: "accesstrade"
       },

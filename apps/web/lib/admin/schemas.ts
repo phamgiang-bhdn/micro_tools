@@ -137,9 +137,45 @@ export const productCreateSchema = z.object({
 export type ProductCreateInput = z.infer<typeof productCreateSchema>;
 
 export const productUpdateSchema = productCreateSchema.partial().extend({
-  id: z.string().min(1, "Thiếu id")
+  id: z.string().min(1, "Thiếu id"),
+  shopId: z.string().trim().nullable().optional()
 });
 export type ProductUpdateInput = z.infer<typeof productUpdateSchema>;
+
+// ===== Shop =====
+
+export const shopCreateSchema = z.object({
+  name: z.string().trim().min(1, "Tên shop bắt buộc").max(160),
+  slug: z
+    .string()
+    .trim()
+    .min(1, "Slug bắt buộc")
+    .max(120)
+    .regex(/^[a-z0-9-]+$/, "Slug chỉ chứa a-z, 0-9, gạch ngang"),
+  description: z.string().trim().max(2000).nullable().optional(),
+  logoUrl: z
+    .string()
+    .trim()
+    .url("Logo URL không hợp lệ")
+    .max(500)
+    .nullable()
+    .optional()
+    .or(z.literal("").transform(() => null)),
+  websiteUrl: z
+    .string()
+    .trim()
+    .url("Website URL không hợp lệ")
+    .max(500)
+    .nullable()
+    .optional()
+    .or(z.literal("").transform(() => null))
+});
+export type ShopCreateInput = z.infer<typeof shopCreateSchema>;
+
+export const shopUpdateSchema = shopCreateSchema.partial().extend({
+  id: z.string().min(1, "Thiếu id")
+});
+export type ShopUpdateInput = z.infer<typeof shopUpdateSchema>;
 
 // ===== Article =====
 

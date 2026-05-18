@@ -330,6 +330,10 @@ export async function updateProductAction(formData: FormData): Promise<void> {
   if (nicheId) body.nicheId = nicheId;
   if (network) body.network = network;
   if (isPublicRaw !== null) body.isPublic = isPublicRaw === "on" || isPublicRaw === "true";
+  if (formData.has("shopId")) {
+    const shopIdRaw = String(formData.get("shopId") ?? "").trim();
+    body.shopId = shopIdRaw || null;
+  }
   if (scrapedDataRaw) {
     try {
       body.scrapedData = JSON.parse(scrapedDataRaw);
@@ -340,6 +344,63 @@ export async function updateProductAction(formData: FormData): Promise<void> {
   await adminFetch(`/admin/products/${id}`, "PUT", body);
   revalidatePath("/admin/products");
   revalidatePath(`/admin/products/${id}`);
+}
+
+export async function bulkAssignShopAction(formData: FormData): Promise<void> {
+  const ids = formData.getAll("ids").map((v) => String(v)).filter(Boolean);
+  const shopIdRaw = String(formData.get("shopId") ?? "").trim();
+  if (ids.length === 0) throw new Error("Chưa chọn sản phẩm.");
+  await post("/admin/products/bulk-assign-shop", {
+    ids,
+    shopId: shopIdRaw || null
+  });
+  revalidatePath("/admin/products");
+}
+
+// ───────── Shops (admin manual CRUD) ─────────
+
+export async function createShopAction(formData: FormData): Promise<void> {
+  const name = String(formData.get("name") ?? "").trim();
+  const slug = String(formData.get("slug") ?? "").trim();
+  const description = String(formData.get("description") ?? "").trim() || null;
+  const logoUrl = String(formData.get("logoUrl") ?? "").trim() || null;
+  const websiteUrl = String(formData.get("websiteUrl") ?? "").trim() || null;
+  if (!name) throw new Error("Tên shop bắt buộc.");
+  if (!slug) throw new Error("Slug bắt buộc.");
+  await post("/admin/shops", { name, slug, description, logoUrl, websiteUrl });
+  revalidatePath("/admin/shops");
+}
+
+export async function updateShopAction(formData: FormData): Promise<void> {
+  const id = String(formData.get("id") ?? "");
+  if (!id) throw new Error("Thiếu id shop.");
+  const body: Record<string, unknown> = {};
+  if (formData.has("name")) {
+    const v = String(formData.get("name") ?? "").trim();
+    if (v) body.name = v;
+  }
+  if (formData.has("slug")) {
+    const v = String(formData.get("slug") ?? "").trim();
+    if (v) body.slug = v;
+  }
+  if (formData.has("description")) {
+    body.description = String(formData.get("description") ?? "").trim() || null;
+  }
+  if (formData.has("logoUrl")) {
+    body.logoUrl = String(formData.get("logoUrl") ?? "").trim() || null;
+  }
+  if (formData.has("websiteUrl")) {
+    body.websiteUrl = String(formData.get("websiteUrl") ?? "").trim() || null;
+  }
+  await adminFetch(`/admin/shops/${id}`, "PUT", body);
+  revalidatePath("/admin/shops");
+}
+
+export async function deleteShopAction(formData: FormData): Promise<void> {
+  const id = String(formData.get("id") ?? "");
+  if (!id) throw new Error("Thiếu id shop.");
+  await adminFetch(`/admin/shops/${id}`, "DELETE");
+  revalidatePath("/admin/shops");
 }
 
 export async function toggleProductPublicAction(formData: FormData): Promise<void> {
@@ -549,6 +610,52 @@ export async function runCampaignCrawlerAction(atCampaignId: string): Promise<vo
   if (!atCampaignId) throw new Error("Thiếu atCampaignId — sync trước rồi mới chạy crawler.");
   await adminFetch(`/admin/crawler/run-campaign/${encodeURIComponent(atCampaignId)}`, "POST");
   revalidatePath("/admin/campaigns");
+}
+
+export interface RunSelectedCrawlerResult {
+  fetched: number;
+  passedFilter: number;
+  created: number;
+  updated: number;
+  skipped: number;
+  campaigns: Array<{
+    campaignId: string;
+    campaignName: string;
+    merchantSlug: string;
+    fetched: number;
+    routed: number;
+    failedFilter: number;
+  }>;
+}
+
+export async function updateCampaignFilterRulesAction(input: {
+  id: string;
+  filterRules: Record<string, unknown> | null;
+}): Promise<void> {
+  if (!input.id) throw new Error("Thiếu id campaign.");
+  await adminFetch(`/admin/campaigns/${input.id}`, "PUT", {
+    filterRules: input.filterRules
+  });
+  revalidatePath("/admin/campaigns");
+}
+
+export async function runSelectedCampaignsCrawlerAction(input: {
+  campaignIds: string[];
+  overrideLimit?: number;
+}): Promise<RunSelectedCrawlerResult> {
+  if (!input.campaignIds.length) throw new Error("Chưa chọn campaign nào.");
+  const result = await adminFetch<RunSelectedCrawlerResult>(
+    "/admin/crawler/run-selected",
+    "POST",
+    {
+      campaignIds: input.campaignIds,
+      overrideLimit: input.overrideLimit
+    }
+  );
+  revalidatePath("/admin/campaigns");
+  revalidatePath("/admin/products");
+  revalidatePath("/admin/crawler-logs");
+  return result;
 }
 
 export async function approveCouponAction(formData: FormData): Promise<void> {

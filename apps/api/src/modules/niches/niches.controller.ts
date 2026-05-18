@@ -35,8 +35,8 @@ export class NichesController {
             where: { isPublic: true },
             orderBy: { createdAt: "desc" },
             include: {
-              campaign: {
-                select: { id: true, name: true, merchantName: true }
+              shop: {
+                select: { id: true, slug: true, name: true, logoUrl: true, websiteUrl: true }
               }
             }
           }

@@ -53,13 +53,14 @@ export default async function BrandsPage({
   return (
     <ListPageShell
       eyebrow="Catalog"
-      title="Thương hiệu (Brand)"
+      title="Domain"
       subtitle={
         <>
-          Thương hiệu — crawler tự upsert từ{" "}
-          <code className="rounded bg-admin-subtle px-1 py-0.5 text-xs">offer.brand</code>{" "}
-          (AT thường trả "Samsung", "SAMSUNG", "samsung " — đã dedupe theo slug). Điền{" "}
-          <span className="font-medium">displayName</span> chuẩn để storefront/filter hiện đẹp.
+          Domain — crawler tự upsert từ{" "}
+          <code className="rounded bg-admin-subtle px-1 py-0.5 text-xs">offer.domain</code>{" "}
+          (vd {`"shopee.vn"`}, {`"lazada.vn"`}). Điền{" "}
+          <span className="font-medium">displayName</span> ({`"Shopee Vietnam"`},{" "}
+          {`"Lazada VN"`}) để storefront/filter hiện đẹp.
         </>
       }
       overview={[
@@ -84,10 +85,10 @@ export default async function BrandsPage({
       filter={
         <FilterBar resetHref="/admin/brands">
           <NativeFilterInput
-            label="Tìm slug / rawValue / displayName"
+            label="Tìm domain / displayName"
             name={ADMIN_PARAMS.search}
             defaultValue={search}
-            placeholder="samsung, lg, sony, ..."
+            placeholder="shopee.vn, lazada.vn, ..."
           />
           <NativeFilterSelect
             label="Trạng thái displayName"
@@ -101,8 +102,8 @@ export default async function BrandsPage({
         <div>
           <LookupTable
             rows={items}
-            entityLabel="thương hiệu"
-            rawHeader="Raw (AT)"
+            entityLabel="domain"
+            rawHeader="Domain"
             updateAction={updateBrandDisplayNameAction}
           />
           <Pagination

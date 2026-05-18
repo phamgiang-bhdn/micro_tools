@@ -193,9 +193,10 @@ model Source {
   products    Product[]
 }
 
-/// Thương hiệu — auto-populated từ `offer.brand` (chỉ khi non-empty).
-/// AT trả brand không chuẩn ("Samsung", "SAMSUNG", "samsung ") → unique theo `slug` normalize.
-/// Admin điền `displayName` ("Samsung Electronics") sau. Storefront chỉ hiện brand có displayName.
+/// "Domain" — auto-populated từ `offer.domain` (vd "shopee.vn", "lazada.vn").
+/// Mỗi domain unique → 1 row Brand. Admin điền `displayName` ("Shopee Vietnam") sau.
+/// Storefront chỉ hiện row có displayName trong filter (hide khi null).
+/// **Lưu ý**: model name vẫn là `Brand` để tránh refactor lớn; ngữ nghĩa hiện tại là Domain.
 model Brand {
   id          String   @id @default(uuid()) @db.Uuid
   slug        String   @unique
@@ -203,6 +204,21 @@ model Brand {
   displayName String?
   source      String   @default("accesstrade")
   createdAt   DateTime @default(now())
+  products    Product[]
+}
+
+/// Shop — admin tự tạo + gán tay cho từng Product (AT KHÔNG trả shop info).
+/// Khác Domain (Brand): Domain là technical (auto từ offer.domain); Shop là cửa hàng cụ thể admin quản lý.
+/// Hiển thị trên storefront thay cho campaign info.
+model Shop {
+  id          String   @id @default(uuid()) @db.Uuid
+  slug        String   @unique
+  name        String
+  description String?
+  logoUrl     String?
+  websiteUrl  String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
   products    Product[]
 }
 
@@ -215,8 +231,10 @@ model Product {
   categoryId   String?    @db.Uuid
   /// Nơi bán (PR3). Auto-populated từ hostname của `affiliateUrl`.
   sourceId     String?    @db.Uuid
-  /// Thương hiệu (PR3). Auto-populated từ `offer.brand` (chỉ khi non-empty).
+  /// Domain (model name `Brand` legacy). Auto-populated từ `offer.domain` (vd "shopee.vn").
   brandId      String?    @db.Uuid
+  /// Shop — admin gán tay (AT không trả). NULL = chưa gán.
+  shopId       String?    @db.Uuid
   network      AffiliateNetwork @default(ACCESSTRADE)
   campaignId   String?    @db.Uuid
   name         String
@@ -230,6 +248,7 @@ model Product {
   category     Category?  @relation(fields: [categoryId], references: [id], onDelete: SetNull)
   source       Source?    @relation(fields: [sourceId], references: [id], onDelete: SetNull)
   brand        Brand?     @relation(fields: [brandId], references: [id], onDelete: SetNull)
+  shop         Shop?      @relation(fields: [shopId], references: [id], onDelete: SetNull)
   campaign     Campaign?  @relation(fields: [campaignId], references: [id], onDelete: SetNull)
   clickLogs    ClickLog[]
   extractions  ProductExtraction[]
@@ -241,6 +260,7 @@ model Product {
   @@index([categoryId])
   @@index([sourceId])
   @@index([brandId])
+  @@index([shopId])
 }
 
 model ClickLog {

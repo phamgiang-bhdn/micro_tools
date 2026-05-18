@@ -75,7 +75,7 @@ export function RunCrawlerButton(): React.ReactElement {
         disabled={running}
         iconLeft={running ? <Loader2 className="animate-spin" /> : <Play />}
       >
-        {running ? "Đang chạy" : "▶ Chạy ngay"}
+        {running ? "Đang lấy…" : "▶ Lấy sản phẩm ngay"}
       </AdminButton>
 
       {running ? (

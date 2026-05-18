@@ -143,14 +143,14 @@ export default async function CouponsPage({
             options={ACTIVE_TOGGLE_OPTIONS}
           />
           <NativeFilterSelect
-            label="Network"
+            label="Mạng affiliate"
             name={ADMIN_PARAMS.network}
             defaultValue={network}
             options={NETWORK_OPTIONS}
           />
           {merchantOptions.length > 0 ? (
             <NativeFilterSelect
-              label="Merchant"
+              label="Cửa hàng"
               name="merchantSlug"
               defaultValue={merchantSlug}
               options={merchantOptions}

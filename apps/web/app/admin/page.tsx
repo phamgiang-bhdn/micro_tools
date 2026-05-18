@@ -244,7 +244,7 @@ function MoneyTrailSection({
           className="w-40"
         />
         <NativeFilterSelect
-          label="Network"
+          label="Mạng affiliate"
           name={ADMIN_PARAMS.network}
           defaultValue={filters.network ?? ""}
           options={NETWORK_OPTIONS}

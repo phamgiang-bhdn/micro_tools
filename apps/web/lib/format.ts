@@ -86,7 +86,7 @@ export function normalizeProduct(product: ProductItem): ProductView {
     name: product.name,
     brand: pickString(raw, ["brand", "manufacturer", "bank", "issuer"]),
     store:
-      product.campaign?.name?.trim() ||
+      product.shop?.name?.trim() ||
       pickString(raw, ["store", "shop", "merchant", "seller", "network"]) ||
       product.network,
     image: pickString(raw, ["image", "imageUrl", "thumbnail", "photo"]),
@@ -100,6 +100,7 @@ export function normalizeProduct(product: ProductItem): ProductView {
     badge: pickString(raw, ["badge", "tag", "label"]),
     highlights: pickStringArray(raw, ["highlights", "features", "perks", "benefits"]),
     discountPercent,
+    shop: product.shop ?? null,
     raw
   };
 }

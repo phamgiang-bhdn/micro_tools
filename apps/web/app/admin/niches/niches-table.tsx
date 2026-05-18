@@ -232,17 +232,13 @@ export function NichesTable({
         const lock = c._count.products > 0;
         return (
           <RowActions
+            onView={() => setViewing(c)}
             onEdit={() => setEditing(c)}
             onDelete={lock ? undefined : () => handleDelete(c.id)}
-            deleteConfirm={`Xoá niche "${c.name}"? Hành động không thể hoàn tác.`}
+            deleteConfirm={`Xoá ngành hàng "${c.name}"? Hành động không thể hoàn tác.`}
             deleteDisabled={lock}
             deleteDisabledReason={`Có ${c._count.products} sản phẩm — xoá sản phẩm trước`}
             more={[
-              {
-                label: "Xem chi tiết",
-                icon: <Eye />,
-                onSelect: () => setViewing(c)
-              },
               {
                 label: "Mở trang chi tiết",
                 icon: <ExternalLink />,
