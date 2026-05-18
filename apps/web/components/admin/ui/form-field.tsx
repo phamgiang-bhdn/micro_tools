@@ -1,12 +1,17 @@
 import type React from "react";
 import { cn } from "../../../lib/utils";
 
+/**
+ * Input base — chuẩn cao 38px, padding ngang 12px (10px khi compact), focus ring rõ.
+ * Mọi field trong /admin (kể cả dialog quản lí niche) đều dùng class này — không tự
+ * viết className ad-hoc trong dialog tránh mỗi nơi 1 size.
+ */
 const INPUT_BASE =
-  "w-full rounded-lg border border-admin-line bg-admin-surface px-3 py-2.5 text-sm text-admin-ink placeholder:text-admin-mute focus:border-admin-accent focus:outline-none focus:ring-2 focus:ring-admin-accent/20 disabled:cursor-not-allowed disabled:opacity-60";
+  "block w-full rounded-lg border border-admin-line bg-admin-surface px-3 py-2 text-[13.5px] leading-snug text-admin-ink placeholder:text-admin-mute-soft transition focus:border-admin-accent focus:outline-none focus:ring-4 focus:ring-admin-accent/15 hover:border-admin-line-strong disabled:cursor-not-allowed disabled:bg-admin-subtle disabled:opacity-70";
 
 export const adminInputClass = INPUT_BASE;
-export const adminInputMonoClass = cn(INPUT_BASE, "font-mono text-xs");
-export const adminInputCompactClass = cn(INPUT_BASE, "py-2");
+export const adminInputMonoClass = cn(INPUT_BASE, "font-mono text-[12.5px]");
+export const adminInputCompactClass = cn(INPUT_BASE, "py-1.5 text-[13px]");
 
 interface FieldProps {
   label: React.ReactNode;
@@ -18,6 +23,11 @@ interface FieldProps {
   children: React.ReactNode;
 }
 
+/**
+ * Field wrapper: label rõ ràng (13px semibold) → gap 6px → input → hint/error (11.5px).
+ * Khoảng gap giữa label và input là 6px (`gap-1.5`) — đủ để mắt phân biệt không bị "dính",
+ * vẫn compact đủ cho dialog 2-cột.
+ */
 export function Field({
   label,
   htmlFor,
@@ -28,17 +38,21 @@ export function Field({
   children
 }: FieldProps): React.ReactElement {
   return (
-    <div className={cn("space-y-1", className)}>
+    <div className={cn("flex flex-col gap-1.5", className)}>
       <label
         htmlFor={htmlFor}
-        className="flex items-center gap-1 text-xs font-semibold text-admin-ink"
+        className="flex items-center gap-1 text-[12.5px] font-semibold leading-none text-admin-ink-soft"
       >
         {label}
-        {required ? <span aria-hidden className="text-rose-500">*</span> : null}
+        {required ? <span aria-hidden className="text-admin-danger">*</span> : null}
       </label>
       {children}
-      {hint && !error ? <p className="text-[11px] text-admin-mute">{hint}</p> : null}
-      {error ? <p className="text-[11px] font-medium text-rose-600">{error}</p> : null}
+      {hint && !error ? (
+        <p className="text-[11.5px] leading-relaxed text-admin-mute">{hint}</p>
+      ) : null}
+      {error ? (
+        <p className="text-[11.5px] font-medium leading-relaxed text-admin-danger">{error}</p>
+      ) : null}
     </div>
   );
 }

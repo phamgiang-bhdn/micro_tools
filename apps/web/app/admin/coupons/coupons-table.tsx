@@ -1,11 +1,13 @@
 "use client";
 
 import * as React from "react";
-import { Plus, PowerOff, Power, Copy } from "lucide-react";
+import { Plus, PowerOff, Power, Copy, CheckCircle2, Eye } from "lucide-react";
 import { useRouter } from "next/navigation";
 import {
   AdminButton,
   DataTable,
+  Dialog,
+  DialogContent,
   FormDialog,
   RowActions,
   StatusPill,
@@ -17,6 +19,13 @@ import {
   ControlledTextareaField,
   type ColumnDef
 } from "../../../components/admin/ui";
+import {
+  BulkBar,
+  selectionColumnRenderers,
+  buildBulkConfirmMessage,
+  type BulkAction
+} from "../../../components/admin/bulk-bar";
+import { useRowSelection } from "../../../components/admin/use-row-selection";
 import { NETWORK_OPTIONS } from "../../../lib/admin/constants";
 import {
   couponCreateSchema,
@@ -27,8 +36,17 @@ import {
   createCouponAction,
   updateCouponAction,
   toggleCouponActiveAction,
-  deleteCouponAction
+  deleteCouponAction,
+  approveCouponAction,
+  archiveCouponAction,
+  bulkCouponAction
 } from "../actions";
+
+const BULK_ACTIONS: BulkAction[] = [
+  { value: "approve", label: "Duyệt (active)", confirm: "Duyệt các coupon đã chọn?" },
+  { value: "archive", label: "Lưu trữ", confirm: "Lưu trữ các coupon?" },
+  { value: "delete", label: "Xoá", confirm: "Xoá vĩnh viễn coupon? Không hoàn tác.", tone: "danger" }
+];
 
 export interface CouponRow {
   id: string;
@@ -42,6 +60,14 @@ export interface CouponRow {
   createdAt: string;
   product: { id: string; name: string } | null;
   category: { id: string; name: string } | null;
+  merchantSlug: string | null;
+  merchantDisplay: string | null;
+  merchantLogo: string | null;
+  iconText: string | null;
+  atCouponId: string | null;
+  atLastSyncedAt: string | null;
+  contentHtml: string | null;
+  imageUrl: string | null;
 }
 
 export interface CategoryLite {
@@ -81,6 +107,37 @@ export function CouponsTable({
   const router = useRouter();
   const [createOpen, setCreateOpen] = React.useState(false);
   const [editing, setEditing] = React.useState<CouponRow | null>(null);
+  const [viewing, setViewing] = React.useState<CouponRow | null>(null);
+  const { selected, toggleOne, toggleAll, clear, allSelected } = useRowSelection(rows);
+  const [bulkAction, setBulkAction] = React.useState<string>("");
+  const [bulkPending, setBulkPending] = React.useState(false);
+
+  const handleBulk = async () => {
+    if (!bulkAction || selected.size === 0) return;
+    const cfg = BULK_ACTIONS.find((b) => b.value === bulkAction);
+    const msg = buildBulkConfirmMessage(cfg, selected.size);
+    if (msg && !window.confirm(msg)) return;
+    const fd = new FormData();
+    fd.set("action", bulkAction);
+    for (const id of selected) fd.append("ids", id);
+    setBulkPending(true);
+    try {
+      await bulkCouponAction(fd);
+      clear();
+      setBulkAction("");
+      router.refresh();
+    } finally {
+      setBulkPending(false);
+    }
+  };
+
+  const sel = selectionColumnRenderers<CouponRow>({
+    allSelected,
+    toggleAll,
+    isSelected: (id) => selected.has(id),
+    toggleOne,
+    rowLabel: (c) => `coupon ${c.code}`
+  });
 
   const categoryOptions = React.useMemo(
     () => categories.map((c) => ({ value: c.id, label: c.name })),
@@ -119,17 +176,67 @@ export function CouponsTable({
     router.refresh();
   };
 
+  const handleApprove = async (id: string) => {
+    const fd = new FormData();
+    fd.set("id", id);
+    await approveCouponAction(fd);
+    router.refresh();
+  };
+
+  const handleArchive = async (id: string) => {
+    const fd = new FormData();
+    fd.set("id", id);
+    await archiveCouponAction(fd);
+    router.refresh();
+  };
+
   const columns: ColumnDef<CouponRow>[] = [
     {
+      key: "select",
+      header: sel.header,
+      width: "40px",
+      cell: sel.cell
+    },
+    {
+      key: "merchant",
+      header: "Merchant",
+      hideOnMobile: true,
+      cell: (c) =>
+        c.merchantSlug ? (
+          <div className="flex items-center gap-2 min-w-0">
+            {c.merchantLogo ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={c.merchantLogo}
+                alt=""
+                className="size-6 shrink-0 rounded-full bg-white object-contain ring-1 ring-admin-line"
+              />
+            ) : null}
+            <div className="min-w-0">
+              <p className="truncate text-xs font-medium text-admin-ink">
+                {c.merchantDisplay ?? c.merchantSlug}
+              </p>
+              {c.iconText ? (
+                <span className="inline-block rounded-full bg-admin-subtle px-1.5 py-0.5 text-[10px] text-admin-mute">
+                  {c.iconText}
+                </span>
+              ) : null}
+            </div>
+          </div>
+        ) : (
+          <span className="text-xs text-admin-mute">—</span>
+        )
+    },
+    {
       key: "code",
-      header: "Mã",
+      header: "Mã / Mô tả",
       cell: (c) => (
         <div className="min-w-0">
-          <code className="rounded bg-admin-subtle px-2 py-1 font-mono text-xs font-bold text-admin-ink">
-            {c.code}
+          <code className="rounded bg-admin-subtle px-2 py-1 font-mono text-[11px] font-bold text-admin-ink">
+            {c.atCouponId ?? c.code}
           </code>
           {c.description ? (
-            <div className="mt-1 line-clamp-1 text-[11px] text-admin-mute">{c.description}</div>
+            <div className="mt-1 line-clamp-2 text-[11px] text-admin-mute">{c.description}</div>
           ) : null}
         </div>
       )
@@ -187,6 +294,10 @@ export function CouponsTable({
           <StatusPill tone="success" dot>
             Đang chạy
           </StatusPill>
+        ) : c.atCouponId ? (
+          <StatusPill tone="warning" dot>
+            Chờ duyệt
+          </StatusPill>
         ) : (
           <StatusPill tone="neutral" dot>
             Tạm tắt
@@ -198,46 +309,84 @@ export function CouponsTable({
       header: <span className="sr-only">Thao tác</span>,
       align: "right",
       width: "120px",
-      cell: (c) => (
-        <RowActions
-          onEdit={() => setEditing(c)}
-          onDelete={() => handleDelete(c.id)}
-          deleteConfirm={`Xoá mã "${c.code}"?`}
-          more={[
-            {
-              label: c.isActive ? "Tạm tắt" : "Bật lại",
-              icon: c.isActive ? <PowerOff /> : <Power />,
-              onSelect: () => handleToggle(c.id, !c.isActive)
-            },
-            {
-              label: "Copy mã",
-              icon: <Copy />,
-              onSelect: async () => {
-                try {
-                  await navigator.clipboard.writeText(c.code);
-                } catch {
-                  /* clipboard có thể bị chặn — bỏ qua, ko block UX */
+      cell: (c) => {
+        const more = [
+          ...(c.isActive
+            ? [
+                {
+                  label: "Archive",
+                  icon: <PowerOff />,
+                  onSelect: () => handleArchive(c.id)
                 }
+              ]
+            : [
+                {
+                  label: "Approve (publish)",
+                  icon: <CheckCircle2 />,
+                  onSelect: () => handleApprove(c.id)
+                }
+              ]),
+          {
+            label: c.isActive ? "Tạm tắt" : "Bật lại",
+            icon: c.isActive ? <PowerOff /> : <Power />,
+            onSelect: () => handleToggle(c.id, !c.isActive)
+          },
+          ...(c.contentHtml
+            ? [
+                {
+                  label: "Xem nội dung",
+                  icon: <Eye />,
+                  onSelect: () => setViewing(c)
+                }
+              ]
+            : []),
+          {
+            label: "Copy mã",
+            icon: <Copy />,
+            onSelect: async () => {
+              try {
+                await navigator.clipboard.writeText(c.code);
+              } catch {
+                /* clipboard có thể bị chặn — bỏ qua, ko block UX */
               }
             }
-          ]}
-        />
-      )
+          }
+        ];
+        return (
+          <RowActions
+            onEdit={() => setEditing(c)}
+            onDelete={() => handleDelete(c.id)}
+            deleteConfirm={`Xoá mã "${c.code}"?`}
+            more={more}
+          />
+        );
+      }
     }
   ];
 
   return (
     <>
       <div className="admin-card overflow-hidden p-0">
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-admin-line bg-admin-subtle/30 px-4 py-3">
-          <div className="text-xs text-admin-mute">
-            Đang hiển thị: <span className="font-semibold text-admin-ink">{filteredCount}</span>
-            {filteredCount !== totalCount ? <span> / {totalCount}</span> : null}
-          </div>
-          <AdminButton size="sm" iconLeft={<Plus />} onClick={() => setCreateOpen(true)}>
-            Tạo coupon
-          </AdminButton>
-        </div>
+        <BulkBar
+          selectedCount={selected.size}
+          totalCount={rows.length}
+          actions={BULK_ACTIONS}
+          action={bulkAction}
+          setAction={setBulkAction}
+          onApply={handleBulk}
+          pending={bulkPending}
+          rightSlot={
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="text-xs text-admin-mute">
+                Đang hiển thị: <span className="font-semibold text-admin-ink">{filteredCount}</span>
+                {filteredCount !== totalCount ? <span> / {totalCount}</span> : null}
+              </div>
+              <AdminButton size="sm" iconLeft={<Plus />} onClick={() => setCreateOpen(true)}>
+                Tạo coupon
+              </AdminButton>
+            </div>
+          }
+        />
         <DataTable
           columns={columns}
           rows={rows}
@@ -276,6 +425,40 @@ export function CouponsTable({
       >
         <CouponFields categoryOptions={categoryOptions} editing />
       </FormDialog>
+
+      {/* VIEW content (pre-sanitized by api/common/sanitize-html.util.ts) */}
+      <Dialog open={viewing !== null} onOpenChange={(o) => !o && setViewing(null)}>
+        <DialogContent
+          size="lg"
+          title={viewing?.merchantDisplay ?? viewing?.merchantSlug ?? "Coupon"}
+          description={viewing?.description ?? undefined}
+        >
+          <div className="space-y-3 overflow-auto px-5 py-4 text-sm">
+            {viewing?.imageUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={viewing.imageUrl}
+                alt=""
+                className="max-h-48 rounded-lg border border-admin-line object-contain"
+              />
+            ) : null}
+            {viewing?.contentHtml ? (
+              <div
+                className="prose prose-sm max-w-none"
+                // contentHtml đã được sanitize ở backend (sanitize-coupon-html util)
+                dangerouslySetInnerHTML={{ __html: viewing.contentHtml }}
+              />
+            ) : (
+              <p className="text-admin-mute">Coupon này không có nội dung mô tả.</p>
+            )}
+            {viewing?.atLastSyncedAt ? (
+              <p className="text-[11px] text-admin-mute">
+                Đã sync: {new Date(viewing.atLastSyncedAt).toLocaleString("vi-VN")}
+              </p>
+            ) : null}
+          </div>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

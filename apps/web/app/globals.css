@@ -16,8 +16,8 @@ body {
 
 /* Trang admin có nền & màu chữ riêng — không dùng cream warm như storefront. */
 body[data-shell="admin"] {
-  background-color: #f6f7f9;
-  color: #0f172a;
+  background-color: #f4f5fa;
+  color: #0b1220;
 }
 
 @layer utilities {
@@ -84,4 +84,33 @@ body[data-shell="admin"] {
   .admin-card {
     @apply rounded-xl border border-admin-line bg-admin-surface shadow-google;
   }
+  /* Section header bên trong card / dialog body, dùng làm divider có ngữ nghĩa */
+  .admin-section-title {
+    @apply text-[11px] font-semibold uppercase tracking-[0.08em] text-admin-mute;
+  }
+  /* Form row dùng trong dialog: 2 cột responsive, gap đủ rộng để label-input không dính. */
+  .admin-form-grid {
+    @apply grid grid-cols-1 gap-x-5 gap-y-4 sm:grid-cols-2;
+  }
+  /* Cell trong DataTable cần ép nowrap (tên, slug, số liệu) */
+  .admin-cell-nowrap {
+    @apply whitespace-nowrap;
+  }
+}
+
+/* Body trang admin có scrollbar mỏng mặc định cho cảm giác desk-app */
+body[data-shell="admin"] {
+  scrollbar-width: thin;
+  scrollbar-color: #c7cddc transparent;
+}
+body[data-shell="admin"] *::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+body[data-shell="admin"] *::-webkit-scrollbar-thumb {
+  background-color: #c7cddc;
+  border-radius: 999px;
+}
+body[data-shell="admin"] *::-webkit-scrollbar-thumb:hover {
+  background-color: #94a3b8;
 }

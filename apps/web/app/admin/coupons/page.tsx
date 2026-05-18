@@ -16,6 +16,7 @@ import {
   NETWORK_OPTIONS
 } from "../../../lib/admin/constants";
 import { CouponsTable, type CouponRow, type CategoryLite } from "./coupons-table";
+import { SyncCouponsFromAtButton } from "./sync-coupons-from-at-button";
 
 export const dynamic = "force-dynamic";
 
@@ -24,6 +25,7 @@ interface PageProps {
     search?: string;
     isActive?: string;
     network?: string;
+    merchantSlug?: string;
     page?: string;
   }>;
 }
@@ -31,7 +33,13 @@ interface PageProps {
 export default async function CouponsPage({
   searchParams
 }: PageProps): Promise<React.ReactElement> {
-  const { search = "", isActive = "", network = "", page = "1" } = await searchParams;
+  const {
+    search = "",
+    isActive = "",
+    network = "",
+    merchantSlug = "",
+    page = "1"
+  } = await searchParams;
 
   const [allCoupons, categories] = await Promise.all([
     adminGet<CouponRow[]>("/admin/coupons"),
@@ -42,17 +50,29 @@ export default async function CouponsPage({
     if (isActive === "true" && !c.isActive) return false;
     if (isActive === "false" && c.isActive) return false;
     if (network && c.network !== network) return false;
+    if (merchantSlug && c.merchantSlug !== merchantSlug) return false;
     if (search) {
       const n = search.toLowerCase();
       const hit =
         c.code.toLowerCase().includes(n) ||
         (c.description ?? "").toLowerCase().includes(n) ||
         (c.product?.name ?? "").toLowerCase().includes(n) ||
-        (c.category?.name ?? "").toLowerCase().includes(n);
+        (c.category?.name ?? "").toLowerCase().includes(n) ||
+        (c.merchantDisplay ?? "").toLowerCase().includes(n);
       if (!hit) return false;
     }
     return true;
   });
+
+  const merchantOptions = Array.from(
+    new Map(
+      allCoupons
+        .filter((c) => c.merchantSlug)
+        .map((c) => [c.merchantSlug as string, c.merchantDisplay ?? c.merchantSlug])
+    ).entries()
+  )
+    .sort(([, a], [, b]) => String(a).localeCompare(String(b)))
+    .map(([value, label]) => ({ value, label: String(label) }));
 
   const pageNum = Math.max(1, Number.parseInt(page, 10) || 1);
   const { items, totalPages, safePage } = paginateRows(filtered, pageNum, DEFAULT_PAGE_SIZE);
@@ -62,6 +82,7 @@ export default async function CouponsPage({
     if (search) params.set(ADMIN_PARAMS.search, search);
     if (isActive) params.set(ADMIN_PARAMS.isActive, isActive);
     if (network) params.set(ADMIN_PARAMS.network, network);
+    if (merchantSlug) params.set("merchantSlug", merchantSlug);
     if (p > 1) params.set(ADMIN_PARAMS.page, String(p));
     const s = params.toString();
     return `/admin/coupons${s ? `?${s}` : ""}`;
@@ -108,9 +129,9 @@ export default async function CouponsPage({
         }
       ]}
       filter={
-        <FilterBar resetHref="/admin/coupons">
+        <FilterBar resetHref="/admin/coupons" extraActions={<SyncCouponsFromAtButton />}>
           <NativeFilterInput
-            label="Tìm mã / mô tả"
+            label="Tìm mã / mô tả / merchant"
             name={ADMIN_PARAMS.search}
             defaultValue={search}
             placeholder="SUMMER..."
@@ -127,6 +148,14 @@ export default async function CouponsPage({
             defaultValue={network}
             options={NETWORK_OPTIONS}
           />
+          {merchantOptions.length > 0 ? (
+            <NativeFilterSelect
+              label="Merchant"
+              name="merchantSlug"
+              defaultValue={merchantSlug}
+              options={merchantOptions}
+            />
+          ) : null}
         </FilterBar>
       }
       table={

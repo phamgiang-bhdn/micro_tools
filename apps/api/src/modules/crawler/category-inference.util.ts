@@ -1,7 +1,14 @@
 /**
- * Map free-text category/name từ bất kỳ affiliate source nào → categorySlug nội bộ.
- * Dùng chung cho mọi client (Accesstrade, Shopee, Lazada, TikTok, web-scrape) để mỗi
- * network không tự định nghĩa lại quy tắc của riêng mình.
+ * Map free-text category/name → categorySlug nội bộ.
+ *
+ * @deprecated cho crawler-cycle path: dùng `Campaign.categoryId` (set tay ở `/admin/campaigns`)
+ *   sau STORY-03 của sprint at-source-of-truth. Crawler-cycle hiện lấy slug deterministic từ
+ *   `Campaign.category.slug`, KHÔNG infer từ free-text.
+ *
+ * Chỉ còn `web-scrape.client.ts` (path paste URL tay) dùng làm fallback khi admin không truyền
+ * `categorySlug` rõ ràng. Keyword table chưa cập nhật theo niche v1 (`robot-hut-bui-lau-nha`,
+ * `may-loc-khong-khi`) — vì path inference này ngoài scope crawler-cycle, không ảnh hưởng
+ * pipeline chính. Khi web-scrape không còn dùng → xoá toàn file.
  */
 const CATEGORY_BY_KEYWORD: Array<[RegExp, string]> = [
   [/laptop|máy tính|tablet|điện thoại|tai nghe|loa|monitor|màn hình|smart\s?tv|console|gaming|bàn phím|chuột/i, "tech-gadgets"],

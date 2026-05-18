@@ -16,13 +16,20 @@ When you're tempted to add cross-category generic features (a global search, a o
 
 > Naming note: the platform is *positioned* as a "micro-tool" platform (marketing copy / strategy framing), but in the codebase the entity is called `Category`. The name `Tool` is reserved for future interactive utilities (price calculators, comparators) that haven't shipped yet.
 
-## v1 launch scope
+## Category lineup (v2)
 
-Currently only two categories are seeded and live (see `apps/api/prisma/seed.js`):
-- `robot-hut-bui-lau-nha` — Robot hút bụi / lau nhà
-- `may-loc-khong-khi` — Máy lọc không khí
+Categories are seeded in `apps/api/prisma/seed.js` — 12 niches covering the highest-volume affiliate verticals in VN:
 
-Don't reintroduce or assume the older 5-category seed lineup. New categories should follow the same pattern: a slug, a Vietnamese-language `name`, a `schemaConfig` with the 5–10 spec fields that *actually* differentiate buying decisions in that niche, and 3–5 seeded products covering the price range.
+| Group | Slugs |
+|---|---|
+| Smart home / small appliances | `robot-hut-bui-lau-nha`, `may-loc-khong-khi`, `may-loc-nuoc`, `noi-chien-khong-dau` |
+| Large appliances | `may-giat`, `tu-lanh`, `dieu-hoa` |
+| Consumer electronics | `tivi`, `laptop`, `tai-nghe-tws`, `dong-ho-thong-minh` |
+| Beauty | `my-pham-duong-da` |
+
+**Products are NOT seeded** — they flow into the DB exclusively via the Accesstrade crawler after admins onboard a campaign (assign campaign → niche, set `filterRules`). The seed only creates Category rows + system `PromptTemplate` rows.
+
+When adding a new niche: a Vietnamese-no-dấu slug, a Vietnamese `name`, and a `schemaConfig` listing the 5–10 spec fields that *actually* differentiate buying decisions in that niche (AI extractor uses this to know what to pull out of merchant pages).
 
 ## Three audiences, three surfaces
 
@@ -49,13 +56,41 @@ A pure product-comparison site can't out-rank Tiki/Shopee/Lazada on commercial q
 - **Tone & guardrails** — prompts forbid emoji, forbid "tốt nhất thế giới"-style hyperbole, enforce 800–1800 words, require explicit weaknesses. Admin's job is to spot hallucinated facts (wrong prices, made-up specs), tighten language, and approve.
 - **Product cross-links** — `Article.productIds[]` is hand-picked at generation time. Cuối article tự render `ProductCard` với CTA "Xem deal" → tái dùng tracking flow. This is how blog converts to clicks.
 
+## Data flow — Accesstrade là upstream, Category là view
+
+Sau sprint at-source-of-truth (2026-05), mental model dữ liệu chuẩn là:
+
+```
+[Accesstrade]                       ← pool data thô; ta không control structure
+     ↓ sync (auto cron + admin manual button)
+[Campaign + Product raw]            ← mirror trong DB, 1-1 với AT (Campaign.atCampaignId)
+     ↓ filter rules per-campaign + admin curate
+[Category view + Product public]    ← presentation: branding, SEO, niche grouping
+     ↓ HITL approve (ProductExtraction.PENDING_REVIEW → PUBLISHED)
+[Storefront]                        ← user thấy
+```
+
+Hệ quả implementation:
+- **Crawler là per-campaign loop**: chỉ pull từ những `Campaign` có `status=APPROVED` + `categoryId` + `atCampaignId`. Onboard niche mới = approve campaign trong AT dashboard + 2 click trong `/admin/campaigns` (chọn campaign + assign category). KHÔNG cần đụng seed/code.
+- **`Category` 1:N `Campaign`**: 1 niche có thể gom nhiều campaign từ nhiều merchant — so sánh giá cross-merchant trong cùng niche.
+- **`Category.schemaConfig`** vẫn là spec dynamic per niche (HITL extractor map vào đó).
+- **Filter rules per merchant**: `Campaign.filterRules` (JSON) chứa `minDiscountPercent`, `domains[]`, `priceMin/Max` — KHÔNG còn env global.
+- **Revenue ground-truth**: webhook real-time + reconciler poll `/v1/order-list` mỗi 30 phút. Reconciler không thay webhook, là backup verify total khớp AT dashboard.
+- **Coupon là pipeline song song**: `CouponSyncService` pull `/v1/offers_informations/coupon` mỗi 6h → DB → admin duyệt (HITL gate riêng `isActive`) → `/khuyen-mai/<merchant>` public.
+- **Top products là snapshot cache**: pull `/v1/top_products` mỗi 3h sáng → render homepage section "🔥 Đang hot tuần này". Click thẳng AT `affLink` (rel=nofollow sponsored), KHÔNG qua ClickLog nội bộ.
+
+Cross-app invariants không đổi: trackingCode contract, admin shared-secret header, HITL gate cho mọi data ra storefront, schema per-category dynamic.
+
 ## Domain glossary
 
 Used both in code identifiers and in Vietnamese UI copy:
 
 - **Refinery** — admin queue of `ProductExtraction` rows in `PENDING_REVIEW`.
 - **Prompt Studio** — CRUD + activation history for `PromptTemplate` rows. Exactly one is `isActive` at a time per `name`. Used by both AI extractor (`default-parser`) and article authoring (`article-buying-guide`, `article-review`).
-- **Money Trail** — join view of `ClickLog` → `ConversionWebhook` for revenue reconciliation.
+- **Money Trail** — join view of `ClickLog` → `ConversionWebhook` for revenue reconciliation. `ConversionWebhook.source` ∈ `webhook|api-reconcile|both` cho thấy data đến từ kênh nào.
+- **Reconciliation** — `ReconciliationService` poll AT `/v1/order-list` mỗi 30 phút, update `ConversionWebhook.atOrderId/atCommission` và ghi `reconcileNotes` nếu revenue webhook lệch pub_commission AT. Logs ở `/admin/reconciliation`.
+- **Coupon hub** — `/admin/coupons` quản lý mã (manual + AT sync), public `/khuyen-mai/<merchant>` hiển thị coupon đã duyệt + còn hạn.
+- **Top products** — `TopProductSnapshot` daily; homepage section "🔥 Đang hot tuần này" render snapshot mới nhất.
 - **War Room** — KPI dashboard (monthly revenue, conversion rate, token spend, crawler health).
 - **Deal hot** — products auto-ranked by `% giảm` (discount %), freshness, and data completeness.
 - **Network** — the affiliate platform string on `Product.network` (currently `ACCESSTRADE`).

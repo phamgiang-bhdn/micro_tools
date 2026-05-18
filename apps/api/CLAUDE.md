@@ -70,9 +70,12 @@ Same HITL philosophy as `ProductExtraction`: AI produces a draft, an admin revie
 
 `Campaign` model groups all `Product`s and `ConversionWebhook`s that come from one merchant on one affiliate network — e.g. `(ACCESSTRADE, "shopee-cps-vn")` is "Shopee via Accesstrade publisher account". One affiliate token can be approved for many campaigns; this model is how we track which.
 
-- **Identity**: `@@unique([network, externalId])`. `externalId` is `slugify(offer.campaign)` for crawler-discovered campaigns (Accesstrade doesn't expose campaign IDs in datafeed, only names). When you create a campaign manually via `/admin/campaigns`, pick the same slug so the crawler will dedupe into it later.
-- **Lifecycle**: `APPLIED → APPROVED → PAUSED/REJECTED → INACTIVE`. Status is **synced manually** — Accesstrade has no API to query publisher approval state. Admin updates per row in `/admin/campaigns` after checking their dashboard.
-- **Auto-create**: `ImportService.resolveCampaignId` upserts on every crawler tick. New campaigns land as `APPLIED`; existing rows refresh `name`/`merchantName` but never overwrite admin-managed fields (`status`, `notes`, `approvedAt`).
+- **Identity**: `@@unique([network, externalId])`. `externalId` is `slugify(offer.campaign)` for crawler-discovered campaigns (Accesstrade doesn't expose campaign IDs in datafeed, only names). When you create a campaign manually via `/admin/campaigns`, pick the same slug so the crawler will dedupe into it later. **Legacy after AT-first sprint**: `externalId` (slug) stays for backward compat; new code should join via `Campaign.atCampaignId` (global Accesstrade id) populated by the campaigns-sync flow.
+- **AT-first fields** (added STORY-01): `atCampaignId` (unique, real AT id), `atCategoryName` / `atSubCategory` / `atLogo` / `atMerchantUrl` / `atScope` / `atCookieDurationSec` / `atStartTime` / `atEndTime` / `atRawData` (raw `/v1/campaigns` response, JsonB, for debug + future-proof), `atLastSyncedAt`, `filterRules` (per-campaign tuning — validate with `filterRulesSchema` from `crawler/dto/filter-rules.dto.ts`), `categoryId` (nullable FK → `Category`, `onDelete: SetNull`). Một `Category` gom nhiều `Campaign` qua quan hệ 1:N — Category là layer trình bày (slug, SEO), Campaign là upstream từ AT.
+- **Sync flow (STORY-02)**: admin bấm "Sync from Accesstrade" ở `/admin/campaigns` → `CampaignSyncService` pull `/v1/campaigns?approval=successful`, upsert theo `atCampaignId`. New rows land as `APPLIED`; admin-managed fields (`status`, `notes`, `categoryId`, `filterRules`) KHÔNG bị đè khi re-sync.
+- **Lifecycle**: `APPLIED → APPROVED → PAUSED/REJECTED → INACTIVE`. Admin assign campaign vào Category trong `/admin/campaigns` → status auto chuyển `APPROVED` (signal cho crawler-cycle pick up).
+- **Legacy `externalId`** (`@deprecated` ở schema): slug-based id từ trước sprint. Code mới luôn join qua `atCampaignId`. Đừng tạo Campaign mới với `externalId` slug — dùng sync flow.
+- **Web-scrape fallback** (`ImportService.resolveCampaignId`, `@deprecated`): chỉ chạy khi `offer.campaignDbId` null (vd paste URL tay không có context campaign). Tạo Campaign slug-based, KHÔNG có `atCampaignId` — admin phải re-sync để link.
 - **Webhook link**: `WebhooksController.resolveCampaignId` looks up `(network, slugify(payload.campaign))` and sets `ConversionWebhook.campaignId` if found. Does NOT auto-create — webhooks shouldn't be the source of truth for campaign rows (race: a postback for an unknown campaign would create a row with no merchant context).
 - **Don't delete campaigns with history**: `Campaign.deleteCampaign` 409s when there are linked products/conversions. Use `status: INACTIVE` to hide instead — preserves attribution trail.
 - **Product.campaignId is nullable + SetNull on delete**: products created before campaign tracking (or from `web-scrape.client.ts` manual paste) have `campaignId = null`. The storefront doesn't care; this is metadata for admin reporting only.
@@ -84,8 +87,50 @@ Same HITL philosophy as `ProductExtraction`: AI produces a draft, an admin revie
 - **Active networks are env-gated**: `CRAWLER_ENABLED_NETWORKS` (comma-separated, case-insensitive, default `"accesstrade"`) decides which clients `CrawlerService` actually pulls from. All clients stay in `CrawlerModule` providers regardless — keep them so the skeleton is ready when you onboard a direct integration.
 - To add a new network: implement `AffiliateClient`, register the provider in `CrawlerModule`, inject into `CrawlerService` constructor and add to the `all` array, then add the network name to `CRAWLER_ENABLED_NETWORKS`.
 - Normalized offer shape in `dto/normalized-offer.dto.ts` — the contract all clients converge to before hitting `ImportService` / `EnrichmentService`. Use `metadata?: Record<string, unknown>` for network-specific fields that don't fit the normalized columns (shop ratings, voucher codes...) so we don't have to widen the DTO every time.
-- Free-text → `categorySlug` mapping lives in `category-inference.util.ts` (shared across clients). Don't re-implement per-client regex; extend the keyword table there.
+- **Per-campaign loop**: `CrawlerService.runFullCycle` chỉ pull những `Campaign` có `status=APPROVED` + `categoryId` + `atCampaignId`. Mỗi campaign = 1 fetch với `Campaign.atCampaignId` truyền vào AT `/v1/datafeeds?campaign=…`. Filter rules per merchant đọc từ `Campaign.filterRules` (validate qua `filterRulesSchema` ở `dto/filter-rules.dto.ts`, fallback `DEFAULT_FILTER_RULES`). Category slug lấy **deterministic** từ `Campaign.category.slug` — KHÔNG infer từ free-text trên path crawler-cycle.
+- **`category-inference.util.ts` là legacy (`@deprecated`)** — chỉ còn `WebScrapeClient` (paste URL tay) gọi làm fallback khi admin không truyền `categorySlug`. Crawler-cycle KHÔNG đụng. Không sửa keyword table; xoá khi web-scrape không còn dùng.
+- **No global min-discount env**: discount threshold giờ per-campaign trong `Campaign.filterRules.minDiscountPercent`. `CRAWLER_MIN_DISCOUNT_PERCENT` đã bị xoá khỏi `.env.example` (sprint at-source-of-truth).
 - **Webhook contract is currently Accesstrade-shaped**: `WebhooksController` parses one format. When a second network goes live (direct Shopee/Lazada postback), split into per-network endpoints (`/webhooks/conversion/<network>`) that each normalize into a single `ConversionWebhook` row — don't try to make one parser polymorphic.
+- **Accesstrade API reference**: endpoint shapes (datafeeds, campaigns, product_link/create, transactions), auth format, rate limits, mapping vào schema repo — xem [`docs/integrations/accesstrade.md`](../../docs/integrations/accesstrade.md). Đọc trước khi đụng vào `accesstrade.client.ts` hoặc khi mở rộng sang endpoint mới của Accesstrade.
+
+## Top products
+
+`TopProductsSyncService` (`src/modules/crawler/top-products-sync.service.ts`) pull AT `/v1/top_products` mỗi 3h sáng, lưu snapshot per day vào `TopProductSnapshot`. Homepage section "🔥 Đang hot tuần này" (`apps/web/app/page.tsx`) render snapshot mới nhất qua public `GET /api/v1/top-products?limit=12`.
+
+- **Snapshot per day**: `@@unique([snapshotDate, position, atProductId])` — không overwrite, giữ history. Cron skip nếu hôm nay đã có snapshot (idempotent).
+- **Date format**: AT `/top_products` dùng `DD-MM-YYYY` cho `date_from`/`date_to`, KHÔNG phải ISO. Helper `AccesstradeClient.toAtDayFormat()` là pattern duy nhất đúng — đừng `.toISOString()` cho endpoint này.
+- **`discount` là VND** (giá sau giảm), KHÔNG phải %. Lưu trực tiếp.
+- **Lookback**: 7 ngày qua (`TOP_PRODUCTS_LOOKBACK_DAYS`).
+- **Click flow**: link card thẳng ra `affLink` với `rel="nofollow sponsored noopener"` — không qua `ClickLog` (data này không phải Product DB của ta; tracking nội bộ = phase sau). AT vẫn track qua aff_link → revenue vẫn về.
+- **Env**: `TOP_PRODUCTS_ENABLED` (true/false), `TOP_PRODUCTS_CRON` (default `0 3 * * *`).
+- **Admin endpoint**: `POST /api/v1/admin/top-products/sync` (admin) — chạy snapshot tay (hữu ích khi backfill hoặc bootstrap).
+- **Image domain**: hiện dùng `<img>` thường (storefront chưa migrate sang `next/image`), nên không cần update `next.config.ts`. Nếu sau này dùng `next/image` → cần thêm domain (lazada-vn-live, shopee.vn, …) vào `images.remotePatterns`.
+
+## Coupons
+
+`CouponSyncService` (`src/modules/crawler/coupon-sync.service.ts`) poll AT mỗi 6h, pull voucher → `Coupon` DB. Storefront route `/khuyen-mai/<merchantSlug>` (`apps/web/app/khuyen-mai/[merchantSlug]/page.tsx`) đọc qua public endpoint `/api/v1/coupons` (CouponsController, không auth).
+
+- **3-level fetch**: `merchant_list` → cross-reference với `Campaign` đã `APPROVED + merchantName` (case-insensitive lower) → per merchant `icontext_list` (5 keyword đầu) → per keyword `coupon?icon_text=<id>` (20 coupon). Sleep 7s giữa mọi request (`COUPON_SYNC_SLEEP_MS`) — AT cap 10 req/phút trên `/offers_informations/*`.
+- **No-merchant-matched short-circuit**: nếu không có Campaign nào match → log warning, return ngay, không pull để khỏi lãng phí quota.
+- **HITL gate**: coupon mới sync → `isActive=false`. Admin approve qua `POST /admin/coupons/:id/approve` (hoặc archive bằng `:id/archive`). Storefront chỉ show `isActive=true` AND `(expiresAt IS NULL OR expiresAt > now())`.
+- **Identity**: `Coupon.atCouponId` unique; `Coupon.code` set = `atCouponId` để giữ unique constraint hiện có (voucher code thật từ `c.coupons[]` lưu trong `atRawData`, chưa parse — phase sau).
+- **`contentHtml` sanitize gate**: HTML từ AT là untrusted (có thể chứa `<script>`, `<iframe>`). `CouponSyncService` gọi `sanitizeCouponHtml()` từ [`src/common/sanitize-html.util.ts`](src/common/sanitize-html.util.ts) **trước khi save vào DB**. Render side (admin View dialog, public CouponCard) dùng `dangerouslySetInnerHTML` chỉ vì DB đã sạch — không sanitize lại ở client, không ngược chiều luồng này. Anchor tự thêm `rel="nofollow noopener" target="_blank"`.
+- **Env**: `COUPON_SYNC_ENABLED` (true/false), `COUPON_SYNC_CRON` (default `0 */6 * * *`).
+- **Admin endpoints**: `POST /admin/coupons/sync-from-at` (admin), `GET /admin/coupons?merchantSlug=&isActive=&limit=` (viewer+), `POST /admin/coupons/:id/approve|:id/archive` (reviewer+).
+- **Public endpoint**: `GET /api/v1/coupons?merchantSlug=&limit=` — chỉ trả active + chưa expired. Không cache HTTP; ISR ở Next side (`revalidate: 1800`).
+
+## Reconciliation
+
+`ReconciliationService` (`src/modules/reconciliation/`) polls Accesstrade `/v1/order-list` mỗi 30 phút và update `ConversionWebhook` với ground-truth data. Webhook real-time vẫn chạy — reconciler là backup, KHÔNG thay thế.
+
+- **Cycle window**: `lastSuccessfulRun.syncWindowEnd − 10min` → `now`. First run: 24h lookback.
+- **Match strategy**: ưu tiên `order.utm_source = ConversionWebhook.trackingCode`; fallback `order.order_id = ConversionWebhook.atOrderId` (cho row đã reconcile trước).
+- **Unmatched orders**: chỉ log warning, KHÔNG tạo `ConversionWebhook` mới — sẽ FK violation vì `trackingCode` phải tồn tại trong `ClickLog`. Admin xem `ReconciliationLog.unmatched` để biết webhook miss.
+- **Mismatch**: nếu `|webhook.revenue − order.pub_commission| > 1` ghi vào `ConversionWebhook.reconcileNotes` để admin theo dõi trên `/admin?tab=money-trail`.
+- **Source field**: webhook-only = `"webhook"`; reconciler-only = `"api-reconcile"`; cả hai = `"both"`.
+- **Rate limit**: AT cap 10 req/phút trên `/v1/order-list`. Service sleep 7s giữa request khi pagination → tối đa ~57 req/cycle (20 pages × 300 orders).
+- **Manual trigger**: `POST /api/v1/admin/reconciliation/run` (role `admin`). Logs ở `GET /api/v1/admin/reconciliation/logs`.
+- **Env**: `RECONCILE_ENABLED` (true/false), `RECONCILE_CRON` (default `*/30 * * * *`).
 
 ## Testing
 
@@ -99,4 +144,8 @@ Same HITL philosophy as `ProductExtraction`: AI produces a draft, an admin revie
 - `GEMINI_API_KEY` — required for any path that hits `AiService`.
 - `GEMINI_MODEL` — defaults to `gemini-2.0-flash`. Swap to `gemini-2.0-flash-thinking-exp` for reasoning or `gemini-2.0-pro` for accuracy.
 - `ADMIN_API_KEY` — must match the web app's value.
-- `CRAWLER_CRON` / `CRAWLER_ENABLED` — scheduler controls.
+- `CRAWLER_CRON` / `CRAWLER_ENABLED` / `CRAWLER_ENABLED_NETWORKS` / `CRAWLER_AI_ENRICH` — crawler scheduler + AI rewrite controls. Per-campaign discount threshold lives in `Campaign.filterRules`, NOT env.
+- `RECONCILE_ENABLED` / `RECONCILE_CRON` — `/v1/order-list` poller (sprint at-source-of-truth STORY-05).
+- `COUPON_SYNC_ENABLED` / `COUPON_SYNC_CRON` — `/v1/offers_informations/coupon` poller (STORY-06).
+- `TOP_PRODUCTS_ENABLED` / `TOP_PRODUCTS_CRON` — `/v1/top_products` daily snapshot (STORY-07).
+- `ACCESSTRADE_API_BASE` / `ACCESSTRADE_ACCESS_TOKEN` — credentials for every AT call.

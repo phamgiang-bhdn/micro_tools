@@ -3,10 +3,13 @@
 import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Plus, ExternalLink } from "lucide-react";
+import { Plus, ExternalLink, Eye } from "lucide-react";
 import {
   AdminButton,
   DataTable,
+  Dialog,
+  DialogContent,
+  DialogFooter,
   FormDialog,
   RowActions,
   StatusPill,
@@ -15,7 +18,9 @@ import {
   ControlledSelectField,
   type ColumnDef
 } from "../../../components/admin/ui";
-import { CATEGORY_STATUS_OPTIONS } from "../../../lib/admin/constants";
+import { BulkBar, selectionColumnRenderers, buildBulkConfirmMessage, type BulkAction } from "../../../components/admin/bulk-bar";
+import { useRowSelection } from "../../../components/admin/use-row-selection";
+import { CATEGORY_STATUS_META, CATEGORY_STATUS_OPTIONS } from "../../../lib/admin/constants";
 import {
   categoryCreateSchema,
   categoryUpdateSchema,
@@ -25,8 +30,10 @@ import {
 import {
   createCategoryAction,
   updateCategoryAction,
-  deleteCategoryAction
+  deleteCategoryAction,
+  bulkCategoryAction
 } from "../actions";
+import { withToast } from "../../../lib/admin/notify";
 
 export interface CategoryRow {
   id: string;
@@ -34,9 +41,11 @@ export interface CategoryRow {
   name: string;
   status: "ACTIVE" | "INACTIVE";
   schemaConfig: Record<string, unknown>;
+  seoTitle?: string | null;
+  seoDescription?: string | null;
   createdAt: string;
   updatedAt: string;
-  _count: { products: number; articles: number };
+  _count: { products: number; articles: number; campaigns?: number };
 }
 
 interface CategoriesTableProps {
@@ -59,6 +68,25 @@ const EMPTY_CREATE: CategoryCreateInput = {
   seoDescription: null
 };
 
+const BULK_ACTIONS: BulkAction[] = [
+  { value: "activate", label: "Bật hiển thị", confirm: "Bật public các danh mục đã chọn?" },
+  { value: "deactivate", label: "Ẩn", confirm: "Ẩn các danh mục đã chọn?" },
+  {
+    value: "delete",
+    label: "Xoá",
+    confirm: "Xoá danh mục? Không hoàn tác. Sẽ fail nếu còn sản phẩm.",
+    tone: "danger"
+  }
+];
+
+const dateFmt = new Intl.DateTimeFormat("vi-VN", {
+  day: "2-digit",
+  month: "2-digit",
+  year: "numeric",
+  hour: "2-digit",
+  minute: "2-digit"
+});
+
 export function CategoriesTable({
   rows,
   filteredCount,
@@ -67,6 +95,10 @@ export function CategoriesTable({
   const router = useRouter();
   const [createOpen, setCreateOpen] = React.useState(false);
   const [editing, setEditing] = React.useState<CategoryRow | null>(null);
+  const [viewing, setViewing] = React.useState<CategoryRow | null>(null);
+  const { selected, toggleOne, toggleAll, clear, allSelected } = useRowSelection(rows);
+  const [bulkAction, setBulkAction] = React.useState<string>("");
+  const [bulkPending, setBulkPending] = React.useState(false);
 
   const handleCreate = async (data: CategoryCreateInput) => {
     const fd = new FormData();
@@ -100,7 +132,43 @@ export function CategoriesTable({
     router.refresh();
   };
 
+  const handleBulk = async () => {
+    if (!bulkAction || selected.size === 0) return;
+    const cfg = BULK_ACTIONS.find((b) => b.value === bulkAction);
+    const msg = buildBulkConfirmMessage(cfg, selected.size);
+    if (msg && !window.confirm(msg)) return;
+    const fd = new FormData();
+    fd.set("action", bulkAction);
+    for (const id of selected) fd.append("ids", id);
+    setBulkPending(true);
+    const result = await withToast(() => bulkCategoryAction(fd), {
+      loading: `Đang xử lý ${selected.size} danh mục…`,
+      success: `Đã ${cfg?.label.toLowerCase() ?? "xử lý"} ${selected.size} danh mục`,
+      error: (e) => (e instanceof Error ? e.message : "Thao tác hàng loạt thất bại")
+    });
+    setBulkPending(false);
+    if (result !== null) {
+      clear();
+      setBulkAction("");
+      router.refresh();
+    }
+  };
+
+  const sel = selectionColumnRenderers<CategoryRow>({
+    allSelected,
+    toggleAll,
+    isSelected: (id) => selected.has(id),
+    toggleOne,
+    rowLabel: (c) => `danh mục ${c.name}`
+  });
+
   const columns: ColumnDef<CategoryRow>[] = [
+    {
+      key: "select",
+      header: sel.header,
+      width: "40px",
+      cell: sel.cell
+    },
     {
       key: "name",
       header: "Tên",
@@ -171,6 +239,11 @@ export function CategoriesTable({
             deleteDisabledReason={`Có ${c._count.products} sản phẩm — xoá sản phẩm trước`}
             more={[
               {
+                label: "Xem chi tiết",
+                icon: <Eye />,
+                onSelect: () => setViewing(c)
+              },
+              {
                 label: "Mở trang chi tiết",
                 icon: <ExternalLink />,
                 onSelect: () => {
@@ -187,15 +260,20 @@ export function CategoriesTable({
   return (
     <>
       <div className="admin-card overflow-hidden p-0">
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-admin-line bg-admin-subtle/30 px-4 py-3">
-          <div className="text-xs text-admin-mute">
-            Đang hiển thị: <span className="font-semibold text-admin-ink">{filteredCount}</span>
-            {filteredCount !== totalCount ? <span> / {totalCount}</span> : null}
-          </div>
-          <AdminButton size="sm" iconLeft={<Plus />} onClick={() => setCreateOpen(true)}>
-            Tạo danh mục
-          </AdminButton>
-        </div>
+        <BulkBar
+          selectedCount={selected.size}
+          totalCount={rows.length}
+          actions={BULK_ACTIONS}
+          action={bulkAction}
+          setAction={setBulkAction}
+          onApply={handleBulk}
+          pending={bulkPending}
+          rightSlot={
+            <AdminButton size="sm" iconLeft={<Plus />} onClick={() => setCreateOpen(true)}>
+              Tạo danh mục
+            </AdminButton>
+          }
+        />
         <DataTable
           columns={columns}
           rows={rows}
@@ -245,7 +323,92 @@ export function CategoriesTable({
           <ExternalLink className="size-3" /> Mở trang chi tiết để xem sản phẩm + SEO nâng cao
         </Link>
       </FormDialog>
+
+      {/* VIEW DETAIL */}
+      <Dialog open={viewing !== null} onOpenChange={(o) => !o && setViewing(null)}>
+        <DialogContent
+          size="xl"
+          title={viewing?.name ?? "Danh mục"}
+          description={viewing ? <span className="font-mono">{viewing.slug}</span> : undefined}
+          footer={
+            <DialogFooter>
+              <AdminButton variant="ghost" size="sm" onClick={() => setViewing(null)}>
+                Đóng
+              </AdminButton>
+              {viewing ? (
+                <AdminButton
+                  size="sm"
+                  onClick={() => {
+                    const target = viewing;
+                    setViewing(null);
+                    setEditing(target);
+                  }}
+                >
+                  Sửa
+                </AdminButton>
+              ) : null}
+            </DialogFooter>
+          }
+        >
+          {viewing ? (
+            <div className="space-y-4 text-sm">
+              <div className="flex flex-wrap items-center gap-2">
+                <StatusPill tone={CATEGORY_STATUS_META[viewing.status].tone} dot>
+                  {CATEGORY_STATUS_META[viewing.status].label}
+                </StatusPill>
+                <span className="text-xs text-admin-mute">
+                  {viewing._count.products} sản phẩm · {viewing._count.articles} bài viết
+                  {typeof viewing._count.campaigns === "number"
+                    ? ` · ${viewing._count.campaigns} campaign`
+                    : ""}
+                </span>
+              </div>
+              <FieldRow label="SEO title" value={viewing.seoTitle ?? "—"} />
+              <FieldRow
+                label="SEO description"
+                value={viewing.seoDescription ?? "—"}
+                multiline
+              />
+              <div>
+                <div className="mb-1 text-xs font-medium text-admin-mute">schemaConfig</div>
+                <pre className="max-h-96 overflow-auto rounded-md border border-admin-line bg-admin-subtle/30 p-3 text-[11px] leading-relaxed text-admin-ink">
+                  {JSON.stringify(viewing.schemaConfig ?? {}, null, 2)}
+                </pre>
+              </div>
+              <div className="grid grid-cols-2 gap-3 text-[11px] text-admin-mute">
+                <div>
+                  <div className="font-medium text-admin-ink">Tạo lúc</div>
+                  {dateFmt.format(new Date(viewing.createdAt))}
+                </div>
+                <div>
+                  <div className="font-medium text-admin-ink">Cập nhật</div>
+                  {dateFmt.format(new Date(viewing.updatedAt))}
+                </div>
+              </div>
+            </div>
+          ) : null}
+        </DialogContent>
+      </Dialog>
     </>
+  );
+}
+
+function FieldRow({
+  label,
+  value,
+  multiline
+}: {
+  label: string;
+  value: string;
+  multiline?: boolean;
+}): React.ReactElement {
+  return (
+    <div>
+      <div className="mb-0.5 text-xs font-medium text-admin-mute">{label}</div>
+      <div className={multiline ? "whitespace-pre-wrap text-admin-ink" : "text-admin-ink"}>
+        {value}
+      </div>
+    </div>
   );
 }
 

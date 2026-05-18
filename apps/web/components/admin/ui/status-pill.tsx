@@ -4,11 +4,11 @@ import { cn } from "../../../lib/utils";
 export type Tone = "success" | "warning" | "danger" | "info" | "neutral";
 
 const TONES: Record<Tone, string> = {
-  success: "bg-emerald-50 text-emerald-700 ring-emerald-200",
-  warning: "bg-amber-50 text-amber-800 ring-amber-200",
-  danger: "bg-rose-50 text-rose-700 ring-rose-200",
-  info: "bg-sky-50 text-sky-700 ring-sky-200",
-  neutral: "bg-slate-100 text-slate-600 ring-slate-200"
+  success: "bg-admin-success-soft text-admin-success ring-admin-success/20",
+  warning: "bg-admin-warning-soft text-admin-warning ring-admin-warning/25",
+  danger: "bg-admin-danger-soft text-admin-danger ring-admin-danger/25",
+  info: "bg-admin-info-soft text-admin-info ring-admin-info/25",
+  neutral: "bg-admin-subtle text-admin-mute ring-admin-line"
 };
 
 interface StatusPillProps {
@@ -20,11 +20,11 @@ interface StatusPillProps {
 }
 
 const DOT_COLOR: Record<Tone, string> = {
-  success: "bg-emerald-500",
-  warning: "bg-amber-500",
-  danger: "bg-rose-500",
-  info: "bg-sky-500",
-  neutral: "bg-slate-400"
+  success: "bg-admin-success",
+  warning: "bg-admin-warning",
+  danger: "bg-admin-danger",
+  info: "bg-admin-info",
+  neutral: "bg-admin-mute-soft"
 };
 
 export function StatusPill({ tone, children, dot, pulse, title }: StatusPillProps): React.ReactElement {
@@ -32,7 +32,7 @@ export function StatusPill({ tone, children, dot, pulse, title }: StatusPillProp
     <span
       title={title}
       className={cn(
-        "inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[11px] font-semibold ring-1 ring-inset",
+        "inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11.5px] font-semibold leading-relaxed ring-1 ring-inset",
         TONES[tone]
       )}
     >

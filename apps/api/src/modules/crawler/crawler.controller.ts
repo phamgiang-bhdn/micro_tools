@@ -1,4 +1,4 @@
-import { Body, Controller, Headers, HttpException, HttpStatus, Post } from "@nestjs/common";
+import { Body, Controller, Headers, HttpException, HttpStatus, Param, Post } from "@nestjs/common";
 import { z } from "zod";
 import { CrawlerService } from "./crawler.service";
 import { WebScrapeClient } from "./clients/web-scrape.client";
@@ -32,6 +32,19 @@ export class CrawlerController {
   async runNow(@Headers("x-admin-key") apiKey?: string) {
     authorize(apiKey);
     return this.crawler.runFullCycle("manual");
+  }
+
+  /**
+   * Debug helper: chạy 1 full cycle, đặt triggeredBy để admin biết là test 1 campaign mới onboard.
+   * (Không thực sự filter trong server xuống 1 campaign — STORY-03 ghi chú có thể tối ưu sau.)
+   */
+  @Post("run-campaign/:atCampaignId")
+  async runSingleCampaign(
+    @Param("atCampaignId") atCampaignId: string,
+    @Headers("x-admin-key") apiKey?: string
+  ) {
+    authorize(apiKey);
+    return this.crawler.runFullCycle(`manual-single:${atCampaignId}`);
   }
 
   /** Paste URL bất kỳ → AI bóc dữ liệu → upsert vào DB. */

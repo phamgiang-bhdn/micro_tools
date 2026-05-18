@@ -444,3 +444,164 @@ export async function deleteCampaignAction(formData: FormData): Promise<void> {
   await adminFetch(`/admin/campaigns/${id}`, "DELETE");
   revalidatePath("/admin/campaigns");
 }
+
+export interface CampaignSyncResult {
+  fetched: number;
+  created: number;
+  updated: number;
+  skipped: number;
+}
+
+export async function syncCampaignsFromAccesstrade(): Promise<CampaignSyncResult> {
+  const result = await adminFetch<CampaignSyncResult>(
+    "/admin/campaigns/sync-from-at",
+    "POST"
+  );
+  revalidatePath("/admin/campaigns");
+  return result;
+}
+
+export interface AssignmentInput {
+  categoryId?: string;
+  newCategory?: { name: string; slug: string; schemaConfig: Record<string, unknown> };
+  filterRules: Record<string, unknown>;
+  priority?: number;
+}
+
+export interface AssignmentUpdateInput {
+  filterRules?: Record<string, unknown>;
+  priority?: number;
+}
+
+export async function createCampaignAssignment(
+  campaignId: string,
+  body: AssignmentInput
+): Promise<void> {
+  await adminFetch(
+    `/admin/campaigns/${campaignId}/assignments`,
+    "POST",
+    body as unknown as Record<string, unknown>
+  );
+  revalidatePath("/admin/campaigns");
+  revalidatePath("/admin/categories");
+}
+
+export async function updateCampaignAssignment(
+  campaignId: string,
+  assignmentId: string,
+  body: AssignmentUpdateInput
+): Promise<void> {
+  await adminFetch(
+    `/admin/campaigns/${campaignId}/assignments/${assignmentId}`,
+    "PUT",
+    body as unknown as Record<string, unknown>
+  );
+  revalidatePath("/admin/campaigns");
+}
+
+export async function deleteCampaignAssignment(
+  campaignId: string,
+  assignmentId: string
+): Promise<void> {
+  await adminFetch(
+    `/admin/campaigns/${campaignId}/assignments/${assignmentId}`,
+    "DELETE"
+  );
+  revalidatePath("/admin/campaigns");
+}
+
+export async function runCampaignCrawlerAction(atCampaignId: string): Promise<void> {
+  if (!atCampaignId) throw new Error("Thiếu atCampaignId — sync trước rồi mới chạy crawler.");
+  await adminFetch(`/admin/crawler/run-campaign/${encodeURIComponent(atCampaignId)}`, "POST");
+  revalidatePath("/admin/campaigns");
+}
+
+export async function approveCouponAction(formData: FormData): Promise<void> {
+  const id = String(formData.get("id") ?? "");
+  if (!id) throw new Error("Thiếu id coupon.");
+  await post(`/admin/coupons/${id}/approve`, {});
+  revalidatePath("/admin/coupons");
+}
+
+export async function archiveCouponAction(formData: FormData): Promise<void> {
+  const id = String(formData.get("id") ?? "");
+  if (!id) throw new Error("Thiếu id coupon.");
+  await post(`/admin/coupons/${id}/archive`, {});
+  revalidatePath("/admin/coupons");
+}
+
+export interface CouponSyncResult {
+  fetched: number;
+  created: number;
+  updated: number;
+  skipped: number;
+}
+
+export async function syncCouponsFromAccesstrade(): Promise<CouponSyncResult> {
+  const result = await adminFetch<CouponSyncResult>("/admin/coupons/sync-from-at", "POST");
+  revalidatePath("/admin/coupons");
+  return result;
+}
+
+// ───────── Bulk admin actions (Categories / Products / Campaigns / Coupons) ─────────
+
+export async function bulkCategoryAction(formData: FormData): Promise<void> {
+  const action = String(formData.get("action") ?? "");
+  const ids = formData.getAll("ids").map((v) => String(v)).filter(Boolean);
+  if (!action || ids.length === 0) {
+    throw new Error("Chọn ít nhất 1 danh mục và 1 hành động.");
+  }
+  await post("/admin/categories/bulk", { ids, action });
+  revalidatePath("/admin/categories");
+}
+
+export async function bulkProductAction(formData: FormData): Promise<void> {
+  const action = String(formData.get("action") ?? "");
+  const ids = formData.getAll("ids").map((v) => String(v)).filter(Boolean);
+  if (!action || ids.length === 0) {
+    throw new Error("Chọn ít nhất 1 sản phẩm và 1 hành động.");
+  }
+  await post("/admin/products/bulk", { ids, action });
+  revalidatePath("/admin/products");
+}
+
+export interface BulkCampaignResult {
+  success: boolean;
+  count: number;
+  skipped?: number;
+}
+
+export async function bulkCampaignAction(formData: FormData): Promise<BulkCampaignResult> {
+  const action = String(formData.get("action") ?? "");
+  const ids = formData.getAll("ids").map((v) => String(v)).filter(Boolean);
+  if (!action || ids.length === 0) {
+    throw new Error("Chọn ít nhất 1 campaign và 1 hành động.");
+  }
+  const body: Record<string, unknown> = { ids, action };
+  if (action === "assign-category") {
+    const categoryId = String(formData.get("categoryId") ?? "").trim();
+    if (!categoryId) throw new Error("Chọn category trước khi gán.");
+    body.categoryId = categoryId;
+  }
+  const result = await adminFetch<BulkCampaignResult>("/admin/campaigns/bulk", "POST", body);
+  revalidatePath("/admin/campaigns");
+  return result;
+}
+
+export async function bulkCouponAction(formData: FormData): Promise<void> {
+  const action = String(formData.get("action") ?? "");
+  const ids = formData.getAll("ids").map((v) => String(v)).filter(Boolean);
+  if (!action || ids.length === 0) {
+    throw new Error("Chọn ít nhất 1 coupon và 1 hành động.");
+  }
+  await post("/admin/coupons/bulk", { ids, action });
+  revalidatePath("/admin/coupons");
+}
+
+// ───────── Reconciliation ─────────
+
+export async function runReconciliationNowAction(): Promise<void> {
+  await post("/admin/reconciliation/run", {});
+  revalidatePath("/admin/reconciliation");
+  revalidatePath("/admin");
+}

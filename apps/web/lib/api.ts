@@ -76,6 +76,62 @@ export async function fetchArticleBySlug(slug: string): Promise<ArticleDetail | 
   }
 }
 
+export interface PublicCoupon {
+  id: string;
+  code: string;
+  description: string | null;
+  discountPercent: number | null;
+  discountAmount: string | null;
+  merchantSlug: string | null;
+  merchantDisplay: string | null;
+  merchantLogo: string | null;
+  iconText: string | null;
+  contentHtml: string | null;
+  imageUrl: string | null;
+  affiliateUrl: string | null;
+  prodLink: string | null;
+  startsAt: string | null;
+  expiresAt: string | null;
+}
+
+export async function fetchCouponsByMerchant(
+  merchantSlug: string,
+  limit = 50
+): Promise<PublicCoupon[]> {
+  try {
+    const qs = new URLSearchParams({ merchantSlug, limit: String(limit) });
+    return await safeFetch<PublicCoupon[]>(`/coupons?${qs.toString()}`);
+  } catch (error) {
+    console.error(`Failed to fetch coupons merchantSlug=${merchantSlug}:`, error);
+    return [];
+  }
+}
+
+export interface TopProductSnapshotItem {
+  id: string;
+  position: number;
+  atProductId: string;
+  name: string;
+  brand: string | null;
+  image: string | null;
+  link: string;
+  affLink: string;
+  categoryName: string | null;
+  price: string | null;
+  discount: string | null;
+  merchant: string | null;
+  snapshotDate: string;
+}
+
+export async function fetchTopProducts(limit = 12): Promise<TopProductSnapshotItem[]> {
+  try {
+    return await safeFetch<TopProductSnapshotItem[]>(`/top-products?limit=${limit}`);
+  } catch (error) {
+    console.error("Failed to fetch top-products:", error);
+    return [];
+  }
+}
+
 export async function fetchAllProductsFlat(categories: CategoryItem[]): Promise<FlatProduct[]> {
   if (categories.length === 0) return [];
   const details = await Promise.all(categories.map((category) => fetchCategoryBySlug(category.slug)));

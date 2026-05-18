@@ -49,14 +49,14 @@ export function ListPageShell({
   className
 }: ListPageShellProps): React.ReactElement {
   return (
-    <div className={cn("space-y-6", className)}>
+    <div className={cn("space-y-5", className)}>
       <PageHeader eyebrow={eyebrow} title={title} subtitle={subtitle} actions={actions} />
       {overview && overview.length > 0 ? (
         <OverviewStats items={overview} cols={overviewCols} />
       ) : null}
-      {filter}
-      {table}
-      {footer}
+      {filter ? <div>{filter}</div> : null}
+      <div>{table}</div>
+      {footer ? <div>{footer}</div> : null}
     </div>
   );
 }

@@ -23,12 +23,12 @@ interface NavGroup {
 
 const NAV: NavGroup[] = [
   {
-    id: "operations",
-    label: "Vận hành",
+    id: "overview",
+    label: "Tổng quan",
     entries: [
       {
         id: "war-room",
-        label: "Tổng quan",
+        label: "Bảng điều khiển",
         href: "/admin?tab=war-room",
         icon: <DashboardIcon />,
         match: (p, t) => p === "/admin" && (t === null || t === "war-room")
@@ -39,6 +39,19 @@ const NAV: NavGroup[] = [
         href: "/admin?tab=refinery",
         icon: <RefineryIcon />,
         match: (p, t) => p === "/admin" && t === "refinery"
+      }
+    ]
+  },
+  {
+    id: "accesstrade",
+    label: "Accesstrade",
+    entries: [
+      {
+        id: "campaigns",
+        label: "Campaign",
+        href: "/admin/campaigns",
+        icon: <CampaignIcon />,
+        match: (p) => p.startsWith("/admin/campaigns")
       },
       {
         id: "crawler-logs",
@@ -46,6 +59,20 @@ const NAV: NavGroup[] = [
         href: "/admin/crawler-logs",
         icon: <LogIcon />,
         match: (p) => p.startsWith("/admin/crawler-logs")
+      },
+      {
+        id: "reconciliation",
+        label: "Đối soát đơn",
+        href: "/admin/reconciliation",
+        icon: <ReconcileIcon />,
+        match: (p) => p.startsWith("/admin/reconciliation")
+      },
+      {
+        id: "prompt-studio",
+        label: "Xưởng prompt AI",
+        href: "/admin?tab=prompt-studio",
+        icon: <PromptIcon />,
+        match: (p, t) => p === "/admin" && t === "prompt-studio"
       }
     ]
   },
@@ -73,26 +100,13 @@ const NAV: NavGroup[] = [
         href: "/admin/coupons",
         icon: <CouponIcon />,
         match: (p) => p.startsWith("/admin/coupons")
-      }
-    ]
-  },
-  {
-    id: "content",
-    label: "Nội dung",
-    entries: [
+      },
       {
         id: "articles",
         label: "Bài viết",
         href: "/admin/articles",
         icon: <ArticleIcon />,
         match: (p) => p.startsWith("/admin/articles")
-      },
-      {
-        id: "prompt-studio",
-        label: "Xưởng prompt",
-        href: "/admin?tab=prompt-studio",
-        icon: <PromptIcon />,
-        match: (p, t) => p === "/admin" && t === "prompt-studio"
       }
     ]
   },
@@ -100,13 +114,6 @@ const NAV: NavGroup[] = [
     id: "revenue",
     label: "Doanh thu",
     entries: [
-      {
-        id: "campaigns",
-        label: "Campaign affiliate",
-        href: "/admin/campaigns",
-        icon: <CampaignIcon />,
-        match: (p) => p.startsWith("/admin/campaigns")
-      },
       {
         id: "money-trail",
         label: "Dòng tiền",
@@ -254,16 +261,18 @@ function SidebarContent({
                     href={entry.href}
                     onClick={onNavigate}
                     className={cn(
-                      "flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm font-medium transition",
+                      "group flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] font-medium transition-colors",
                       active
-                        ? "bg-admin-accent-soft text-admin-accent"
+                        ? "bg-admin-accent-soft text-admin-accent-ink shadow-sm shadow-admin-accent/5"
                         : "text-admin-mute hover:bg-admin-subtle hover:text-admin-ink"
                     )}
                   >
                     <span
                       className={cn(
-                        "grid size-7 place-items-center rounded-md",
-                        active ? "bg-admin-accent/10" : "bg-admin-subtle"
+                        "grid size-7 place-items-center rounded-md transition-colors",
+                        active
+                          ? "bg-admin-accent text-white shadow-sm shadow-admin-accent/30"
+                          : "bg-admin-subtle text-admin-mute group-hover:bg-admin-surface group-hover:text-admin-ink"
                       )}
                     >
                       {entry.icon}
@@ -436,6 +445,17 @@ function LogIcon(): React.ReactElement {
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="size-4">
       <rect x="4" y="4" width="16" height="16" rx="2" />
       <path d="M8 8h8M8 12h8M8 16h5" />
+    </svg>
+  );
+}
+
+function ReconcileIcon(): React.ReactElement {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="size-4">
+      <path d="M3 12a9 9 0 0 1 15-6.7L21 8" />
+      <path d="M21 3v5h-5" />
+      <path d="M21 12a9 9 0 0 1-15 6.7L3 16" />
+      <path d="M3 21v-5h5" />
     </svg>
   );
 }

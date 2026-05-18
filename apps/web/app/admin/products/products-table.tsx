@@ -7,6 +7,9 @@ import { Plus, ExternalLink, Eye, EyeOff } from "lucide-react";
 import {
   AdminButton,
   DataTable,
+  Dialog,
+  DialogContent,
+  DialogFooter,
   FormDialog,
   RowActions,
   StatusPill,
@@ -16,6 +19,8 @@ import {
   ControlledCheckboxField,
   type ColumnDef
 } from "../../../components/admin/ui";
+import { BulkBar, selectionColumnRenderers, buildBulkConfirmMessage, type BulkAction } from "../../../components/admin/bulk-bar";
+import { useRowSelection } from "../../../components/admin/use-row-selection";
 import { NETWORK_OPTIONS, type AffiliateNetwork } from "../../../lib/admin/constants";
 import {
   productCreateSchema,
@@ -27,7 +32,8 @@ import {
   createProductAction,
   updateProductAction,
   deleteProductAction,
-  toggleProductPublicAction
+  toggleProductPublicAction,
+  bulkProductAction
 } from "../actions";
 
 export interface ProductRow {
@@ -38,7 +44,11 @@ export interface ProductRow {
   isPublic: boolean;
   affiliateUrl: string;
   updatedAt: string;
+  createdAt?: string;
   category: { id: string; slug: string; name: string };
+  scrapedData?: Record<string, unknown> | null;
+  campaign?: { id: string; name: string; atCampaignId: string | null } | null;
+  _count?: { clickLogs?: number; extractions?: number };
 }
 
 export interface CategoryLite {
@@ -63,6 +73,26 @@ const EMPTY_CREATE: ProductCreateInput = {
   scrapedData: undefined
 };
 
+const BULK_ACTIONS: BulkAction[] = [
+  { value: "make-public", label: "Đặt public", confirm: "Bật public các sản phẩm đã chọn?" },
+  { value: "make-private", label: "Đặt private", confirm: "Ẩn khỏi storefront?" },
+  {
+    value: "delete",
+    label: "Xoá",
+    confirm:
+      "Xoá vĩnh viễn sản phẩm? Không hoàn tác — sẽ xoá luôn ClickLog/Extraction cascade.",
+    tone: "danger"
+  }
+];
+
+const dateFmt = new Intl.DateTimeFormat("vi-VN", {
+  day: "2-digit",
+  month: "2-digit",
+  year: "numeric",
+  hour: "2-digit",
+  minute: "2-digit"
+});
+
 export function ProductsTable({
   rows,
   categories,
@@ -72,6 +102,10 @@ export function ProductsTable({
   const router = useRouter();
   const [createOpen, setCreateOpen] = React.useState(false);
   const [editing, setEditing] = React.useState<ProductRow | null>(null);
+  const [viewing, setViewing] = React.useState<ProductRow | null>(null);
+  const { selected, toggleOne, toggleAll, clear, allSelected } = useRowSelection(rows);
+  const [bulkAction, setBulkAction] = React.useState<string>("");
+  const [bulkPending, setBulkPending] = React.useState(false);
 
   const categoryOptions = React.useMemo(
     () => categories.map((c) => ({ value: c.id, label: c.name })),
@@ -120,7 +154,40 @@ export function ProductsTable({
     router.refresh();
   };
 
+  const handleBulk = async () => {
+    if (!bulkAction || selected.size === 0) return;
+    const cfg = BULK_ACTIONS.find((b) => b.value === bulkAction);
+    const msg = buildBulkConfirmMessage(cfg, selected.size);
+    if (msg && !window.confirm(msg)) return;
+    const fd = new FormData();
+    fd.set("action", bulkAction);
+    for (const id of selected) fd.append("ids", id);
+    setBulkPending(true);
+    try {
+      await bulkProductAction(fd);
+      clear();
+      setBulkAction("");
+      router.refresh();
+    } finally {
+      setBulkPending(false);
+    }
+  };
+
+  const sel = selectionColumnRenderers<ProductRow>({
+    allSelected,
+    toggleAll,
+    isSelected: (id) => selected.has(id),
+    toggleOne,
+    rowLabel: (p) => `sản phẩm ${p.name}`
+  });
+
   const columns: ColumnDef<ProductRow>[] = [
+    {
+      key: "select",
+      header: sel.header,
+      width: "40px",
+      cell: sel.cell
+    },
     {
       key: "name",
       header: "Tên",
@@ -176,6 +243,11 @@ export function ProductsTable({
           deleteConfirm={`Xoá sản phẩm "${p.name}"? Hành động không thể hoàn tác.`}
           more={[
             {
+              label: "Xem chi tiết",
+              icon: <Eye />,
+              onSelect: () => setViewing(p)
+            },
+            {
               label: p.isPublic ? "Ẩn khỏi storefront" : "Hiện trên storefront",
               icon: p.isPublic ? <EyeOff /> : <Eye />,
               onSelect: () => handleTogglePublic(p.id, !p.isPublic)
@@ -211,16 +283,27 @@ export function ProductsTable({
   return (
     <>
       <div className="admin-card overflow-hidden p-0">
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-admin-line bg-admin-subtle/30 px-4 py-3">
-          <div className="text-xs text-admin-mute">
-            Đang hiển thị: <span className="font-semibold text-admin-ink">{rows.length}</span>
-            {totalCount !== rows.length ? <span> / {totalCount}</span> : null}
-            {hasFilter ? <span className="ml-1 text-admin-mute">(theo lọc)</span> : null}
-          </div>
-          <AdminButton size="sm" iconLeft={<Plus />} onClick={() => setCreateOpen(true)}>
-            Thêm sản phẩm
-          </AdminButton>
-        </div>
+        <BulkBar
+          selectedCount={selected.size}
+          totalCount={rows.length}
+          actions={BULK_ACTIONS}
+          action={bulkAction}
+          setAction={setBulkAction}
+          onApply={handleBulk}
+          pending={bulkPending}
+          rightSlot={
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="text-xs text-admin-mute">
+                Đang hiển thị: <span className="font-semibold text-admin-ink">{rows.length}</span>
+                {totalCount !== rows.length ? <span> / {totalCount}</span> : null}
+                {hasFilter ? <span className="ml-1 text-admin-mute">(theo lọc)</span> : null}
+              </div>
+              <AdminButton size="sm" iconLeft={<Plus />} onClick={() => setCreateOpen(true)}>
+                Thêm sản phẩm
+              </AdminButton>
+            </div>
+          }
+        />
         <DataTable
           columns={columns}
           rows={rows}
@@ -263,6 +346,113 @@ export function ProductsTable({
           <ExternalLink className="size-3" /> Sửa scrapedData (giá, ảnh, specs…) ở trang chi tiết
         </Link>
       </FormDialog>
+
+      {/* VIEW DETAIL */}
+      <Dialog open={viewing !== null} onOpenChange={(o) => !o && setViewing(null)}>
+        <DialogContent
+          size="xl"
+          title={viewing?.name ?? "Sản phẩm"}
+          description={viewing?.slug ? <span className="font-mono">{viewing.slug}</span> : undefined}
+          footer={
+            <DialogFooter>
+              <AdminButton variant="ghost" size="sm" onClick={() => setViewing(null)}>
+                Đóng
+              </AdminButton>
+              {viewing ? (
+                <AdminButton
+                  size="sm"
+                  onClick={() => {
+                    window.location.href = `/admin/products/${viewing.id}`;
+                  }}
+                >
+                  Sửa
+                </AdminButton>
+              ) : null}
+            </DialogFooter>
+          }
+        >
+          {viewing ? (
+            <div className="space-y-4 text-sm">
+              <div className="flex flex-wrap items-center gap-2">
+                {viewing.isPublic ? (
+                  <StatusPill tone="success" dot>
+                    Đang hiện
+                  </StatusPill>
+                ) : (
+                  <StatusPill tone="neutral" dot>
+                    Đang ẩn
+                  </StatusPill>
+                )}
+                <NetworkBadge network={viewing.network} />
+                <span className="text-xs text-admin-mute">{viewing.category.name}</span>
+              </div>
+              <div>
+                <div className="mb-0.5 text-xs font-medium text-admin-mute">Affiliate URL</div>
+                <div className="flex items-center gap-2">
+                  <code className="line-clamp-1 flex-1 rounded bg-admin-subtle px-2 py-1 font-mono text-[11px] text-admin-ink">
+                    {viewing.affiliateUrl}
+                  </code>
+                  <a
+                    href={viewing.affiliateUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 text-xs font-medium text-admin-accent hover:underline"
+                  >
+                    Mở <ExternalLink className="size-3" />
+                  </a>
+                </div>
+              </div>
+              <div>
+                <div className="mb-0.5 text-xs font-medium text-admin-mute">Campaign</div>
+                <div className="text-admin-ink">
+                  {viewing.campaign ? (
+                    <span>
+                      {viewing.campaign.name}
+                      {viewing.campaign.atCampaignId ? (
+                        <span className="ml-2 font-mono text-[11px] text-admin-mute">
+                          {viewing.campaign.atCampaignId}
+                        </span>
+                      ) : null}
+                    </span>
+                  ) : (
+                    <span className="text-admin-mute">—</span>
+                  )}
+                </div>
+              </div>
+              {viewing._count ? (
+                <div className="grid grid-cols-2 gap-3 text-xs">
+                  <div>
+                    <div className="font-medium text-admin-mute">ClickLogs</div>
+                    <div className="text-admin-ink">{viewing._count.clickLogs ?? 0}</div>
+                  </div>
+                  <div>
+                    <div className="font-medium text-admin-mute">Extractions</div>
+                    <div className="text-admin-ink">{viewing._count.extractions ?? 0}</div>
+                  </div>
+                </div>
+              ) : null}
+              <div>
+                <div className="mb-1 text-xs font-medium text-admin-mute">scrapedData</div>
+                <pre className="max-h-96 overflow-auto rounded-md border border-admin-line bg-admin-subtle/30 p-3 text-[11px] leading-relaxed text-admin-ink">
+                  {JSON.stringify(viewing.scrapedData ?? {}, null, 2)}
+                </pre>
+              </div>
+              <div className="grid grid-cols-2 gap-3 text-[11px] text-admin-mute">
+                {viewing.createdAt ? (
+                  <div>
+                    <div className="font-medium text-admin-ink">Tạo lúc</div>
+                    {dateFmt.format(new Date(viewing.createdAt))}
+                  </div>
+                ) : null}
+                <div>
+                  <div className="font-medium text-admin-ink">Cập nhật</div>
+                  {dateFmt.format(new Date(viewing.updatedAt))}
+                </div>
+              </div>
+            </div>
+          ) : null}
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

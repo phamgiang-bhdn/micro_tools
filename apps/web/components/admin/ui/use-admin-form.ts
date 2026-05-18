@@ -9,6 +9,7 @@ import {
 } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import type { z } from "zod";
+import { notifyError, notifySuccess } from "../../../lib/admin/notify";
 
 /**
  * Wrapper quanh `useForm` + zod resolver + tracking server-state.
@@ -51,6 +52,10 @@ interface UseAdminFormOptions<TValues extends FieldValues> {
   onSubmit: (data: TValues) => Promise<AdminFormResult | void>;
   /** Gọi sau khi submit thành công. Đóng dialog / reset form ở đây. */
   onSuccess?: () => void;
+  /** Message hiện trong toast khi submit thành công. Mặc định "Đã lưu". */
+  successToast?: string;
+  /** Toast tắt với form thuần local (vd: dialog filter/preview). Mặc định: true. */
+  notify?: boolean;
 }
 
 interface UseAdminFormReturn<TValues extends FieldValues> {
@@ -65,7 +70,9 @@ export function useAdminForm<TValues extends FieldValues>({
   schema,
   defaultValues,
   onSubmit,
-  onSuccess
+  onSuccess,
+  successToast = "Đã lưu",
+  notify = true
 }: UseAdminFormOptions<TValues>): UseAdminFormReturn<TValues> {
   const form = useForm<TValues>({
     // zodResolver/zod v4 type signature mismatch — cast để qua TS check.
@@ -86,12 +93,25 @@ export function useAdminForm<TValues extends FieldValues>({
             form.setError(field as never, { type: "server", message });
           }
         }
-        if (result.error) setError(result.error);
+        if (result.error) {
+          setError(result.error);
+          if (notify) notifyError(result.error);
+        }
         return;
       }
+      if (notify) notifySuccess(successToast);
       onSuccess?.();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Có lỗi xảy ra");
+      // next/navigation `redirect()` throws với digest NEXT_REDIRECT — phải rethrow,
+      // không bắn toast error (đó là happy path, không phải lỗi).
+      const digest = err instanceof Error ? (err as { digest?: unknown }).digest : undefined;
+      if (typeof digest === "string" && digest.startsWith("NEXT_REDIRECT")) {
+        if (notify) notifySuccess(successToast);
+        throw err;
+      }
+      const message = err instanceof Error ? err.message : "Có lỗi xảy ra";
+      setError(message);
+      if (notify) notifyError(message);
     }
   });
 

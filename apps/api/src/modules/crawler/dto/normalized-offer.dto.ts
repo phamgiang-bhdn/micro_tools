@@ -19,10 +19,23 @@ export interface NormalizedOffer {
   discountPercent?: number;
   campaign?: string;
   merchantName?: string;
-  /** slug của Category mà offer sẽ được gán vào. */
+  /**
+   * Slug của Category mà offer sẽ được gán vào. Có thể rỗng khi client không xác định
+   * (vd `accesstrade.client` mode per-campaign — CrawlerService set từ `Campaign.categoryId` sau).
+   */
   categorySlug: string;
   badge?: string;
   highlights?: string[];
+  /** SKU/mã sản phẩm bên merchant (Accesstrade trả ở field `sku`). */
+  sku?: string;
+  /** product_id internal của AT — tách rời `externalId` (offer id). */
+  sourceProductId?: string;
+  /** Slug danh mục theo phân loại của AT (`cate`). */
+  atCategorySlug?: string;
+  /** Số tiền giảm (VND). Tham khảo, không dùng làm dedup. */
+  discountAmount?: number;
+  /** Pre-resolved Campaign.id từ caller (crawler-cycle per-campaign). Khi set, import skip lookup theo slug. */
+  campaignDbId?: string;
   /**
    * Raw fields network-specific mà NormalizedOffer chưa cover (vd shop_rating, voucher_code).
    * Mỗi client tự stash vào đây — consumer dùng `unknown` cast khi cần.

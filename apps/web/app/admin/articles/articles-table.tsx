@@ -25,6 +25,13 @@ import {
   type ColumnDef
 } from "../../../components/admin/ui";
 import {
+  BulkBar,
+  selectionColumnRenderers,
+  buildBulkConfirmMessage,
+  type BulkAction
+} from "../../../components/admin/bulk-bar";
+import { useRowSelection } from "../../../components/admin/use-row-selection";
+import {
   ARTICLE_STATUS_META,
   ARTICLE_TYPE_META,
   ARTICLE_TYPE_OPTIONS
@@ -67,10 +74,15 @@ const dateFmt = new Intl.DateTimeFormat("vi-VN", {
   minute: "2-digit"
 });
 
-const BULK_ACTIONS: Array<{ value: "publish" | "archive" | "delete"; label: string; confirm: string }> = [
+const BULK_ACTIONS: BulkAction[] = [
   { value: "publish", label: "Đăng tất cả", confirm: "Đăng tất cả các bài đã chọn lên blog?" },
   { value: "archive", label: "Lưu trữ", confirm: "Chuyển các bài đã chọn vào lưu trữ?" },
-  { value: "delete", label: "Xoá vĩnh viễn", confirm: "Xoá VĨNH VIỄN các bài đã chọn? Không thể hoàn tác." }
+  {
+    value: "delete",
+    label: "Xoá vĩnh viễn",
+    confirm: "Xoá VĨNH VIỄN các bài đã chọn? Không thể hoàn tác.",
+    tone: "danger"
+  }
 ];
 
 const EMPTY_GENERATE: ArticleGenerateInput = {
@@ -87,34 +99,22 @@ export function ArticlesTable({
 }: ArticlesTableProps): React.ReactElement {
   const router = useRouter();
   const [createOpen, setCreateOpen] = React.useState(false);
-  const [selected, setSelected] = React.useState<Set<string>>(new Set());
+  const { selected, toggleOne, toggleAll, clear, allSelected } = useRowSelection(rows);
   const [bulkAction, setBulkAction] = React.useState<string>("");
   const [bulkPending, setBulkPending] = React.useState(false);
-
-  const toggleOne = (id: string, checked: boolean) => {
-    setSelected((prev) => {
-      const next = new Set(prev);
-      if (checked) next.add(id);
-      else next.delete(id);
-      return next;
-    });
-  };
-
-  const toggleAll = (checked: boolean) => {
-    setSelected(checked ? new Set(rows.map((r) => r.id)) : new Set());
-  };
 
   const handleBulk = async () => {
     if (!bulkAction || selected.size === 0) return;
     const cfg = BULK_ACTIONS.find((b) => b.value === bulkAction);
-    if (cfg && !window.confirm(`${cfg.confirm}\n\nÁp dụng cho ${selected.size} bài.`)) return;
+    const msg = buildBulkConfirmMessage(cfg, selected.size);
+    if (msg && !window.confirm(msg)) return;
     const fd = new FormData();
     fd.set("action", bulkAction);
     for (const id of selected) fd.append("ids", id);
     setBulkPending(true);
     try {
       await bulkArticleAction(fd);
-      setSelected(new Set());
+      clear();
       setBulkAction("");
       router.refresh();
     } finally {
@@ -149,30 +149,20 @@ export function ArticlesTable({
     return { ok: true };
   };
 
-  const allSelected = rows.length > 0 && rows.every((r) => selected.has(r.id));
+  const sel = selectionColumnRenderers<ArticleAdminSummary>({
+    allSelected,
+    toggleAll,
+    isSelected: (id) => selected.has(id),
+    toggleOne,
+    rowLabel: (a) => `bài ${a.title}`
+  });
 
   const columns: ColumnDef<ArticleAdminSummary>[] = [
     {
       key: "select",
-      header: (
-        <input
-          type="checkbox"
-          aria-label="Chọn tất cả"
-          checked={allSelected}
-          onChange={(e) => toggleAll(e.currentTarget.checked)}
-          className="size-4 rounded border-admin-line text-admin-accent"
-        />
-      ),
+      header: sel.header,
       width: "40px",
-      cell: (a) => (
-        <input
-          type="checkbox"
-          aria-label={`Chọn bài ${a.title}`}
-          checked={selected.has(a.id)}
-          onChange={(e) => toggleOne(a.id, e.currentTarget.checked)}
-          className="size-4 rounded border-admin-line text-admin-accent"
-        />
-      )
+      cell: sel.cell
     },
     {
       key: "title",
@@ -266,42 +256,20 @@ export function ArticlesTable({
   return (
     <>
       <div className="admin-card overflow-hidden p-0">
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-admin-line bg-admin-subtle/30 px-4 py-3">
-          <div className="flex flex-wrap items-center gap-3">
-            <span className="text-xs text-admin-mute">
-              Đã chọn:{" "}
-              <span className="font-semibold text-admin-ink">{selected.size}</span> / {rows.length}
-            </span>
-            {selected.size > 0 ? (
-              <>
-                <select
-                  value={bulkAction}
-                  onChange={(e) => setBulkAction(e.target.value)}
-                  className="h-8 rounded-md border border-admin-line bg-admin-surface px-2 pr-7 text-xs text-admin-ink"
-                >
-                  <option value="">Chọn hành động</option>
-                  {BULK_ACTIONS.map((b) => (
-                    <option key={b.value} value={b.value}>
-                      {b.label}
-                    </option>
-                  ))}
-                </select>
-                <AdminButton
-                  size="sm"
-                  variant={bulkAction === "delete" ? "danger" : "primary"}
-                  loading={bulkPending}
-                  disabled={!bulkAction}
-                  onClick={handleBulk}
-                >
-                  Áp dụng
-                </AdminButton>
-              </>
-            ) : null}
-          </div>
-          <AdminButton size="sm" iconLeft={<Sparkles />} onClick={() => setCreateOpen(true)}>
-            Tạo bài viết
-          </AdminButton>
-        </div>
+        <BulkBar
+          selectedCount={selected.size}
+          totalCount={rows.length}
+          actions={BULK_ACTIONS}
+          action={bulkAction}
+          setAction={setBulkAction}
+          onApply={handleBulk}
+          pending={bulkPending}
+          rightSlot={
+            <AdminButton size="sm" iconLeft={<Sparkles />} onClick={() => setCreateOpen(true)}>
+              Tạo bài viết
+            </AdminButton>
+          }
+        />
         <DataTable
           columns={columns}
           rows={rows}

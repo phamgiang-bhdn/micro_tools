@@ -53,7 +53,7 @@ export const DialogContent = React.forwardRef<
 ) {
   return (
     <DialogPortal>
-      <RadixDialog.Overlay className="fixed inset-0 z-50 bg-admin-ink/40 backdrop-blur-[2px] data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0" />
+      <RadixDialog.Overlay className="fixed inset-0 z-50 bg-admin-ink/50 backdrop-blur-[3px] data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0" />
       <RadixDialog.Content
         ref={ref}
         className={cn(
@@ -66,15 +66,15 @@ export const DialogContent = React.forwardRef<
         {...props}
       >
         {title || description ? (
-          <div className="flex items-start justify-between gap-4 border-b border-admin-line px-5 py-4">
-            <div className="min-w-0 space-y-1">
+          <div className="flex items-start justify-between gap-4 border-b border-admin-line bg-admin-surface px-6 py-5">
+            <div className="min-w-0 space-y-1.5">
               {title ? (
-                <RadixDialog.Title className="text-base font-semibold tracking-tight text-admin-ink">
+                <RadixDialog.Title className="text-[17px] font-semibold leading-tight tracking-tight text-admin-ink">
                   {title}
                 </RadixDialog.Title>
               ) : null}
               {description ? (
-                <RadixDialog.Description className="text-xs text-admin-mute">
+                <RadixDialog.Description className="text-[13px] leading-relaxed text-admin-mute">
                   {description}
                 </RadixDialog.Description>
               ) : null}
@@ -82,7 +82,7 @@ export const DialogContent = React.forwardRef<
             {!hideClose ? (
               <RadixDialog.Close
                 aria-label="Đóng"
-                className="grid size-8 shrink-0 place-items-center rounded-md text-admin-mute transition hover:bg-admin-subtle hover:text-admin-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-admin-accent/40"
+                className="grid size-9 shrink-0 place-items-center rounded-lg text-admin-mute transition hover:bg-admin-subtle hover:text-admin-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-admin-accent/40"
               >
                 <X className="size-4" />
               </RadixDialog.Close>
@@ -90,10 +90,10 @@ export const DialogContent = React.forwardRef<
           </div>
         ) : null}
 
-        <div className="overflow-y-auto px-5 py-4">{children}</div>
+        <div className="overflow-y-auto bg-admin-surface px-6 py-5">{children}</div>
 
         {footer ? (
-          <div className="flex flex-wrap items-center justify-end gap-2 border-t border-admin-line bg-admin-subtle/30 px-5 py-3">
+          <div className="flex flex-wrap items-center justify-end gap-2 border-t border-admin-line bg-admin-subtle/50 px-6 py-3.5">
             {footer}
           </div>
         ) : null}

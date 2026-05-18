@@ -2,10 +2,22 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Pause, Play, X as XIcon, CheckCircle2 } from "lucide-react";
+import {
+  Plus,
+  Pause,
+  Play,
+  X as XIcon,
+  CheckCircle2,
+  FolderTree,
+  PlayCircle,
+  Eye
+} from "lucide-react";
 import {
   AdminButton,
   DataTable,
+  Dialog,
+  DialogContent,
+  DialogFooter,
   FormDialog,
   RowActions,
   StatusPill,
@@ -16,6 +28,8 @@ import {
   ControlledDateField,
   type ColumnDef
 } from "../../../components/admin/ui";
+import { BulkBar, selectionColumnRenderers, buildBulkConfirmMessage, type BulkAction } from "../../../components/admin/bulk-bar";
+import { useRowSelection } from "../../../components/admin/use-row-selection";
 import {
   NETWORK_OPTIONS,
   CAMPAIGN_STATUS_META,
@@ -29,12 +43,16 @@ import {
   type CampaignCreateInput,
   type CampaignUpdateInput
 } from "../../../lib/admin/schemas";
+import { summarizeFilterRules } from "../../../lib/admin/filter-rules.schema";
 import {
   createCampaignAction,
   updateCampaignAction,
   updateCampaignStatusAction,
-  deleteCampaignAction
+  deleteCampaignAction,
+  runCampaignCrawlerAction,
+  bulkCampaignAction
 } from "../actions";
+import { ManageAssignmentsDialog, type AssignmentRow } from "./assign-category-dialog";
 
 export interface CampaignRow {
   id: string;
@@ -49,13 +67,32 @@ export interface CampaignRow {
   notes: string | null;
   createdAt: string;
   updatedAt: string;
+  // AT-first fields (STORY-01/02/03)
+  atCampaignId: string | null;
+  atCategoryName: string | null;
+  atSubCategory: string | null;
+  atLogo: string | null;
+  atMerchantUrl: string | null;
+  atScope: string | null;
+  atCookieDurationSec?: number | null;
+  atStartTime?: string | null;
+  atEndTime?: string | null;
+  atLastSyncedAt: string | null;
+  assignments: AssignmentRow[];
   _count: { products: number; conversions: number };
+}
+
+interface CategorySummary {
+  id: string;
+  name: string;
+  slug: string;
 }
 
 interface CampaignsTableProps {
   rows: CampaignRow[];
   filteredCount: number;
   totalCount: number;
+  categories: CategorySummary[];
 }
 
 const EMPTY_CREATE: CampaignCreateInput = {
@@ -68,14 +105,37 @@ const EMPTY_CREATE: CampaignCreateInput = {
   notes: null
 };
 
+const BULK_ACTIONS: BulkAction[] = [
+  { value: "status:APPROVED", label: "→ APPROVED", confirm: "Đổi status các campaign sang APPROVED?" },
+  { value: "status:PAUSED", label: "→ PAUSED", confirm: "Tạm dừng các campaign?" },
+  { value: "status:REJECTED", label: "→ REJECTED", confirm: "Đánh dấu REJECTED?" },
+  { value: "status:INACTIVE", label: "→ INACTIVE", confirm: "Vô hiệu hoá?" },
+  { value: "assign-category", label: "Gán Category…", confirm: "" }
+];
+
+const dateFmt = new Intl.DateTimeFormat("vi-VN", {
+  day: "2-digit",
+  month: "2-digit",
+  year: "numeric",
+  hour: "2-digit",
+  minute: "2-digit"
+});
+
 export function CampaignsTable({
   rows,
   filteredCount,
-  totalCount
+  totalCount,
+  categories
 }: CampaignsTableProps): React.ReactElement {
   const router = useRouter();
   const [createOpen, setCreateOpen] = React.useState(false);
   const [editing, setEditing] = React.useState<CampaignRow | null>(null);
+  const [assigning, setAssigning] = React.useState<CampaignRow | null>(null);
+  const [viewing, setViewing] = React.useState<CampaignRow | null>(null);
+  const { selected, toggleOne, toggleAll, clear, allSelected } = useRowSelection(rows);
+  const [bulkAction, setBulkAction] = React.useState<string>("");
+  const [bulkCategoryId, setBulkCategoryId] = React.useState<string>("");
+  const [bulkPending, setBulkPending] = React.useState(false);
 
   const handleCreate = async (data: CampaignCreateInput) => {
     const fd = new FormData();
@@ -122,20 +182,87 @@ export function CampaignsTable({
     router.refresh();
   };
 
+  const handleRunCrawler = async (atCampaignId: string | null) => {
+    if (!atCampaignId) {
+      window.alert("Campaign chưa có atCampaignId — Sync from Accesstrade trước.");
+      return;
+    }
+    await runCampaignCrawlerAction(atCampaignId);
+    router.refresh();
+  };
+
+  const handleBulk = async () => {
+    if (!bulkAction || selected.size === 0) return;
+    if (bulkAction === "assign-category" && !bulkCategoryId) {
+      window.alert("Chọn category trước khi gán.");
+      return;
+    }
+    const cfg = BULK_ACTIONS.find((b) => b.value === bulkAction);
+    const msg = buildBulkConfirmMessage(cfg, selected.size);
+    if (msg && !window.confirm(msg)) return;
+    const fd = new FormData();
+    fd.set("action", bulkAction);
+    if (bulkAction === "assign-category") fd.set("categoryId", bulkCategoryId);
+    for (const id of selected) fd.append("ids", id);
+    setBulkPending(true);
+    try {
+      const result = await bulkCampaignAction(fd);
+      clear();
+      setBulkAction("");
+      setBulkCategoryId("");
+      router.refresh();
+      if (result && bulkAction === "assign-category" && (result.skipped ?? 0) > 0) {
+        window.alert(
+          `Gán ${result.count} campaign. ${result.skipped} campaign đã có assignment với category này — skipped.`
+        );
+      }
+    } finally {
+      setBulkPending(false);
+    }
+  };
+
+  const sel = selectionColumnRenderers<CampaignRow>({
+    allSelected,
+    toggleAll,
+    isSelected: (id) => selected.has(id),
+    toggleOne,
+    rowLabel: (c) => `campaign ${c.name}`
+  });
+
   const columns: ColumnDef<CampaignRow>[] = [
+    {
+      key: "select",
+      header: sel.header,
+      width: "40px",
+      cell: sel.cell
+    },
     {
       key: "name",
       header: "Campaign",
       cell: (c) => (
-        <div className="min-w-0">
-          <button
-            type="button"
-            className="text-left font-medium text-admin-ink transition hover:text-admin-accent"
-            onClick={() => setEditing(c)}
-          >
-            {c.name}
-          </button>
-          <div className="mt-0.5 font-mono text-[11px] text-admin-mute">{c.externalId}</div>
+        <div className="flex min-w-0 items-center gap-3">
+          {c.atLogo ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={c.atLogo}
+              alt=""
+              className="size-8 shrink-0 rounded-md border border-admin-line bg-white object-contain"
+            />
+          ) : (
+            <div className="size-8 shrink-0 rounded-md border border-dashed border-admin-line" />
+          )}
+          <div className="min-w-0">
+            <button
+              type="button"
+              className="text-left font-medium text-admin-ink transition hover:text-admin-accent"
+              onClick={() => setEditing(c)}
+            >
+              {c.name}
+            </button>
+            <div className="mt-0.5 truncate font-mono text-[11px] text-admin-mute">
+              {c.atCampaignId ?? c.externalId}
+            </div>
+          </div>
         </div>
       )
     },
@@ -149,8 +276,47 @@ export function CampaignsTable({
       header: "Merchant",
       hideOnMobile: true,
       cell: (c) => (
-        <span className="text-sm text-admin-ink">
-          {c.merchantName ?? <span className="text-admin-mute">—</span>}
+        <div className="text-sm">
+          <div className="text-admin-ink">{c.merchantName ?? <span className="text-admin-mute">—</span>}</div>
+          {c.atCategoryName ? (
+            <div className="text-[11px] text-admin-mute">{c.atCategoryName}</div>
+          ) : null}
+        </div>
+      )
+    },
+    {
+      key: "category",
+      header: "Niche",
+      hideOnMobile: true,
+      cell: (c) => {
+        if (c.assignments.length === 0) {
+          return <StatusPill tone="warning">Chưa assign</StatusPill>;
+        }
+        const first = c.assignments[0];
+        const restCount = c.assignments.length - 1;
+        return (
+          <div
+            className="text-sm"
+            title={c.assignments.map((a) => `[p${a.priority}] ${a.category.name}`).join(", ")}
+          >
+            <div className="text-admin-ink">
+              {first.category.name}
+              {restCount > 0 ? (
+                <span className="ml-1 text-admin-mute">+{restCount}</span>
+              ) : null}
+            </div>
+            <div className="font-mono text-[11px] text-admin-mute">{first.category.slug}</div>
+          </div>
+        );
+      }
+    },
+    {
+      key: "rules",
+      header: "Assignments",
+      hideOnMobile: true,
+      cell: (c) => (
+        <span className="text-[12px] text-admin-mute">
+          {c.assignments.length === 0 ? "—" : `${c.assignments.length} niche`}
         </span>
       )
     },
@@ -167,23 +333,24 @@ export function CampaignsTable({
       }
     },
     {
-      key: "products",
-      header: "Sản phẩm",
-      align: "right",
-      cell: (c) => <span className="font-semibold text-admin-ink">{c._count.products}</span>
+      key: "synced",
+      header: "Sync",
+      hideOnMobile: true,
+      cell: (c) => (
+        <span className="text-[11px] text-admin-mute">{relativeTime(c.atLastSyncedAt)}</span>
+      )
     },
     {
-      key: "conversions",
-      header: "Conversion",
+      key: "products",
+      header: "SP",
       align: "right",
-      hideOnMobile: true,
-      cell: (c) => <span className="text-admin-ink">{c._count.conversions}</span>
+      cell: (c) => <span className="font-semibold text-admin-ink">{c._count.products}</span>
     },
     {
       key: "actions",
       header: <span className="sr-only">Thao tác</span>,
       align: "right",
-      width: "120px",
+      width: "140px",
       cell: (c) => {
         const lock = c._count.products > 0 || c._count.conversions > 0;
         const statusMore = CAMPAIGN_STATUS_OPTIONS.filter((s) => s.value !== c.status).map((s) => ({
@@ -198,7 +365,26 @@ export function CampaignsTable({
             deleteConfirm={`Xoá campaign "${c.name}"?`}
             deleteDisabled={lock}
             deleteDisabledReason="Có sản phẩm/conversion — chuyển INACTIVE thay vì xoá"
-            more={statusMore}
+            more={[
+              {
+                label: "Xem chi tiết",
+                icon: <Eye />,
+                onSelect: () => setViewing(c)
+              },
+              {
+                label: "Quản lý niche",
+                icon: <FolderTree />,
+                disabled: !c.atCampaignId,
+                onSelect: () => setAssigning(c)
+              },
+              {
+                label: "Chạy crawler cho campaign này",
+                icon: <PlayCircle />,
+                disabled: !c.atCampaignId || c.assignments.length === 0,
+                onSelect: () => handleRunCrawler(c.atCampaignId)
+              },
+              ...statusMore
+            ]}
           />
         );
       }
@@ -208,20 +394,50 @@ export function CampaignsTable({
   return (
     <>
       <div className="admin-card overflow-hidden p-0">
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-admin-line bg-admin-subtle/30 px-4 py-3">
-          <div className="text-xs text-admin-mute">
-            Đang hiển thị: <span className="font-semibold text-admin-ink">{filteredCount}</span>
-            {filteredCount !== totalCount ? <span> / {totalCount}</span> : null}
-          </div>
-          <AdminButton size="sm" iconLeft={<Plus />} onClick={() => setCreateOpen(true)}>
-            Tạo campaign
-          </AdminButton>
-        </div>
+        <BulkBar
+          selectedCount={selected.size}
+          totalCount={rows.length}
+          actions={BULK_ACTIONS}
+          action={bulkAction}
+          setAction={(v) => {
+            setBulkAction(v);
+            if (v !== "assign-category") setBulkCategoryId("");
+          }}
+          onApply={handleBulk}
+          pending={bulkPending}
+          extraSlot={
+            bulkAction === "assign-category" ? (
+              <select
+                value={bulkCategoryId}
+                onChange={(e) => setBulkCategoryId(e.target.value)}
+                className="h-8 rounded-md border border-admin-line bg-admin-surface px-2 pr-7 text-xs text-admin-ink"
+              >
+                <option value="">— Chọn category —</option>
+                {categories.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+            ) : null
+          }
+          rightSlot={
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="text-xs text-admin-mute">
+                Đang hiển thị: <span className="font-semibold text-admin-ink">{filteredCount}</span>
+                {filteredCount !== totalCount ? <span> / {totalCount}</span> : null}
+              </div>
+              <AdminButton size="sm" iconLeft={<Plus />} onClick={() => setCreateOpen(true)}>
+                Tạo campaign
+              </AdminButton>
+            </div>
+          }
+        />
         <DataTable
           columns={columns}
           rows={rows}
           rowKey={(c) => c.id}
-          emptyState="Chưa có campaign nào. Crawler sẽ tự tạo khi gặp campaign trong datafeed, hoặc bấm 'Tạo campaign' để thêm tay."
+          emptyState="Không có campaign nào khớp filter. Bấm 'Sync from Accesstrade' phía trên hoặc đổi filter."
         />
       </div>
 
@@ -253,7 +469,208 @@ export function CampaignsTable({
       >
         <CampaignFields editing />
       </FormDialog>
+
+      {assigning ? (
+        <ManageAssignmentsDialog
+          open={true}
+          onOpenChange={(o) => !o && setAssigning(null)}
+          onChanged={() => router.refresh()}
+          campaign={{
+            id: assigning.id,
+            name: assigning.name,
+            atCampaignId: assigning.atCampaignId,
+            assignments: assigning.assignments
+          }}
+          categories={categories}
+        />
+      ) : null}
+
+      {/* VIEW DETAIL */}
+      <Dialog open={viewing !== null} onOpenChange={(o) => !o && setViewing(null)}>
+        <DialogContent
+          size="xl"
+          title={
+            viewing ? (
+              <div className="flex items-center gap-2">
+                {viewing.atLogo ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={viewing.atLogo}
+                    alt=""
+                    className="size-6 rounded-md border border-admin-line bg-white object-contain"
+                  />
+                ) : null}
+                <span>{viewing.name}</span>
+              </div>
+            ) : (
+              "Campaign"
+            )
+          }
+          description={
+            viewing ? (
+              <div className="flex items-center gap-2">
+                <NetworkBadge network={viewing.network} />
+                <StatusPill tone={CAMPAIGN_STATUS_META[viewing.status].tone} dot>
+                  {CAMPAIGN_STATUS_META[viewing.status].label}
+                </StatusPill>
+              </div>
+            ) : undefined
+          }
+          footer={
+            <DialogFooter>
+              <AdminButton variant="ghost" size="sm" onClick={() => setViewing(null)}>
+                Đóng
+              </AdminButton>
+              {viewing && viewing.atCampaignId ? (
+                <AdminButton
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => {
+                    const target = viewing;
+                    setViewing(null);
+                    setAssigning(target);
+                  }}
+                >
+                  Quản lý niche
+                </AdminButton>
+              ) : null}
+              {viewing ? (
+                <AdminButton
+                  size="sm"
+                  onClick={() => {
+                    const target = viewing;
+                    setViewing(null);
+                    setEditing(target);
+                  }}
+                >
+                  Sửa
+                </AdminButton>
+              ) : null}
+            </DialogFooter>
+          }
+        >
+          {viewing ? (
+            <div className="space-y-4 text-sm">
+              <div className="grid grid-cols-2 gap-3 text-xs">
+                <KV label="externalId" mono value={viewing.externalId} />
+                <KV label="atCampaignId" mono value={viewing.atCampaignId ?? "—"} />
+                <KV label="Merchant" value={viewing.merchantName ?? "—"} />
+                <KV
+                  label="Merchant URL"
+                  value={
+                    viewing.atMerchantUrl ? (
+                      <a
+                        href={viewing.atMerchantUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-admin-accent hover:underline"
+                      >
+                        {viewing.atMerchantUrl}
+                      </a>
+                    ) : (
+                      "—"
+                    )
+                  }
+                />
+                <KV label="AT category" value={viewing.atCategoryName ?? "—"} />
+                <KV label="AT sub-category" value={viewing.atSubCategory ?? "—"} />
+                <KV label="Scope" value={viewing.atScope ?? "—"} />
+                <KV
+                  label="Cookie duration (s)"
+                  value={
+                    viewing.atCookieDurationSec != null
+                      ? String(viewing.atCookieDurationSec)
+                      : "—"
+                  }
+                />
+                <KV
+                  label="Start"
+                  value={viewing.atStartTime ? dateFmt.format(new Date(viewing.atStartTime)) : "—"}
+                />
+                <KV
+                  label="End"
+                  value={viewing.atEndTime ? dateFmt.format(new Date(viewing.atEndTime)) : "—"}
+                />
+                <KV
+                  label="Assigned niches"
+                  value={
+                    viewing.assignments.length === 0
+                      ? "Chưa assign"
+                      : `${viewing.assignments.length} niche`
+                  }
+                />
+                <KV label="Last AT sync" value={relativeTime(viewing.atLastSyncedAt)} />
+                <KV
+                  label="Products / Conversions"
+                  value={`${viewing._count.products} / ${viewing._count.conversions}`}
+                />
+              </div>
+              <div>
+                <div className="mb-1 text-xs font-medium text-admin-mute">Assignments (priority asc)</div>
+                {viewing.assignments.length === 0 ? (
+                  <div className="text-[12px] text-admin-mute">Chưa có niche nào.</div>
+                ) : (
+                  <ul className="space-y-2">
+                    {viewing.assignments.map((a) => (
+                      <li
+                        key={a.id}
+                        className="rounded-md border border-admin-line bg-admin-subtle/30 p-2 text-[12px]"
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="text-admin-ink">
+                            <span className="mr-2 inline-flex h-5 min-w-[1.5rem] items-center justify-center rounded-full bg-admin-surface px-1.5 font-mono text-[10px] text-admin-mute">
+                              p{a.priority}
+                            </span>
+                            {a.category.name}
+                            <span className="ml-1 font-mono text-[11px] text-admin-mute">
+                              ({a.category.slug})
+                            </span>
+                          </div>
+                          <span className="text-[11px] text-admin-mute">
+                            {summarizeFilterRules(a.filterRules as never)}
+                          </span>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+              {viewing.commissionNote ? (
+                <KV label="Ghi chú hoa hồng" value={viewing.commissionNote} multiline />
+              ) : null}
+              {viewing.notes ? <KV label="Ghi chú nội bộ" value={viewing.notes} multiline /> : null}
+            </div>
+          ) : null}
+        </DialogContent>
+      </Dialog>
     </>
+  );
+}
+
+function KV({
+  label,
+  value,
+  mono,
+  multiline
+}: {
+  label: string;
+  value: React.ReactNode;
+  mono?: boolean;
+  multiline?: boolean;
+}): React.ReactElement {
+  return (
+    <div className={multiline ? "col-span-2" : undefined}>
+      <div className="mb-0.5 text-[11px] font-medium text-admin-mute">{label}</div>
+      <div
+        className={
+          (multiline ? "whitespace-pre-wrap " : "truncate ") +
+          (mono ? "font-mono text-[11px] " : "") +
+          "text-admin-ink"
+        }
+      >
+        {value}
+      </div>
+    </div>
   );
 }
 
@@ -343,4 +760,19 @@ function iconForStatus(s: CampaignStatus): React.ReactNode {
     default:
       return <Play />;
   }
+}
+
+function relativeTime(iso: string | null): string {
+  if (!iso) return "—";
+  const then = new Date(iso).getTime();
+  if (Number.isNaN(then)) return "—";
+  const diff = Date.now() - then;
+  const sec = Math.round(diff / 1000);
+  if (sec < 60) return `${sec}s trước`;
+  const min = Math.round(sec / 60);
+  if (min < 60) return `${min}p trước`;
+  const h = Math.round(min / 60);
+  if (h < 24) return `${h}h trước`;
+  const d = Math.round(h / 24);
+  return `${d}d trước`;
 }

@@ -56,6 +56,9 @@ interface FormDialogProps<TValues extends FieldValues> {
   onSubmit: (data: TValues) => Promise<AdminFormResult | void>;
   onSuccess?: () => void;
 
+  /** Message hiện trong toast khi submit thành công. Mặc định "Đã lưu". */
+  successToast?: string;
+
   submitLabel?: React.ReactNode;
   cancelLabel?: React.ReactNode;
 
@@ -74,6 +77,7 @@ export function FormDialog<TValues extends FieldValues>({
   resetOnOpen,
   onSubmit,
   onSuccess,
+  successToast,
   submitLabel = "Lưu",
   cancelLabel = "Huỷ",
   children
@@ -86,6 +90,7 @@ export function FormDialog<TValues extends FieldValues>({
     schema,
     defaultValues,
     onSubmit,
+    successToast,
     onSuccess: () => {
       onSuccess?.();
       setOpen(false);
@@ -127,13 +132,13 @@ export function FormDialog<TValues extends FieldValues>({
         }
       >
         {error ? (
-          <div className="mb-3 flex items-start gap-2 rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm text-rose-800">
+          <div className="mb-4 flex items-start gap-2.5 rounded-lg border border-admin-danger/30 bg-admin-danger-soft px-3.5 py-3 text-sm text-admin-danger">
             <AlertTriangle className="mt-0.5 size-4 shrink-0" />
-            <span>{error}</span>
+            <span className="leading-relaxed">{error}</span>
           </div>
         ) : null}
         <FormProvider {...form}>
-          <form id="admin-form-dialog" onSubmit={submit} className="grid gap-3 sm:grid-cols-2">
+          <form id="admin-form-dialog" onSubmit={submit} className="admin-form-grid">
             {children}
           </form>
         </FormProvider>

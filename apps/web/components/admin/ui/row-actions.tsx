@@ -12,6 +12,7 @@ import {
 } from "./dropdown-menu";
 import { useConfirm } from "./confirm-dialog";
 import { cn } from "../../../lib/utils";
+import { notifyError, notifySuccess } from "../../../lib/admin/notify";
 
 /**
  * Chuẩn hoá action ở mỗi hàng list page.
@@ -94,7 +95,15 @@ export function RowActions({
       });
       if (!ok) return;
     }
-    await onDelete();
+    try {
+      await onDelete();
+      notifySuccess("Đã xoá");
+    } catch (err) {
+      // Next redirect throws với digest NEXT_REDIRECT — không phải lỗi thực sự.
+      const digest = err instanceof Error ? (err as { digest?: unknown }).digest : undefined;
+      if (typeof digest === "string" && digest.startsWith("NEXT_REDIRECT")) throw err;
+      notifyError(err instanceof Error ? err.message : "Xoá thất bại");
+    }
   }, [onDelete, deleteConfirm, confirm]);
 
   const hasMore = Boolean(more && more.length > 0);
@@ -149,7 +158,15 @@ export function RowActions({
                   });
                   if (!ok) return;
                 }
-                await item.onSelect();
+                try {
+                  await item.onSelect();
+                  notifySuccess(`Đã ${item.label.toLowerCase()}`);
+                } catch (err) {
+                  const digest =
+                    err instanceof Error ? (err as { digest?: unknown }).digest : undefined;
+                  if (typeof digest === "string" && digest.startsWith("NEXT_REDIRECT")) throw err;
+                  notifyError(err instanceof Error ? err.message : `${item.label} thất bại`);
+                }
               };
               return (
                 <React.Fragment key={`${item.label}-${idx}`}>

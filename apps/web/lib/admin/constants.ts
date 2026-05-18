@@ -88,6 +88,14 @@ export const CAMPAIGN_STATUS_OPTIONS = CAMPAIGN_STATUS_VALUES.map((v) => ({
   label: CAMPAIGN_STATUS_META[v].label
 }));
 
+export const CAMPAIGN_ASSIGNMENT_VALUES = ["", "unassigned", "assigned"] as const;
+export type CampaignAssignment = (typeof CAMPAIGN_ASSIGNMENT_VALUES)[number];
+
+export const CAMPAIGN_ASSIGNMENT_OPTIONS: Array<{ value: CampaignAssignment; label: string }> = [
+  { value: "unassigned", label: "Chưa assign" },
+  { value: "assigned", label: "Đã assign" }
+];
+
 // ===== Category =====
 
 export const CATEGORY_STATUS_VALUES = ["ACTIVE", "INACTIVE"] as const;
@@ -131,7 +139,8 @@ export const ADMIN_PARAMS = {
   from: "from",
   to: "to",
   tab: "tab",
-  trackingCode: "trackingCode"
+  trackingCode: "trackingCode",
+  assignment: "assignment"
 } as const;
 
 export type AdminParamKey = keyof typeof ADMIN_PARAMS;

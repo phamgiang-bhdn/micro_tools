@@ -17,6 +17,11 @@ import { z } from "zod";
 import { AiService } from "../../services/ai.service";
 import { ArticleService } from "../../services/article.service";
 import { PrismaService } from "../../prisma/prisma.service";
+import { CampaignSyncService } from "../crawler/campaign-sync.service";
+import { CouponSyncService } from "../crawler/coupon-sync.service";
+import { DEFAULT_FILTER_RULES, filterRulesSchema } from "../crawler/dto/filter-rules.dto";
+import { TopProductsSyncService } from "../crawler/top-products-sync.service";
+import { ReconciliationService } from "../reconciliation/reconciliation.service";
 import { uniqueSlugWithin } from "../../utils/slug.util";
 
 const promptTestSchema = z.object({
@@ -115,6 +120,36 @@ const createCampaignSchema = z.object({
   notes: z.string().max(2000).nullable().optional()
 });
 
+const createAssignmentSchema = z
+  .object({
+    categoryId: z.string().uuid().optional(),
+    newCategory: z
+      .object({
+        name: z.string().min(1).max(120),
+        slug: z
+          .string()
+          .min(2)
+          .max(80)
+          .regex(/^[a-z0-9-]+$/, "slug chỉ chứa a-z, 0-9, dấu gạch ngang"),
+        schemaConfig: z.record(z.string(), z.unknown())
+      })
+      .optional(),
+    filterRules: filterRulesSchema,
+    priority: z.number().int().min(0).max(10000).optional()
+  })
+  .refine((d) => Boolean(d.categoryId) !== Boolean(d.newCategory), {
+    message: "Phải có đúng 1 trong: categoryId hoặc newCategory"
+  });
+
+const updateAssignmentSchema = z
+  .object({
+    filterRules: filterRulesSchema.optional(),
+    priority: z.number().int().min(0).max(10000).optional()
+  })
+  .refine((d) => d.filterRules !== undefined || d.priority !== undefined, {
+    message: "Cần ít nhất 1 trong: filterRules hoặc priority"
+  });
+
 const updateCampaignSchema = createCampaignSchema.partial().extend({
   network: z.nativeEnum(AffiliateNetwork).optional(),
   externalId: z
@@ -123,6 +158,38 @@ const updateCampaignSchema = createCampaignSchema.partial().extend({
     .max(120)
     .regex(/^[a-z0-9-]+$/)
     .optional()
+});
+
+const bulkCategorySchema = z.object({
+  ids: z.array(z.string().uuid()).min(1),
+  action: z.enum(["activate", "deactivate", "delete"])
+});
+
+const bulkProductSchema = z.object({
+  ids: z.array(z.string().uuid()).min(1),
+  action: z.enum(["make-public", "make-private", "delete"])
+});
+
+const bulkCampaignSchema = z
+  .object({
+    ids: z.array(z.string().uuid()).min(1),
+    action: z.union([
+      z.literal("status:APPROVED"),
+      z.literal("status:PAUSED"),
+      z.literal("status:REJECTED"),
+      z.literal("status:INACTIVE"),
+      z.literal("assign-category")
+    ]),
+    categoryId: z.string().uuid().optional()
+  })
+  .refine(
+    (d) => d.action !== "assign-category" || Boolean(d.categoryId),
+    { message: "categoryId là bắt buộc cho action assign-category" }
+  );
+
+const bulkCouponSchema = z.object({
+  ids: z.array(z.string().uuid()).min(1),
+  action: z.enum(["approve", "archive", "activate", "deactivate", "delete"])
 });
 
 const updateArticleSchema = z.object({
@@ -156,7 +223,11 @@ export class AdminController {
   constructor(
     private readonly prisma: PrismaService,
     private readonly aiService: AiService,
-    private readonly articleService: ArticleService
+    private readonly articleService: ArticleService,
+    private readonly campaignSync: CampaignSyncService,
+    private readonly reconciliation: ReconciliationService,
+    private readonly couponSync: CouponSyncService,
+    private readonly topProducts: TopProductsSyncService
   ) {}
 
   private authorize(
@@ -423,6 +494,7 @@ export class AdminController {
     @Query("from") from?: string,
     @Query("to") to?: string,
     @Query("network") network?: string,
+    @Query("mismatchOnly") mismatchOnly?: string,
     @Headers("x-admin-role") role?: string,
     @Headers("x-admin-key") apiKey?: string
   ) {
@@ -438,11 +510,26 @@ export class AdminController {
     if (network && (Object.values(AffiliateNetwork) as string[]).includes(network)) {
       where.product = { network: network as AffiliateNetwork };
     }
+    if (mismatchOnly === "true") {
+      where.conversionHooks = { some: { reconcileNotes: { not: null } } };
+    }
     const rows = await this.prisma.clickLog.findMany({
       where,
       include: {
         product: { select: { name: true, network: true } },
-        conversionHooks: { select: { revenue: true, status: true, receivedAt: true, network: true } }
+        conversionHooks: {
+          select: {
+            revenue: true,
+            status: true,
+            receivedAt: true,
+            network: true,
+            source: true,
+            atOrderId: true,
+            atCommission: true,
+            reconcileNotes: true,
+            lastReconciledAt: true
+          }
+        }
       },
       orderBy: { createdAt: "desc" },
       take: parsedLimit
@@ -770,6 +857,8 @@ export class AdminController {
   async listCoupons(
     @Query("isActive") isActive?: string,
     @Query("network") network?: string,
+    @Query("merchantSlug") merchantSlug?: string,
+    @Query("limit") limit?: string,
     @Headers("x-admin-role") role?: string,
     @Headers("x-admin-key") apiKey?: string
   ) {
@@ -780,14 +869,56 @@ export class AdminController {
     if (network && (Object.values(AffiliateNetwork) as string[]).includes(network)) {
       where.network = network as AffiliateNetwork;
     }
+    if (merchantSlug) where.merchantSlug = merchantSlug;
     return this.prisma.coupon.findMany({
       where,
-      orderBy: { createdAt: "desc" },
+      orderBy: [{ atLastSyncedAt: "desc" }, { createdAt: "desc" }],
+      take: Math.min(Math.max(Number(limit ?? 200), 1), 500),
       include: {
         product: { select: { id: true, name: true } },
         category: { select: { id: true, name: true } }
       }
     });
+  }
+
+  @Post("coupons/sync-from-at")
+  async syncCouponsFromAt(
+    @Headers("x-admin-role") role?: string,
+    @Headers("x-admin-key") apiKey?: string
+  ) {
+    this.authorize(role, apiKey, ["admin"]);
+    try {
+      return await this.couponSync.syncFromAccesstrade();
+    } catch (error: unknown) {
+      this.logger.error(
+        "syncCouponsFromAt failed",
+        error instanceof Error ? error.stack : String(error)
+      );
+      throw new HttpException(
+        "Sync coupons failed — xem log server",
+        HttpStatus.INTERNAL_SERVER_ERROR
+      );
+    }
+  }
+
+  @Post("coupons/:id/approve")
+  async approveCoupon(
+    @Param("id") id: string,
+    @Headers("x-admin-role") role?: string,
+    @Headers("x-admin-key") apiKey?: string
+  ) {
+    this.authorize(role, apiKey, ["reviewer", "admin"]);
+    return this.prisma.coupon.update({ where: { id }, data: { isActive: true } });
+  }
+
+  @Post("coupons/:id/archive")
+  async archiveCoupon(
+    @Param("id") id: string,
+    @Headers("x-admin-role") role?: string,
+    @Headers("x-admin-key") apiKey?: string
+  ) {
+    this.authorize(role, apiKey, ["reviewer", "admin"]);
+    return this.prisma.coupon.update({ where: { id }, data: { isActive: false } });
   }
 
   @Post("coupons")
@@ -872,6 +1003,31 @@ export class AdminController {
     this.authorize(role, apiKey, ["admin"]);
     await this.prisma.coupon.delete({ where: { id } });
     return { success: true };
+  }
+
+  @Post("coupons/bulk")
+  async bulkCouponAction(
+    @Body() payload: unknown,
+    @Headers("x-admin-role") role?: string,
+    @Headers("x-admin-key") apiKey?: string
+  ) {
+    this.authorize(role, apiKey, ["admin"]);
+    const parsed = bulkCouponSchema.safeParse(payload);
+    if (!parsed.success) {
+      throw new HttpException(parsed.error.flatten(), HttpStatus.BAD_REQUEST);
+    }
+    const { ids, action } = parsed.data;
+    if (action === "delete") {
+      const result = await this.prisma.coupon.deleteMany({ where: { id: { in: ids } } });
+      return { success: true, count: result.count };
+    }
+    // approve = activate, archive = deactivate. Coupon không có reviewedAt/By field.
+    const isActive = action === "approve" || action === "activate";
+    const result = await this.prisma.coupon.updateMany({
+      where: { id: { in: ids } },
+      data: { isActive }
+    });
+    return { success: true, count: result.count };
   }
 
   // ───── Analytics ─────
@@ -990,7 +1146,7 @@ export class AdminController {
     this.authorize(role, apiKey, ["viewer", "reviewer", "admin"]);
     return this.prisma.category.findMany({
       orderBy: { createdAt: "desc" },
-      include: { _count: { select: { products: true, articles: true } } }
+      include: { _count: { select: { products: true, articles: true, campaignAssignments: true } } }
     });
   }
 
@@ -1003,7 +1159,7 @@ export class AdminController {
     this.authorize(role, apiKey, ["viewer", "reviewer", "admin"]);
     const category = await this.prisma.category.findUnique({
       where: { id },
-      include: { _count: { select: { products: true, articles: true } } }
+      include: { _count: { select: { products: true, articles: true, campaignAssignments: true } } }
     });
     if (!category) throw new HttpException("Category not found", HttpStatus.NOT_FOUND);
     return category;
@@ -1082,6 +1238,39 @@ export class AdminController {
     return { success: true };
   }
 
+  @Post("categories/bulk")
+  async bulkCategoryAction(
+    @Body() payload: unknown,
+    @Headers("x-admin-role") role?: string,
+    @Headers("x-admin-key") apiKey?: string
+  ) {
+    this.authorize(role, apiKey, ["admin"]);
+    const parsed = bulkCategorySchema.safeParse(payload);
+    if (!parsed.success) {
+      throw new HttpException(parsed.error.flatten(), HttpStatus.BAD_REQUEST);
+    }
+    const { ids, action } = parsed.data;
+    if (action === "delete") {
+      const blocking = await this.prisma.product.count({
+        where: { categoryId: { in: ids } }
+      });
+      if (blocking > 0) {
+        throw new HttpException(
+          `Không thể xoá: có ${blocking} sản phẩm đang trỏ vào danh mục đã chọn. Xoá sản phẩm trước.`,
+          HttpStatus.CONFLICT
+        );
+      }
+      const result = await this.prisma.category.deleteMany({ where: { id: { in: ids } } });
+      return { success: true, count: result.count };
+    }
+    const status = action === "activate" ? CategoryStatus.ACTIVE : CategoryStatus.INACTIVE;
+    const result = await this.prisma.category.updateMany({
+      where: { id: { in: ids } },
+      data: { status }
+    });
+    return { success: true, count: result.count };
+  }
+
   // ───── Products (admin manual CRUD) ─────
 
   @Get("products")
@@ -1105,7 +1294,11 @@ export class AdminController {
     if (search) where.name = { contains: search, mode: "insensitive" };
     return this.prisma.product.findMany({
       where,
-      include: { category: { select: { id: true, slug: true, name: true } } },
+      include: {
+        category: { select: { id: true, slug: true, name: true } },
+        campaign: { select: { id: true, name: true, atCampaignId: true } },
+        _count: { select: { clickLogs: true, extractions: true } }
+      },
       orderBy: { updatedAt: "desc" },
       take: Math.min(Math.max(Number(limit), 1), 500)
     });
@@ -1209,13 +1402,58 @@ export class AdminController {
     return { success: true };
   }
 
+  @Post("products/bulk")
+  async bulkProductAction(
+    @Body() payload: unknown,
+    @Headers("x-admin-role") role?: string,
+    @Headers("x-admin-key") apiKey?: string
+  ) {
+    this.authorize(role, apiKey, ["admin"]);
+    const parsed = bulkProductSchema.safeParse(payload);
+    if (!parsed.success) {
+      throw new HttpException(parsed.error.flatten(), HttpStatus.BAD_REQUEST);
+    }
+    const { ids, action } = parsed.data;
+    if (action === "delete") {
+      const result = await this.prisma.product.deleteMany({ where: { id: { in: ids } } });
+      return { success: true, count: result.count };
+    }
+    const isPublic = action === "make-public";
+    const result = await this.prisma.product.updateMany({
+      where: { id: { in: ids } },
+      data: { isPublic }
+    });
+    return { success: true, count: result.count };
+  }
+
   // ───── Campaigns (affiliate campaigns per network) ─────
+
+  @Post("campaigns/sync-from-at")
+  async syncCampaignsFromAt(
+    @Headers("x-admin-role") role?: string,
+    @Headers("x-admin-key") apiKey?: string
+  ) {
+    this.authorize(role, apiKey, ["admin"]);
+    try {
+      return await this.campaignSync.syncFromAccesstrade();
+    } catch (error: unknown) {
+      this.logger.error(
+        "syncCampaignsFromAt failed",
+        error instanceof Error ? error.stack : String(error)
+      );
+      throw new HttpException(
+        "Sync campaigns failed — xem log server",
+        HttpStatus.INTERNAL_SERVER_ERROR
+      );
+    }
+  }
 
   @Get("campaigns")
   async listCampaigns(
     @Query("network") network?: string,
     @Query("status") status?: string,
     @Query("search") search?: string,
+    @Query("assignment") assignment?: string,
     @Headers("x-admin-role") role?: string,
     @Headers("x-admin-key") apiKey?: string
   ) {
@@ -1227,21 +1465,176 @@ export class AdminController {
     if (status && (Object.values(CampaignStatus) as string[]).includes(status)) {
       where.status = status as CampaignStatus;
     }
+    if (assignment === "assigned") where.assignments = { some: {} };
+    if (assignment === "unassigned") where.assignments = { none: {} };
     if (search) {
       where.OR = [
         { name: { contains: search, mode: "insensitive" } },
         { merchantName: { contains: search, mode: "insensitive" } },
-        { externalId: { contains: search, mode: "insensitive" } }
+        { externalId: { contains: search, mode: "insensitive" } },
+        { atCategoryName: { contains: search, mode: "insensitive" } }
       ];
     }
     return this.prisma.campaign.findMany({
       where,
       orderBy: [{ status: "asc" }, { network: "asc" }, { name: "asc" }],
       include: {
-        _count: { select: { products: true, conversions: true } }
+        _count: { select: { products: true, conversions: true } },
+        assignments: {
+          include: { category: { select: { id: true, name: true, slug: true } } },
+          orderBy: { priority: "asc" }
+        }
       },
       take: 500
     });
+  }
+
+  // ───── Campaign ↔ Category assignments (N:N) ─────
+
+  @Get("campaigns/:id/assignments")
+  async listCampaignAssignments(
+    @Param("id") id: string,
+    @Headers("x-admin-role") role?: string,
+    @Headers("x-admin-key") apiKey?: string
+  ) {
+    this.authorize(role, apiKey, ["viewer", "reviewer", "admin"]);
+    const campaign = await this.prisma.campaign.findUnique({ where: { id }, select: { id: true } });
+    if (!campaign) throw new HttpException("Campaign not found", HttpStatus.NOT_FOUND);
+    return this.prisma.campaignCategory.findMany({
+      where: { campaignId: id },
+      include: { category: { select: { id: true, name: true, slug: true } } },
+      orderBy: { priority: "asc" }
+    });
+  }
+
+  @Post("campaigns/:id/assignments")
+  async createCampaignAssignment(
+    @Param("id") id: string,
+    @Body() payload: unknown,
+    @Headers("x-admin-role") role?: string,
+    @Headers("x-admin-key") apiKey?: string
+  ) {
+    this.authorize(role, apiKey, ["admin"]);
+    const parsed = createAssignmentSchema.safeParse(payload);
+    if (!parsed.success) {
+      throw new HttpException(parsed.error.flatten(), HttpStatus.BAD_REQUEST);
+    }
+    const campaign = await this.prisma.campaign.findUnique({ where: { id } });
+    if (!campaign) throw new HttpException("Campaign not found", HttpStatus.NOT_FOUND);
+
+    let categoryId = parsed.data.categoryId ?? null;
+    if (parsed.data.newCategory) {
+      const existing = await this.prisma.category.findUnique({
+        where: { slug: parsed.data.newCategory.slug }
+      });
+      if (existing) {
+        throw new HttpException(
+          `Slug "${parsed.data.newCategory.slug}" đã tồn tại — chọn slug khác hoặc assign vào category đó.`,
+          HttpStatus.CONFLICT
+        );
+      }
+      const created = await this.prisma.category.create({
+        data: {
+          name: parsed.data.newCategory.name,
+          slug: parsed.data.newCategory.slug,
+          status: CategoryStatus.ACTIVE,
+          schemaConfig: parsed.data.newCategory.schemaConfig as Prisma.InputJsonValue
+        }
+      });
+      categoryId = created.id;
+    }
+
+    if (!categoryId) {
+      throw new HttpException("Thiếu categoryId", HttpStatus.BAD_REQUEST);
+    }
+    const exists = await this.prisma.category.findUnique({ where: { id: categoryId } });
+    if (!exists) {
+      throw new HttpException("Category không tồn tại", HttpStatus.BAD_REQUEST);
+    }
+
+    const dup = await this.prisma.campaignCategory.findUnique({
+      where: { campaignId_categoryId: { campaignId: id, categoryId } }
+    });
+    if (dup) {
+      throw new HttpException(
+        "Cặp (campaign, category) đã tồn tại — sửa filterRules thay vì tạo mới.",
+        HttpStatus.CONFLICT
+      );
+    }
+
+    const assignment = await this.prisma.campaignCategory.create({
+      data: {
+        campaignId: id,
+        categoryId,
+        filterRules: parsed.data.filterRules as Prisma.InputJsonValue,
+        priority: parsed.data.priority ?? 100
+      },
+      include: { category: { select: { id: true, name: true, slug: true } } }
+    });
+
+    // Khi assign assignment đầu tiên, auto chuyển campaign sang APPROVED để crawler pick up.
+    if (campaign.status !== CampaignStatus.APPROVED) {
+      await this.prisma.campaign.update({
+        where: { id },
+        data: {
+          status: CampaignStatus.APPROVED,
+          approvedAt: campaign.approvedAt ?? new Date()
+        }
+      });
+    }
+
+    return assignment;
+  }
+
+  @Put("campaigns/:id/assignments/:assignmentId")
+  async updateCampaignAssignment(
+    @Param("id") id: string,
+    @Param("assignmentId") assignmentId: string,
+    @Body() payload: unknown,
+    @Headers("x-admin-role") role?: string,
+    @Headers("x-admin-key") apiKey?: string
+  ) {
+    this.authorize(role, apiKey, ["admin"]);
+    const parsed = updateAssignmentSchema.safeParse(payload);
+    if (!parsed.success) {
+      throw new HttpException(parsed.error.flatten(), HttpStatus.BAD_REQUEST);
+    }
+    const existing = await this.prisma.campaignCategory.findUnique({
+      where: { id: assignmentId }
+    });
+    if (!existing || existing.campaignId !== id) {
+      throw new HttpException("Assignment not found", HttpStatus.NOT_FOUND);
+    }
+    const data: Prisma.CampaignCategoryUpdateInput = {};
+    if (parsed.data.filterRules !== undefined) {
+      data.filterRules = parsed.data.filterRules as Prisma.InputJsonValue;
+    }
+    if (parsed.data.priority !== undefined) {
+      data.priority = parsed.data.priority;
+    }
+    return this.prisma.campaignCategory.update({
+      where: { id: assignmentId },
+      data,
+      include: { category: { select: { id: true, name: true, slug: true } } }
+    });
+  }
+
+  @Delete("campaigns/:id/assignments/:assignmentId")
+  async deleteCampaignAssignment(
+    @Param("id") id: string,
+    @Param("assignmentId") assignmentId: string,
+    @Headers("x-admin-role") role?: string,
+    @Headers("x-admin-key") apiKey?: string
+  ) {
+    this.authorize(role, apiKey, ["admin"]);
+    const existing = await this.prisma.campaignCategory.findUnique({
+      where: { id: assignmentId }
+    });
+    if (!existing || existing.campaignId !== id) {
+      throw new HttpException("Assignment not found", HttpStatus.NOT_FOUND);
+    }
+    await this.prisma.campaignCategory.delete({ where: { id: assignmentId } });
+    return { success: true };
   }
 
   @Get("campaigns/:id")
@@ -1360,6 +1753,134 @@ export class AdminController {
     }
     await this.prisma.campaign.delete({ where: { id } });
     return { success: true };
+  }
+
+  @Post("campaigns/bulk")
+  async bulkCampaignAction(
+    @Body() payload: unknown,
+    @Headers("x-admin-role") role?: string,
+    @Headers("x-admin-key") apiKey?: string
+  ) {
+    this.authorize(role, apiKey, ["admin"]);
+    const parsed = bulkCampaignSchema.safeParse(payload);
+    if (!parsed.success) {
+      throw new HttpException(parsed.error.flatten(), HttpStatus.BAD_REQUEST);
+    }
+    const { ids, action, categoryId } = parsed.data;
+    if (action === "assign-category") {
+      // categoryId đã được validate bởi schema refine
+      const exists = await this.prisma.category.findUnique({
+        where: { id: categoryId! },
+        select: { id: true }
+      });
+      if (!exists) {
+        throw new HttpException("Category không tồn tại", HttpStatus.BAD_REQUEST);
+      }
+      // N:N: tạo CampaignCategory cho mỗi campaign trong ids. Cặp đã tồn tại → skip.
+      // Cũng auto-approve campaign khi có assignment mới (signal cho crawler-cycle pick up).
+      let count = 0;
+      let skipped = 0;
+      for (const campaignId of ids) {
+        const dup = await this.prisma.campaignCategory.findUnique({
+          where: { campaignId_categoryId: { campaignId, categoryId: categoryId! } }
+        });
+        if (dup) {
+          skipped += 1;
+          continue;
+        }
+        await this.prisma.campaignCategory.create({
+          data: {
+            campaignId,
+            categoryId: categoryId!,
+            filterRules: DEFAULT_FILTER_RULES as unknown as Prisma.InputJsonValue,
+            priority: 100
+          }
+        });
+        const campaign = await this.prisma.campaign.findUnique({
+          where: { id: campaignId },
+          select: { status: true, approvedAt: true }
+        });
+        if (campaign && campaign.status !== CampaignStatus.APPROVED) {
+          await this.prisma.campaign.update({
+            where: { id: campaignId },
+            data: {
+              status: CampaignStatus.APPROVED,
+              approvedAt: campaign.approvedAt ?? new Date()
+            }
+          });
+        }
+        count += 1;
+      }
+      return { success: true, count, skipped };
+    }
+    // action format "status:XXX"
+    const statusValue = action.replace("status:", "") as CampaignStatus;
+    if (!(Object.values(CampaignStatus) as string[]).includes(statusValue)) {
+      throw new HttpException("Status không hợp lệ", HttpStatus.BAD_REQUEST);
+    }
+    const result = await this.prisma.campaign.updateMany({
+      where: { id: { in: ids } },
+      data: { status: statusValue }
+    });
+    return { success: true, count: result.count };
+  }
+
+  // ───── Top products ─────
+
+  @Post("top-products/sync")
+  async syncTopProducts(
+    @Headers("x-admin-role") role?: string,
+    @Headers("x-admin-key") apiKey?: string
+  ) {
+    this.authorize(role, apiKey, ["admin"]);
+    try {
+      return await this.topProducts.syncDailySnapshot();
+    } catch (error: unknown) {
+      this.logger.error(
+        "syncTopProducts failed",
+        error instanceof Error ? error.stack : String(error)
+      );
+      throw new HttpException(
+        "Sync top products failed — xem log server",
+        HttpStatus.INTERNAL_SERVER_ERROR
+      );
+    }
+  }
+
+  // ───── Reconciliation ─────
+
+  @Post("reconciliation/run")
+  async runReconciliation(
+    @Headers("x-admin-role") role?: string,
+    @Headers("x-admin-key") apiKey?: string
+  ) {
+    this.authorize(role, apiKey, ["admin"]);
+    try {
+      return await this.reconciliation.runReconcileCycle("manual");
+    } catch (error: unknown) {
+      this.logger.error(
+        "runReconciliation failed",
+        error instanceof Error ? error.stack : String(error)
+      );
+      throw new HttpException(
+        "Reconciliation failed — xem log server",
+        HttpStatus.INTERNAL_SERVER_ERROR
+      );
+    }
+  }
+
+  @Get("reconciliation/logs")
+  async listReconciliationLogs(
+    @Query("limit") limit?: string,
+    @Headers("x-admin-role") role?: string,
+    @Headers("x-admin-key") apiKey?: string
+  ) {
+    this.authorize(role, apiKey, ["viewer", "reviewer", "admin"]);
+    const take = Math.min(Math.max(Number(limit ?? 20), 1), 100);
+    return this.prisma.reconciliationLog.findMany({
+      orderBy: { startedAt: "desc" },
+      take
+    });
   }
 
   @Post("articles/:id/archive")

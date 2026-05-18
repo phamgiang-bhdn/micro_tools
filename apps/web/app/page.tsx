@@ -1,6 +1,6 @@
 import type React from "react";
 import Link from "next/link";
-import { fetchAllProductsFlat, fetchCategories } from "../lib/api";
+import { fetchAllProductsFlat, fetchCategories, fetchTopProducts } from "../lib/api";
 import { EmptyState } from "../components/ui/empty-state";
 import { Button } from "../components/ui/button";
 import { Icon } from "../components/ui/icon";
@@ -9,6 +9,7 @@ import { Stat, StatGrid } from "../components/ui/stat";
 import { FilterChip, FilterChipRow } from "../components/ui/filter-chip";
 import { ProductGrid } from "../components/storefront/product-grid";
 import { FeaturedPreview } from "../components/storefront/featured-preview";
+import { TopProductCard } from "../components/storefront/top-product-card";
 import { SortControl } from "../components/storefront/sort-control";
 import { TrustStrip } from "../components/storefront/trust-strip";
 import { formatMoney, formatNumber } from "../lib/format";
@@ -23,7 +24,10 @@ const CODE_KBD = "rounded bg-white px-1.5 py-0.5 font-mono text-[12px] text-ink 
 
 export default async function HomePage({ searchParams }: HomeProps): Promise<React.ReactElement> {
   const { category: activeSlug, sort = "top", q = "" } = await searchParams;
-  const { categories, loadError } = await fetchCategories();
+  const [{ categories, loadError }, topProducts] = await Promise.all([
+    fetchCategories(),
+    fetchTopProducts(12)
+  ]);
   const allProducts = loadError ? [] : await fetchAllProductsFlat(categories);
 
   const query = q.trim().toLowerCase();
@@ -106,6 +110,21 @@ export default async function HomePage({ searchParams }: HomeProps): Promise<Rea
       {!loadError ? (
         <PageSection padding="default" className="bg-canvas">
           <TrustStrip />
+        </PageSection>
+      ) : null}
+
+      {topProducts.length > 0 ? (
+        <PageSection padding="default" className="bg-canvas">
+          <SectionHeading
+            title="🔥 Đang hot tuần này"
+            description="Top bán chạy từ Accesstrade, cập nhật hàng ngày. Click → mở thẳng ở merchant."
+            trailing={<>{topProducts.length} sản phẩm</>}
+          />
+          <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+            {topProducts.map((p) => (
+              <TopProductCard key={p.id} product={p} />
+            ))}
+          </div>
         </PageSection>
       ) : null}
 

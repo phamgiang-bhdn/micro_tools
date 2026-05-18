@@ -48,14 +48,32 @@ const config: Config = {
         canvas: "#fbf8f5",
         card: "#ffffff",
         admin: {
-          bg: "#f6f7f9",
+          // Nền chính: warm-cool neutral pha xíu tím — không vô hồn như slate thuần.
+          bg: "#f4f5fa",
           surface: "#ffffff",
-          ink: "#0f172a",
-          mute: "#475569",
-          line: "#d8dee7",
-          subtle: "#eef2f7",
-          accent: "#1d4ed8",
-          "accent-soft": "#dbeafe"
+          "surface-2": "#fafbff",
+          ink: "#0b1220",
+          "ink-soft": "#1f2937",
+          mute: "#5a6478",
+          "mute-soft": "#7c8699",
+          line: "#dfe3ee",
+          "line-strong": "#c7cddc",
+          subtle: "#eef0f8",
+          "subtle-hover": "#e6e9f4",
+          // Accent: indigo-violet thay vì pure blue → "có chất" hơn, không khô khan.
+          accent: "#4f46e5",
+          "accent-hover": "#4338ca",
+          "accent-soft": "#e8e7ff",
+          "accent-ink": "#312e81",
+          // Semantic tones
+          success: "#16a34a",
+          "success-soft": "#dcfce7",
+          warning: "#d97706",
+          "warning-soft": "#fef3c7",
+          danger: "#dc2626",
+          "danger-soft": "#fee2e2",
+          info: "#0284c7",
+          "info-soft": "#e0f2fe"
         },
         // Tokens cũ (google-*) giữ alias để file legacy không vỡ — sẽ phai dần.
         google: {
@@ -87,7 +105,9 @@ const config: Config = {
         "hero-mesh":
           "radial-gradient(60% 60% at 15% 20%, rgba(255, 106, 91, 0.25) 0%, rgba(255, 106, 91, 0) 60%), radial-gradient(50% 50% at 90% 10%, rgba(70, 187, 140, 0.22) 0%, rgba(70, 187, 140, 0) 60%), radial-gradient(45% 45% at 80% 90%, rgba(238, 31, 18, 0.18) 0%, rgba(238, 31, 18, 0) 60%)",
         "admin-mesh":
-          "radial-gradient(60% 50% at 0% 0%, rgba(37, 99, 235, 0.08) 0%, rgba(37, 99, 235, 0) 60%), radial-gradient(40% 40% at 100% 0%, rgba(20, 184, 166, 0.06) 0%, rgba(20, 184, 166, 0) 60%)"
+          "radial-gradient(60% 50% at 0% 0%, rgba(79, 70, 229, 0.08) 0%, rgba(79, 70, 229, 0) 60%), radial-gradient(40% 40% at 100% 0%, rgba(14, 165, 233, 0.06) 0%, rgba(14, 165, 233, 0) 60%)",
+        "admin-accent-gradient":
+          "linear-gradient(135deg, #6366f1 0%, #4f46e5 60%, #4338ca 100%)"
       },
       borderRadius: {
         "2.5xl": "1.25rem",

@@ -27,23 +27,25 @@ export type AdminButtonVariant =
 export type AdminButtonSize = "xs" | "sm" | "md" | "lg";
 
 const BASE =
-  "inline-flex items-center justify-center gap-2 rounded-lg font-semibold transition active:translate-y-px disabled:pointer-events-none disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-admin-accent/40 whitespace-nowrap";
+  "inline-flex items-center justify-center gap-1.5 rounded-lg font-semibold leading-none transition-all duration-150 active:translate-y-px disabled:pointer-events-none disabled:opacity-50 focus:outline-none focus-visible:ring-4 focus-visible:ring-admin-accent/25 whitespace-nowrap";
 
 const VARIANTS: Record<AdminButtonVariant, string> = {
-  primary: "bg-admin-accent text-white shadow-sm hover:bg-admin-accent/90",
-  secondary: "bg-admin-ink text-white hover:bg-admin-ink/90",
+  primary:
+    "bg-admin-accent text-white shadow-sm shadow-admin-accent/20 hover:bg-admin-accent-hover hover:shadow-admin-accent/30",
+  secondary: "bg-admin-ink text-white hover:bg-admin-ink-soft shadow-sm",
   outline:
-    "border border-admin-line bg-admin-surface text-admin-ink hover:border-admin-accent hover:text-admin-accent",
+    "border border-admin-line bg-admin-surface text-admin-ink hover:border-admin-accent hover:bg-admin-accent-soft/40 hover:text-admin-accent",
   ghost: "text-admin-mute hover:bg-admin-subtle hover:text-admin-ink",
-  danger: "border border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100",
-  subtle: "bg-admin-subtle text-admin-ink hover:bg-admin-subtle/70"
+  danger:
+    "border border-admin-danger/30 bg-admin-danger-soft text-admin-danger hover:bg-admin-danger hover:text-white hover:border-admin-danger",
+  subtle: "bg-admin-subtle text-admin-ink hover:bg-admin-subtle-hover"
 };
 
 const SIZES: Record<AdminButtonSize, string> = {
-  xs: "h-7 rounded-md px-2 text-[11px] [&_svg]:size-3",
-  sm: "h-8 rounded-md px-3 text-xs [&_svg]:size-3.5",
-  md: "h-10 px-5 text-sm [&_svg]:size-4",
-  lg: "h-11 px-6 text-sm [&_svg]:size-4"
+  xs: "h-7 rounded-md px-2.5 text-[11.5px] [&_svg]:size-3",
+  sm: "h-8 rounded-md px-3 text-[12.5px] [&_svg]:size-3.5",
+  md: "h-10 px-4 text-[13.5px] [&_svg]:size-4",
+  lg: "h-11 px-5 text-[14px] [&_svg]:size-4"
 };
 
 interface BaseStyleProps {

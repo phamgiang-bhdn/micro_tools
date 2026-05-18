@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Business context
 
-dealvault is an affiliate micro-tool platform for the Vietnam market — revenue comes from tracked clicks that convert via affiliate networks. The strategy is "one micro-tool = one niche, deeply comparable" rather than a general catalog. v1 ships with two tools only: `robot-hut-bui-lau-nha` and `may-loc-khong-khi`.
+dealvault is an affiliate micro-tool platform for the Vietnam market — revenue comes from tracked clicks that convert via affiliate networks. The strategy is "one micro-tool = one niche, deeply comparable" rather than a general catalog. The category lineup is seeded in [`apps/api/prisma/seed.js`](apps/api/prisma/seed.js) (currently 12 niches across smart home, large appliances, consumer electronics, and skincare). **Products are not seeded** — they flow exclusively from the Accesstrade crawler after admins onboard campaigns to a niche.
 
 **Read [`docs/CONTEXT.md`](docs/CONTEXT.md) before working on:** anything user-facing on the storefront, the `/admin` panel (Refinery / Prompt Studio / Money Trail / War Room), the AI extraction pipeline, SEO surface, or anything involving the affiliate webhook contract. For infra/build/devops tasks, this file alone is enough.
 
@@ -62,7 +62,7 @@ Nothing reaches the public storefront in either pipeline until a human reviews. 
 
 - TypeScript strict; no `any`.
 - After editing `apps/api/prisma/schema.prisma`, run `npm run db:generate` before relying on the new types.
-- Seed file is `apps/api/prisma/seed.js` (JS, not TS) — currently focuses on the v1 launch lineup (`robot-hut-bui-lau-nha`, `may-loc-khong-khi`). Don't reintroduce the older 5-tool seed.
+- Seed file is `apps/api/prisma/seed.js` (JS, not TS) — Category-only (12 niches) + system `PromptTemplate` rows. Does **not** seed Product / ClickLog / ConversionWebhook; those come from crawler + real user clicks. Re-running the seed purges legacy hardcoded product IDs (`a1000001-*`, `b2000001-*`) but leaves crawler-imported products intact.
 
 ## Env files
 

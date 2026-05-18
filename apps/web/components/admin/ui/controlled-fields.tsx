@@ -326,7 +326,9 @@ export function ControlledCheckboxField<T extends FieldValues>({
           {hint ? <span className="ml-1 text-xs text-admin-mute">{hint}</span> : null}
         </span>
       </label>
-      {error ? <p className="text-[11px] font-medium text-rose-600">{error}</p> : null}
+      {error ? (
+        <p className="text-[11.5px] font-medium leading-relaxed text-admin-danger">{error}</p>
+      ) : null}
     </div>
   );
 }

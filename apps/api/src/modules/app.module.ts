@@ -7,7 +7,10 @@ import { ScraperService } from "../services/scraper.service";
 import { AdminController } from "./admin/admin.controller";
 import { ArticlesController } from "./articles/articles.controller";
 import { CategoriesController } from "./categories/categories.controller";
+import { CouponsController } from "./coupons/coupons.controller";
+import { TopProductsController } from "./top-products/top-products.controller";
 import { CrawlerModule } from "./crawler/crawler.module";
+import { ReconciliationModule } from "./reconciliation/reconciliation.module";
 import { TrackingController } from "./tracking/tracking.controller";
 import { WebhooksController } from "./webhooks/webhooks.controller";
 
@@ -16,13 +19,16 @@ import { WebhooksController } from "./webhooks/webhooks.controller";
     ConfigModule.forRoot({
       isGlobal: true
     }),
-    CrawlerModule
+    CrawlerModule,
+    ReconciliationModule
   ],
   controllers: [
     WebhooksController,
     CategoriesController,
     TrackingController,
     ArticlesController,
+    CouponsController,
+    TopProductsController,
     AdminController
   ],
   providers: [PrismaService, ScraperService, AiService, ArticleService]

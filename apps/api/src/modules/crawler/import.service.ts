@@ -41,7 +41,7 @@ export class ImportService {
       }
 
       const network = networkFromSource(offer.source);
-      const campaignId = await this.resolveCampaignId(network, offer);
+      const campaignId = offer.campaignDbId ?? (await this.resolveCampaignId(network, offer));
 
       const existing = await this.prisma.product.findFirst({
         where: { affiliateUrl: offer.affiliateUrl }
@@ -106,10 +106,9 @@ export class ImportService {
   }
 
   /**
-   * Upsert Campaign theo (network, externalId).
-   * externalId = slugify(offer.campaign) — Accesstrade không trả id riêng cho campaign,
-   * nên dùng tên slug-ified làm khoá ổn định. Campaign mới mặc định status=APPLIED;
-   * admin sẽ chuyển trạng thái tay khi sync với dashboard publisher.
+   * @deprecated Chỉ dùng cho path không có `offer.campaignDbId` (vd web-scrape paste URL tay).
+   * Crawler-cycle per-campaign (sau STORY-03) đã pre-resolve Campaign.id vào offer.campaignDbId.
+   * STORY-08 sẽ cân nhắc xoá khi mọi path đã đi qua AT campaign sync.
    */
   private async resolveCampaignId(
     network: AffiliateNetwork,

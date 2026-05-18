@@ -31,6 +31,7 @@ interface AdminPageProps {
     from?: string;
     to?: string;
     network?: string;
+    mismatchOnly?: string;
   }>;
 }
 
@@ -65,7 +66,15 @@ interface MoneyTrailRow {
   userAgent: string | null;
   createdAt: string;
   product: { name: string; network: string };
-  conversionHooks: Array<{ revenue: string; status: string }>;
+  conversionHooks: Array<{
+    revenue: string;
+    status: string;
+    source?: string | null;
+    atOrderId?: string | null;
+    atCommission?: string | null;
+    reconcileNotes?: string | null;
+    lastReconciledAt?: string | null;
+  }>;
 }
 
 interface ActivePromptResponse {
@@ -75,13 +84,14 @@ interface ActivePromptResponse {
 }
 
 export default async function AdminPage({ searchParams }: AdminPageProps): Promise<React.ReactElement> {
-  const { tab = "war-room", trackingCode, from, to, network } = await searchParams;
+  const { tab = "war-room", trackingCode, from, to, network, mismatchOnly } = await searchParams;
 
   const moneyTrailQs = new URLSearchParams({ limit: "200" });
   if (trackingCode) moneyTrailQs.set("trackingCode", trackingCode);
   if (from) moneyTrailQs.set("from", from);
   if (to) moneyTrailQs.set("to", to);
   if (network) moneyTrailQs.set("network", network);
+  if (mismatchOnly === "true") moneyTrailQs.set("mismatchOnly", "true");
 
   const summaryQs = new URLSearchParams();
   if (from) summaryQs.set("from", from);
@@ -145,7 +155,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps): Promi
         <MoneyTrailSection
           rows={moneyTrail}
           summary={summary}
-          filters={{ trackingCode, from, to, network }}
+          filters={{ trackingCode, from, to, network, mismatchOnly }}
         />
       ) : null}
     </div>
@@ -159,7 +169,13 @@ function MoneyTrailSection({
 }: {
   rows: MoneyTrailRow[];
   summary: MoneyTrailSummary;
-  filters: { trackingCode?: string; from?: string; to?: string; network?: string };
+  filters: {
+    trackingCode?: string;
+    from?: string;
+    to?: string;
+    network?: string;
+    mismatchOnly?: string;
+  };
 }): React.ReactElement {
   const exportQs = new URLSearchParams({ format: "csv" });
   if (filters.trackingCode) exportQs.set("trackingCode", filters.trackingCode);
@@ -232,6 +248,12 @@ function MoneyTrailSection({
           name={ADMIN_PARAMS.network}
           defaultValue={filters.network ?? ""}
           options={NETWORK_OPTIONS}
+        />
+        <NativeFilterSelect
+          label="Reconcile"
+          name="mismatchOnly"
+          defaultValue={filters.mismatchOnly ?? ""}
+          options={[{ value: "true", label: "Chỉ rows lệch" }]}
         />
       </FilterBar>
 
