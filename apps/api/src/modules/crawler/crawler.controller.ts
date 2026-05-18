@@ -1,4 +1,4 @@
-import { Body, Controller, Headers, HttpException, HttpStatus, Param, Post } from "@nestjs/common";
+import { Body, Controller, Get, Headers, HttpException, HttpStatus, Param, Post } from "@nestjs/common";
 import { z } from "zod";
 import { CrawlerService } from "./crawler.service";
 import { WebScrapeClient } from "./clients/web-scrape.client";
@@ -32,6 +32,13 @@ export class CrawlerController {
   async runNow(@Headers("x-admin-key") apiKey?: string) {
     authorize(apiKey);
     return this.crawler.runFullCycle("manual");
+  }
+
+  /** Poll progress cycle đang/vừa chạy. Trả in-memory snapshot. */
+  @Get("progress")
+  async getProgress(@Headers("x-admin-key") apiKey?: string) {
+    authorize(apiKey);
+    return this.crawler.getProgress();
   }
 
   /**

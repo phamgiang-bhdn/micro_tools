@@ -143,9 +143,62 @@ export async function archiveArticleAction(formData: FormData): Promise<void> {
 
 // ───────── Crawler ─────────
 
-export async function runCrawlerNowAction(): Promise<void> {
-  await post("/admin/crawler/run", {});
+export interface CrawlerAssignmentBreakdown {
+  assignmentId: string;
+  campaignId: string;
+  campaignName: string;
+  merchantSlug: string;
+  categorySlug: string;
+  fetched: number;
+  routed: number;
+  failedFilter: number;
+}
+
+export interface CrawlerCycleResult {
+  fetched: number;
+  passedFilter: number;
+  created: number;
+  updated: number;
+  skipped: number;
+  assignments: CrawlerAssignmentBreakdown[];
+}
+
+export async function runCrawlerNowAction(): Promise<CrawlerCycleResult> {
+  const result = await adminFetch<CrawlerCycleResult>("/admin/crawler/run", "POST", {});
   revalidatePath("/admin");
+  revalidatePath("/admin/crawler-logs");
+  revalidatePath("/admin/products");
+  return result;
+}
+
+/** Void wrapper cho `<form action>` ở dashboard — bỏ qua result, chỉ trigger + revalidate. */
+export async function runCrawlerNowFormAction(): Promise<void> {
+  await runCrawlerNowAction();
+}
+
+export interface CrawlerProgress {
+  isRunning: boolean;
+  total: number;
+  done: number;
+  currentLabel: string | null;
+  startedAt: number | null;
+  finishedAt: number | null;
+  lastError: string | null;
+}
+
+export async function getCrawlerProgressAction(): Promise<CrawlerProgress> {
+  const response = await fetch(`${API_BASE_URL}/admin/crawler/progress`, {
+    method: "GET",
+    headers: {
+      "x-admin-role": ADMIN_ROLE,
+      "x-admin-key": ADMIN_API_KEY
+    },
+    cache: "no-store"
+  });
+  if (!response.ok) {
+    throw new Error(`progress poll failed: ${response.status}`);
+  }
+  return (await response.json()) as CrawlerProgress;
 }
 
 export async function ingestUrlAction(formData: FormData): Promise<void> {

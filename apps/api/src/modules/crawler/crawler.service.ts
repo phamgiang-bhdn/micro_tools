@@ -1,7 +1,7 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { Prisma } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
-import { AccesstradeClient } from "./clients/accesstrade.client";
+import { AccesstradeClient, FetchProductsOpts } from "./clients/accesstrade.client";
 import { LazadaAffiliateClient } from "./clients/lazada.client";
 import { ShopeeAffiliateClient } from "./clients/shopee.client";
 import { TiktokAffiliateClient } from "./clients/tiktok.client";
@@ -10,9 +10,21 @@ import { NormalizedOffer } from "./dto/normalized-offer.dto";
 import { EnrichmentService } from "./enrichment.service";
 import { ImportResult, ImportService } from "./import.service";
 
+export interface AssignmentBreakdown {
+  assignmentId: string;
+  campaignId: string;
+  campaignName: string;
+  merchantSlug: string;
+  categorySlug: string;
+  fetched: number;
+  routed: number;
+  failedFilter: number;
+}
+
 export interface CycleResult extends ImportResult {
   fetched: number;
   passedFilter: number;
+  assignments: AssignmentBreakdown[];
 }
 
 interface AssignmentTask {
@@ -20,32 +32,62 @@ interface AssignmentTask {
   priority: number;
   filterRules: Prisma.JsonValue;
   category: { id: string; slug: string };
+  campaign: {
+    id: string;
+    name: string;
+    merchantSlug: string;
+  };
 }
 
-interface CampaignTask {
-  id: string;
-  atCampaignId: string;
-  name: string;
-  merchantName: string | null;
-  assignments: AssignmentTask[];
-}
-
-const PER_CAMPAIGN_LIMIT = 100;
+const PER_ASSIGNMENT_LIMIT = 100;
+const SLEEP_BETWEEN_FETCH_MS = 500;
 
 /**
- * Orchestrator (per-campaign mode, sau campaign↔category N:N refactor):
- * - Lấy danh sách Campaign approved + có ≥1 assignment, gọi `/v1/datafeeds?campaign=<atCampaignId>` 1 lần / campaign.
- * - Mỗi campaign có nhiều CampaignCategory (sort priority asc). Mỗi offer được route bằng first-match-wins:
- *   loop qua assignments → đầu tiên pass filterRules → Product gắn vào Category của assignment đó.
- *   Offer không match assignment nào → skip.
+ * Orchestrator (per-assignment fetch — push filterRules xuống AT để pre-filter server-side):
+ *
+ * 1. Lấy tất cả `CampaignCategory` (assignment) của Campaign APPROVED + có atCampaignId + merchantName.
+ * 2. Mỗi assignment = 1 fetch `/v1/datafeeds?campaign=<merchantSlug>` + push filterRules đã convert
+ *    sang AT param (`discount_rate_from/to`, `price_from/to`, `discount_from/to`, `discount_amount_from/to`,
+ *    `status_discount`, `update_from`, `domain` nếu rule chỉ có 1 domain).
+ * 3. Mỗi offer fetched → route thẳng vào `assignment.category.slug` (KHÔNG cần name match, KHÔNG cần
+ *    first-match-wins — vì AT đã filter đúng cho assignment này).
+ * 4. Sleep `SLEEP_BETWEEN_FETCH_MS` giữa các fetch để né rate-limit.
+ * 5. Trả về `CycleResult.assignments[]` để UI hiển thị breakdown chi tiết per-assignment.
+ *
+ * Limit `PER_ASSIGNMENT_LIMIT = 100` (1 page, không paginate). Đủ cho test + early adopter; scale lên sau.
  *
  * Multi-network skeleton (shopee/tiktok/lazada) vẫn được inject — sprint hiện chỉ Accesstrade active.
  * `category-inference.util.ts` (@deprecated): crawler-cycle KHÔNG infer category từ free-text nữa.
  */
+export interface CrawlerProgress {
+  isRunning: boolean;
+  total: number;
+  done: number;
+  currentLabel: string | null;
+  startedAt: number | null;
+  finishedAt: number | null;
+  lastError: string | null;
+}
+
 @Injectable()
 export class CrawlerService {
   private readonly logger = new Logger(CrawlerService.name);
   private readonly accesstradeEnabled: boolean;
+  // In-memory progress state (singleton service). Đủ tốt cho single-instance dev/prod.
+  // Khi scale multi-instance → cần Redis/DB-backed.
+  private progress: CrawlerProgress = {
+    isRunning: false,
+    total: 0,
+    done: 0,
+    currentLabel: null,
+    startedAt: null,
+    finishedAt: null,
+    lastError: null
+  };
+
+  getProgress(): CrawlerProgress {
+    return { ...this.progress };
+  }
 
   constructor(
     private readonly accesstrade: AccesstradeClient,
@@ -67,30 +109,56 @@ export class CrawlerService {
   }
 
   async runFullCycle(triggeredBy = "cron"): Promise<CycleResult> {
-    this.logger.log("Crawler cycle started (per-campaign N:N mode)");
+    this.logger.log("Crawler cycle started (per-assignment mode)");
     const log = await this.prisma.crawlerLog.create({ data: { triggeredBy } });
     const start = Date.now();
+    this.progress = {
+      isRunning: true,
+      total: 0,
+      done: 0,
+      currentLabel: "Đang tải danh sách assignment…",
+      startedAt: start,
+      finishedAt: null,
+      lastError: null
+    };
 
     try {
-      const campaigns = this.accesstradeEnabled ? await this.loadCampaigns() : [];
-      if (campaigns.length === 0) {
+      const assignments = this.accesstradeEnabled ? await this.loadAssignments() : [];
+      this.progress.total = assignments.length;
+      if (assignments.length === 0) {
+        this.progress.currentLabel = "Không có assignment nào eligible";
         this.logger.warn(
-          "No eligible campaigns (need status=APPROVED + atCampaignId + ≥1 assignment). Cycle is a no-op."
+          "No eligible assignments (need Campaign APPROVED + atCampaignId + merchantName + ≥1 CampaignCategory). Cycle is a no-op."
         );
       }
 
-      const perCampaign = await Promise.all(campaigns.map((c) => this.runForCampaign(c)));
-      const totalFetched = perCampaign.reduce((sum, r) => sum + r.fetched, 0);
-      const allOffers = perCampaign.flatMap((r) => r.offers);
+      const breakdowns: AssignmentBreakdown[] = [];
+      const allOffers: NormalizedOffer[] = [];
 
+      for (let i = 0; i < assignments.length; i++) {
+        const a = assignments[i];
+        this.progress.currentLabel = `${a.campaign.merchantSlug} / ${a.category.slug}`;
+        const result = await this.runForAssignment(a);
+        breakdowns.push(result.breakdown);
+        allOffers.push(...result.offers);
+        this.progress.done = i + 1;
+        if (i < assignments.length - 1) {
+          await new Promise((r) => setTimeout(r, SLEEP_BETWEEN_FETCH_MS));
+        }
+      }
+
+      const totalFetched = breakdowns.reduce((s, b) => s + b.fetched, 0);
+
+      this.progress.currentLabel = `Đang AI enrich ${allOffers.length} offer…`;
       const enriched: NormalizedOffer[] = [];
       for (const offer of allOffers) {
         enriched.push(await this.enrichment.enrich(offer));
       }
 
-      const result = await this.importer.upsertOffers(enriched);
+      this.progress.currentLabel = `Đang upsert ${enriched.length} offer vào DB…`;
+      const importResult = await this.importer.upsertOffers(enriched);
       this.logger.log(
-        `Import: +${result.created} created, ~${result.updated} updated, /${result.skipped} skipped`
+        `Import: +${importResult.created} created, ~${importResult.updated} updated, /${importResult.skipped} skipped`
       );
 
       await this.prisma.crawlerLog.update({
@@ -99,17 +167,30 @@ export class CrawlerService {
           finishedAt: new Date(),
           fetched: totalFetched,
           passedFilter: allOffers.length,
-          created: result.created,
-          updated: result.updated,
-          skipped: result.skipped,
+          created: importResult.created,
+          updated: importResult.updated,
+          skipped: importResult.skipped,
           success: true,
           durationMs: Date.now() - start
         }
       });
 
-      return { fetched: totalFetched, passedFilter: allOffers.length, ...result };
+      this.progress.isRunning = false;
+      this.progress.finishedAt = Date.now();
+      this.progress.currentLabel = `Xong. +${importResult.created} mới, ~${importResult.updated} update`;
+
+      return {
+        fetched: totalFetched,
+        passedFilter: allOffers.length,
+        assignments: breakdowns,
+        ...importResult
+      };
     } catch (error: unknown) {
       const reason = error instanceof Error ? error.message : String(error);
+      this.progress.isRunning = false;
+      this.progress.finishedAt = Date.now();
+      this.progress.lastError = reason.slice(0, 500);
+      this.progress.currentLabel = `Lỗi: ${reason.slice(0, 200)}`;
       await this.prisma.crawlerLog.update({
         where: { id: log.id },
         data: {
@@ -123,85 +204,98 @@ export class CrawlerService {
     }
   }
 
-  private async loadCampaigns(): Promise<CampaignTask[]> {
-    const rows = await this.prisma.campaign.findMany({
+  private async loadAssignments(): Promise<AssignmentTask[]> {
+    const rows = await this.prisma.campaignCategory.findMany({
       where: {
-        status: "APPROVED",
-        atCampaignId: { not: null },
-        assignments: { some: {} }
+        campaign: {
+          status: "APPROVED",
+          atCampaignId: { not: null },
+          merchantName: { not: null }
+        }
       },
       select: {
         id: true,
-        atCampaignId: true,
-        merchantName: true,
-        name: true,
-        assignments: {
-          select: {
-            id: true,
-            priority: true,
-            filterRules: true,
-            category: { select: { id: true, slug: true } }
-          },
-          orderBy: { priority: "asc" }
-        }
-      }
+        priority: true,
+        filterRules: true,
+        category: { select: { id: true, slug: true } },
+        campaign: { select: { id: true, name: true, merchantName: true } }
+      },
+      orderBy: [{ campaignId: "asc" }, { priority: "asc" }]
     });
+
     return rows
-      .filter((r): r is typeof r & { atCampaignId: string } => Boolean(r.atCampaignId))
+      .filter((r): r is typeof r & { campaign: typeof r.campaign & { merchantName: string } } =>
+        Boolean(r.campaign.merchantName)
+      )
       .map((r) => ({
         id: r.id,
-        atCampaignId: r.atCampaignId,
-        name: r.name,
-        merchantName: r.merchantName,
-        assignments: r.assignments.map((a) => ({
-          id: a.id,
-          priority: a.priority,
-          filterRules: a.filterRules,
-          category: a.category
-        }))
+        priority: r.priority,
+        filterRules: r.filterRules,
+        category: r.category,
+        campaign: {
+          id: r.campaign.id,
+          name: r.campaign.name,
+          merchantSlug: r.campaign.merchantName.trim().toLowerCase()
+        }
       }));
   }
 
-  private async runForCampaign(
-    campaign: CampaignTask
-  ): Promise<{ fetched: number; offers: NormalizedOffer[] }> {
+  private async runForAssignment(
+    a: AssignmentTask
+  ): Promise<{ breakdown: AssignmentBreakdown; offers: NormalizedOffer[] }> {
+    const rules = this.parseFilterRules(a.filterRules, a.campaign.name, a.id);
+    const fetchOpts: FetchProductsOpts = {
+      campaign: a.campaign.merchantSlug,
+      limit: PER_ASSIGNMENT_LIMIT,
+      page: 1,
+      ...rulesToFetchOpts(rules)
+    };
+
+    let batch: NormalizedOffer[] = [];
     try {
-      // Fetch 1 lần / campaign với param ÍT NHẤT có thể (chỉ campaign, không truyền filter
-      // discount/price ở server side nữa vì mỗi assignment có rule khác nhau — filter client-side).
-      const offers = await this.accesstrade.fetchProducts({
-        campaign: campaign.atCampaignId,
-        limit: PER_CAMPAIGN_LIMIT
-      });
-
-      // Parse rules cho mỗi assignment 1 lần.
-      const parsedAssignments = campaign.assignments.map((a) => ({
-        ...a,
-        rules: this.parseFilterRules(a.filterRules, campaign.name, a.id)
-      }));
-
-      // First-match-wins routing.
-      const routed: NormalizedOffer[] = [];
-      for (const offer of offers) {
-        const matched = parsedAssignments.find((a) => offerPassesFilter(offer, a.rules));
-        if (!matched) continue;
-        routed.push({
-          ...offer,
-          categorySlug: matched.category.slug,
-          campaignDbId: campaign.id
-        });
-      }
-
-      this.logger.log(
-        `Campaign ${campaign.name} (${campaign.atCampaignId}): fetched ${offers.length}, routed ${routed.length} across ${campaign.assignments.length} assignment(s)`
-      );
-      return { fetched: offers.length, offers: routed };
+      batch = await this.accesstrade.fetchProducts(fetchOpts);
     } catch (error: unknown) {
       this.logger.error(
-        `Campaign ${campaign.atCampaignId} failed`,
+        `Assignment ${a.id} (${a.campaign.name} → ${a.category.slug}) fetch failed`,
         error instanceof Error ? error.stack : String(error)
       );
-      return { fetched: 0, offers: [] };
     }
+
+    let failedFilter = 0;
+    const routed: NormalizedOffer[] = [];
+    for (const offer of batch) {
+      if (!offerPassesFilter(offer, rules)) {
+        failedFilter += 1;
+        continue;
+      }
+      routed.push({
+        ...offer,
+        categorySlug: a.category.slug,
+        campaignDbId: a.campaign.id
+      });
+    }
+
+    const breakdown: AssignmentBreakdown = {
+      assignmentId: a.id,
+      campaignId: a.campaign.id,
+      campaignName: a.campaign.name,
+      merchantSlug: a.campaign.merchantSlug,
+      categorySlug: a.category.slug,
+      fetched: batch.length,
+      routed: routed.length,
+      failedFilter
+    };
+
+    this.logger.log(
+      `Assignment ${a.campaign.merchantSlug}/${a.category.slug}: fetched ${batch.length}, routed ${routed.length}, ${failedFilter} failed-client-filter`
+    );
+    if (batch.length === 0) {
+      this.logger.warn(
+        `Assignment ${a.campaign.merchantSlug}/${a.category.slug}: AT trả 0 offer với filter ${JSON.stringify(fetchOpts)}. Có thể filterRules quá khắt hoặc merchantName sai slug.`
+      );
+    }
+
+    return { breakdown, offers: routed };
   }
 
   private parseFilterRules(
@@ -224,13 +318,59 @@ export class CrawlerService {
 }
 
 /**
- * Pure helper: kiểm tra 1 offer có pass filterRules không.
- * Logic:
- *  - discount: nếu offer có discountPercent → kiểm tra min/max. Nếu offer không có discountPercent
- *    nhưng rule có minDiscountPercent > 0 → fail.
- *  - price: kiểm tra min/max.
- *  - domains: nếu rule.domains có entries → affiliate URL hostname phải chứa ≥ 1 trong domain whitelist.
- *  - status_discount: chỉ filter ở fetch param (đã không truyền vì shared offer set), bỏ qua ở client side.
+ * Convert FilterRules → AT FetchProductsOpts. Bỏ qua field không có dữ liệu.
+ * Quy ước:
+ * - `domains` chỉ push `domain` xuống AT nếu rule có **đúng 1** domain (AT chỉ nhận 1/request).
+ *   Nhiều domain → giữ filter client-side qua `offerPassesFilter`.
+ * - `minDiscountPercent > 0` tự động kéo theo `status_discount = 1` (tránh AT trả offer không có discount).
+ * - `updateLookbackDays` convert sang `update_from = DD-MM-YYYY` (format AT, gotcha #9).
+ */
+export function rulesToFetchOpts(rules: FilterRules): Partial<FetchProductsOpts> {
+  const out: Partial<FetchProductsOpts> = {};
+
+  if (typeof rules.minDiscountPercent === "number" && rules.minDiscountPercent > 0) {
+    out.discountRateFrom = rules.minDiscountPercent;
+    out.statusDiscount = 1;
+  }
+  if (typeof rules.maxDiscountPercent === "number") {
+    out.discountRateTo = rules.maxDiscountPercent;
+  }
+  if (typeof rules.priceMin === "number") out.priceFrom = rules.priceMin;
+  if (typeof rules.priceMax === "number") out.priceTo = rules.priceMax;
+  if (typeof rules.salePriceMin === "number") out.salePriceFrom = rules.salePriceMin;
+  if (typeof rules.salePriceMax === "number") out.salePriceTo = rules.salePriceMax;
+  if (typeof rules.discountAmountMin === "number") out.discountAmountFrom = rules.discountAmountMin;
+  if (typeof rules.discountAmountMax === "number") out.discountAmountTo = rules.discountAmountMax;
+
+  // Explicit status_discount override (vd rule muốn `status_discount=0` để pull non-discount).
+  if (rules.status_discount === 0 || rules.status_discount === 1) {
+    out.statusDiscount = rules.status_discount;
+  }
+
+  if (rules.domains && rules.domains.length === 1) {
+    out.domain = rules.domains[0];
+  }
+
+  if (typeof rules.updateLookbackDays === "number" && rules.updateLookbackDays > 0) {
+    const from = new Date();
+    from.setDate(from.getDate() - rules.updateLookbackDays);
+    out.updateFrom = toAtDayFormat(from);
+  }
+
+  return out;
+}
+
+function toAtDayFormat(d: Date): string {
+  const day = String(d.getDate()).padStart(2, "0");
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const year = d.getFullYear();
+  return `${day}-${month}-${year}`;
+}
+
+/**
+ * Pure helper: kiểm tra 1 offer có pass filterRules không (chạy client-side sau khi AT đã filter
+ * server-side). Hầu hết rule giờ đã push xuống AT, hàm này là an toàn 2 lớp + filter những cái AT
+ * không support (vd `domains` whitelist > 1 entry).
  */
 export function offerPassesFilter(offer: NormalizedOffer, rules: FilterRules): boolean {
   if (rules.domains && rules.domains.length > 0) {

@@ -3,7 +3,8 @@
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Plus, ExternalLink, Eye, EyeOff } from "lucide-react";
+import { Plus, ExternalLink, Eye, EyeOff, ImageOff } from "lucide-react";
+import { formatMoney } from "../../../lib/format";
 import {
   AdminButton,
   DataTable,
@@ -92,6 +93,55 @@ const dateFmt = new Intl.DateTimeFormat("vi-VN", {
   hour: "2-digit",
   minute: "2-digit"
 });
+
+const relFmt = new Intl.RelativeTimeFormat("vi-VN", { numeric: "auto" });
+function relativeTime(iso: string): string {
+  const diffMs = Date.now() - new Date(iso).getTime();
+  const diffMin = Math.round(diffMs / 60000);
+  if (diffMin < 1) return "vừa xong";
+  if (diffMin < 60) return relFmt.format(-diffMin, "minute");
+  const diffHr = Math.round(diffMin / 60);
+  if (diffHr < 24) return relFmt.format(-diffHr, "hour");
+  const diffDay = Math.round(diffHr / 24);
+  if (diffDay < 30) return relFmt.format(-diffDay, "day");
+  const diffMon = Math.round(diffDay / 30);
+  return relFmt.format(-diffMon, "month");
+}
+
+interface ScrapedView {
+  image?: string;
+  price?: number;
+  originalPrice?: number;
+  discountPercent?: number;
+  store?: string;
+  brand?: string;
+}
+
+function readScraped(raw: Record<string, unknown> | null | undefined): ScrapedView {
+  if (!raw) return {};
+  const pickString = (keys: string[]): string | undefined => {
+    for (const k of keys) {
+      const v = raw[k];
+      if (typeof v === "string" && v.trim()) return v.trim();
+    }
+    return undefined;
+  };
+  const pickNumber = (keys: string[]): number | undefined => {
+    for (const k of keys) {
+      const v = raw[k];
+      if (typeof v === "number" && Number.isFinite(v)) return v;
+    }
+    return undefined;
+  };
+  return {
+    image: pickString(["image", "imageUrl", "thumbnail", "photo"]),
+    price: pickNumber(["price", "salePrice", "currentPrice"]),
+    originalPrice: pickNumber(["originalPrice", "listPrice", "msrp"]),
+    discountPercent: pickNumber(["discountPercent", "discount_rate", "discount"]),
+    store: pickString(["store", "merchant", "shop"]),
+    brand: pickString(["brand", "manufacturer"])
+  };
+}
 
 export function ProductsTable({
   rows,
@@ -189,32 +239,109 @@ export function ProductsTable({
       cell: sel.cell
     },
     {
+      key: "image",
+      header: <span className="sr-only">Ảnh</span>,
+      width: "56px",
+      cell: (p) => {
+        const s = readScraped(p.scrapedData);
+        return s.image ? (
+          <img
+            src={s.image}
+            alt=""
+            loading="lazy"
+            className="size-10 rounded-md border border-admin-line object-cover"
+            onError={(e) => {
+              (e.currentTarget as HTMLImageElement).style.display = "none";
+            }}
+          />
+        ) : (
+          <div className="flex size-10 items-center justify-center rounded-md border border-dashed border-admin-line bg-admin-subtle/30 text-admin-mute">
+            <ImageOff className="size-3.5" />
+          </div>
+        );
+      }
+    },
+    {
       key: "name",
-      header: "Tên",
-      cell: (p) => (
-        <div className="min-w-0">
-          <button
-            type="button"
-            onClick={() => setEditing(p)}
-            className="line-clamp-1 text-left font-medium text-admin-ink transition hover:text-admin-accent"
-          >
-            {p.name}
-          </button>
-          {p.slug ? (
-            <div className="mt-0.5 line-clamp-1 font-mono text-[11px] text-admin-mute">{p.slug}</div>
-          ) : null}
-        </div>
-      )
+      header: "Sản phẩm",
+      width: "360px",
+      cell: (p) => {
+        const s = readScraped(p.scrapedData);
+        return (
+          <div className="w-[340px] max-w-full">
+            <button
+              type="button"
+              onClick={() => setEditing(p)}
+              className="block w-full truncate text-left text-[13px] font-medium text-admin-ink transition hover:text-admin-accent"
+              title={p.name}
+            >
+              {p.name}
+            </button>
+            <div className="mt-0.5 flex items-center gap-2 truncate text-[11px] text-admin-mute">
+              {s.brand ? (
+                <span className="truncate font-medium text-admin-ink/80">{s.brand}</span>
+              ) : null}
+              {s.store ? <span className="truncate">· {s.store}</span> : null}
+              {p.slug ? (
+                <span className="truncate font-mono text-[10px]">/{p.slug}</span>
+              ) : null}
+            </div>
+          </div>
+        );
+      }
+    },
+    {
+      key: "price",
+      header: "Giá",
+      align: "right",
+      hideOnMobile: true,
+      cell: (p) => {
+        const s = readScraped(p.scrapedData);
+        if (s.price === undefined) return <span className="text-admin-mute">—</span>;
+        return (
+          <div className="text-right leading-tight">
+            <div className="text-[13px] font-semibold text-admin-ink">
+              {formatMoney(s.price, "VND")}
+            </div>
+            {s.originalPrice && s.originalPrice > s.price ? (
+              <div className="text-[11px] text-admin-mute line-through">
+                {formatMoney(s.originalPrice, "VND")}
+              </div>
+            ) : null}
+          </div>
+        );
+      }
+    },
+    {
+      key: "discount",
+      header: "Discount",
+      align: "right",
+      hideOnMobile: true,
+      cell: (p) => {
+        const s = readScraped(p.scrapedData);
+        if (!s.discountPercent || s.discountPercent <= 0) {
+          return <span className="text-admin-mute">—</span>;
+        }
+        const tone =
+          s.discountPercent >= 50 ? "text-rose-600" : s.discountPercent >= 20 ? "text-emerald-600" : "text-admin-ink";
+        return <span className={`font-mono text-[13px] font-semibold ${tone}`}>-{s.discountPercent}%</span>;
+      }
     },
     {
       key: "category",
       header: "Danh mục",
       hideOnMobile: true,
-      cell: (p) => <span className="text-admin-mute">{p.category.name}</span>
+      cell: (p) => (
+        <div className="leading-tight">
+          <div className="text-[12.5px] text-admin-ink">{p.category.name}</div>
+          <div className="font-mono text-[10.5px] text-admin-mute">{p.category.slug}</div>
+        </div>
+      )
     },
     {
       key: "network",
       header: "Network",
+      hideOnMobile: true,
       cell: (p) => <NetworkBadge network={p.network} />
     },
     {
@@ -230,6 +357,17 @@ export function ProductsTable({
             Ẩn
           </StatusPill>
         )
+    },
+    {
+      key: "updated",
+      header: "Cập nhật",
+      align: "right",
+      hideOnMobile: true,
+      cell: (p) => (
+        <span className="font-mono text-[11.5px] text-admin-mute" title={dateFmt.format(new Date(p.updatedAt))}>
+          {relativeTime(p.updatedAt)}
+        </span>
+      )
     },
     {
       key: "actions",

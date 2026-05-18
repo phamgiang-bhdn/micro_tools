@@ -67,6 +67,11 @@ export const addAssignmentFormSchema = z
     maxDiscountPercent: z.number().int().min(0).max(100).nullable().optional(),
     priceMin: z.number().min(0).nullable().optional(),
     priceMax: z.number().min(0).nullable().optional(),
+    salePriceMin: z.number().min(0).nullable().optional(),
+    salePriceMax: z.number().min(0).nullable().optional(),
+    discountAmountMin: z.number().min(0).nullable().optional(),
+    discountAmountMax: z.number().min(0).nullable().optional(),
+    updateLookbackDays: z.number().int().min(1).max(365).nullable().optional(),
     statusDiscount: z.enum(["", "0", "1"]).optional(),
     domainsCsv: z.string().optional()
   })
@@ -126,6 +131,11 @@ export const editAssignmentFormSchema = z.object({
   maxDiscountPercent: z.number().int().min(0).max(100).nullable().optional(),
   priceMin: z.number().min(0).nullable().optional(),
   priceMax: z.number().min(0).nullable().optional(),
+  salePriceMin: z.number().min(0).nullable().optional(),
+  salePriceMax: z.number().min(0).nullable().optional(),
+  discountAmountMin: z.number().min(0).nullable().optional(),
+  discountAmountMax: z.number().min(0).nullable().optional(),
+  updateLookbackDays: z.number().int().min(1).max(365).nullable().optional(),
   statusDiscount: z.enum(["", "0", "1"]).optional(),
   domainsCsv: z.string().optional()
 });
@@ -143,6 +153,11 @@ function rulesToFormValues(rules: FilterRulesShape): {
   maxDiscountPercent: number | null;
   priceMin: number | null;
   priceMax: number | null;
+  salePriceMin: number | null;
+  salePriceMax: number | null;
+  discountAmountMin: number | null;
+  discountAmountMax: number | null;
+  updateLookbackDays: number | null;
   statusDiscount: "" | "0" | "1";
   domainsCsv: string;
 } {
@@ -152,6 +167,11 @@ function rulesToFormValues(rules: FilterRulesShape): {
     maxDiscountPercent: rules.maxDiscountPercent ?? null,
     priceMin: rules.priceMin ?? null,
     priceMax: rules.priceMax ?? null,
+    salePriceMin: rules.salePriceMin ?? null,
+    salePriceMax: rules.salePriceMax ?? null,
+    discountAmountMin: rules.discountAmountMin ?? null,
+    discountAmountMax: rules.discountAmountMax ?? null,
+    updateLookbackDays: rules.updateLookbackDays ?? null,
     statusDiscount: sd,
     domainsCsv: rules.domains?.join(", ") ?? ""
   };
@@ -162,6 +182,11 @@ function formValuesToFilterRules(values: {
   maxDiscountPercent?: number | null;
   priceMin?: number | null;
   priceMax?: number | null;
+  salePriceMin?: number | null;
+  salePriceMax?: number | null;
+  discountAmountMin?: number | null;
+  discountAmountMax?: number | null;
+  updateLookbackDays?: number | null;
   statusDiscount?: "" | "0" | "1";
   domainsCsv?: string;
 }): Record<string, unknown> {
@@ -174,6 +199,11 @@ function formValuesToFilterRules(values: {
   }
   if (typeof values.priceMin === "number") filterRules.priceMin = values.priceMin;
   if (typeof values.priceMax === "number") filterRules.priceMax = values.priceMax;
+  if (typeof values.salePriceMin === "number") filterRules.salePriceMin = values.salePriceMin;
+  if (typeof values.salePriceMax === "number") filterRules.salePriceMax = values.salePriceMax;
+  if (typeof values.discountAmountMin === "number") filterRules.discountAmountMin = values.discountAmountMin;
+  if (typeof values.discountAmountMax === "number") filterRules.discountAmountMax = values.discountAmountMax;
+  if (typeof values.updateLookbackDays === "number") filterRules.updateLookbackDays = values.updateLookbackDays;
   if (values.statusDiscount === "0") filterRules.status_discount = 0;
   if (values.statusDiscount === "1") filterRules.status_discount = 1;
   const domains = (values.domainsCsv ?? "")
@@ -383,6 +413,11 @@ function AddAssignmentForm({
       maxDiscountPercent: null,
       priceMin: null,
       priceMax: null,
+      salePriceMin: null,
+      salePriceMax: null,
+      discountAmountMin: null,
+      discountAmountMax: null,
+      updateLookbackDays: null,
       statusDiscount: "",
       domainsCsv: ""
     }),
@@ -464,13 +499,42 @@ function AddAssignmentForm({
             />
             <ControlledNumberField<AddAssignmentFormValues>
               name="priceMin"
-              label="Giá tối thiểu (VND)"
+              label="Giá gốc tối thiểu (VND)"
               min={0}
             />
             <ControlledNumberField<AddAssignmentFormValues>
               name="priceMax"
-              label="Giá tối đa (VND)"
+              label="Giá gốc tối đa (VND)"
               min={0}
+            />
+            <ControlledNumberField<AddAssignmentFormValues>
+              name="salePriceMin"
+              label="Giá sau giảm tối thiểu (VND)"
+              hint="Khác giá gốc — lọc theo `discount_from` của AT"
+              min={0}
+            />
+            <ControlledNumberField<AddAssignmentFormValues>
+              name="salePriceMax"
+              label="Giá sau giảm tối đa (VND)"
+              min={0}
+            />
+            <ControlledNumberField<AddAssignmentFormValues>
+              name="discountAmountMin"
+              label="Số tiền giảm tối thiểu (VND)"
+              hint="Vd 500000 = chỉ deal giảm ≥ 500k"
+              min={0}
+            />
+            <ControlledNumberField<AddAssignmentFormValues>
+              name="discountAmountMax"
+              label="Số tiền giảm tối đa (VND)"
+              min={0}
+            />
+            <ControlledNumberField<AddAssignmentFormValues>
+              name="updateLookbackDays"
+              label="Chỉ offer cập nhật trong N ngày qua"
+              hint="Incremental sync — vd 7 = chỉ pull offer thay đổi trong 7 ngày"
+              min={1}
+              max={365}
             />
             <ControlledSelectField<AddAssignmentFormValues>
               name="statusDiscount"
@@ -482,6 +546,7 @@ function AddAssignmentForm({
             <ControlledTextField<AddAssignmentFormValues>
               name="domainsCsv"
               label="Domain whitelist (CSV)"
+              hint="≥2 domain → filter client-side. 1 domain → push xuống AT."
               placeholder="shopee.vn, lazada.vn"
               fullRow
             />
@@ -640,8 +705,37 @@ function EditFields(): React.ReactElement {
         min={0}
         max={100}
       />
-      <ControlledNumberField<EditAssignmentFormValues> name="priceMin" label="Giá tối thiểu (VND)" min={0} />
-      <ControlledNumberField<EditAssignmentFormValues> name="priceMax" label="Giá tối đa (VND)" min={0} />
+      <ControlledNumberField<EditAssignmentFormValues> name="priceMin" label="Giá gốc tối thiểu (VND)" min={0} />
+      <ControlledNumberField<EditAssignmentFormValues> name="priceMax" label="Giá gốc tối đa (VND)" min={0} />
+      <ControlledNumberField<EditAssignmentFormValues>
+        name="salePriceMin"
+        label="Giá sau giảm tối thiểu (VND)"
+        hint="Khác giá gốc — lọc theo `discount_from` của AT"
+        min={0}
+      />
+      <ControlledNumberField<EditAssignmentFormValues>
+        name="salePriceMax"
+        label="Giá sau giảm tối đa (VND)"
+        min={0}
+      />
+      <ControlledNumberField<EditAssignmentFormValues>
+        name="discountAmountMin"
+        label="Số tiền giảm tối thiểu (VND)"
+        hint="Vd 500000 = chỉ deal giảm ≥ 500k"
+        min={0}
+      />
+      <ControlledNumberField<EditAssignmentFormValues>
+        name="discountAmountMax"
+        label="Số tiền giảm tối đa (VND)"
+        min={0}
+      />
+      <ControlledNumberField<EditAssignmentFormValues>
+        name="updateLookbackDays"
+        label="Chỉ offer cập nhật trong N ngày qua"
+        hint="Incremental sync — vd 7 = chỉ pull offer thay đổi trong 7 ngày"
+        min={1}
+        max={365}
+      />
       <ControlledSelectField<EditAssignmentFormValues>
         name="statusDiscount"
         label="Loại sản phẩm"
@@ -652,6 +746,7 @@ function EditFields(): React.ReactElement {
       <ControlledTextField<EditAssignmentFormValues>
         name="domainsCsv"
         label="Domain whitelist (CSV)"
+        hint="≥2 domain → filter client-side. 1 domain → push xuống AT."
         placeholder="shopee.vn, lazada.vn"
         fullRow
       />

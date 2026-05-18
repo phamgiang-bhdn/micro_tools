@@ -1,7 +1,7 @@
 import type React from "react";
 import Link from "next/link";
 import { Download, Play } from "lucide-react";
-import { ingestUrlAction, runCrawlerNowAction, savePromptAction } from "./actions";
+import { ingestUrlAction, runCrawlerNowFormAction, savePromptAction } from "./actions";
 import { PromptTestClient } from "./prompt-test-client";
 import { RefineryList } from "../../components/admin/refinery-list";
 import { KpiCard } from "../../components/admin/kpi-card";
@@ -359,7 +359,7 @@ function CrawlerConsole(): React.ReactElement {
         eyebrow="Điều khiển crawler"
         description="Bỏ qua cron, kéo dữ liệu từ tất cả nguồn affiliate ngay bây giờ. Mất 30s–2 phút tùy số lượng."
       >
-        <form action={runCrawlerNowAction}>
+        <form action={runCrawlerNowFormAction}>
           <SubmitButton size="md" iconLeft={<Play />}>
             Chạy crawler ngay
           </SubmitButton>

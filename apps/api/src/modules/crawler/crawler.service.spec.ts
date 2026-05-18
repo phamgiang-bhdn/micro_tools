@@ -4,9 +4,9 @@ import { AccesstradeClient, FetchProductsOpts } from "./clients/accesstrade.clie
 import { LazadaAffiliateClient } from "./clients/lazada.client";
 import { ShopeeAffiliateClient } from "./clients/shopee.client";
 import { TiktokAffiliateClient } from "./clients/tiktok.client";
-import { CrawlerService, offerPassesFilter } from "./crawler.service";
+import { CrawlerService, offerPassesFilter, rulesToFetchOpts } from "./crawler.service";
 import * as categoryInference from "./category-inference.util";
-import { DEFAULT_FILTER_RULES } from "./dto/filter-rules.dto";
+import { DEFAULT_FILTER_RULES, FilterRules } from "./dto/filter-rules.dto";
 import { NormalizedOffer } from "./dto/normalized-offer.dto";
 import { EnrichmentService } from "./enrichment.service";
 import { ImportResult, ImportService } from "./import.service";
@@ -28,24 +28,15 @@ interface AssignmentRow {
   priority: number;
   filterRules: unknown;
   category: { id: string; slug: string };
-}
-
-interface CampaignRow {
-  id: string;
-  atCampaignId: string | null;
-  name: string;
-  merchantName: string | null;
-  assignments: AssignmentRow[];
+  campaign: { id: string; name: string; merchantName: string };
 }
 
 class FakePrisma {
-  campaigns: CampaignRow[] = [];
+  assignments: AssignmentRow[] = [];
   lastCrawlerLogUpdate: Record<string, unknown> | null = null;
 
-  campaign = {
-    findMany: jest.fn(async () =>
-      this.campaigns.filter((c) => c.atCampaignId !== null && c.assignments.length > 0)
-    )
+  campaignCategory = {
+    findMany: jest.fn(async () => this.assignments)
   };
 
   crawlerLog = {
@@ -100,124 +91,133 @@ async function buildService(): Promise<{
 
 describe(CrawlerService.name, () => {
   describe("runFullCycle", () => {
-    it("only pulls eligible campaigns (APPROVED + atCampaignId + ≥1 assignment)", async () => {
+    it("loops per assignment, 1 fetch per assignment with merchantSlug pushed down", async () => {
       const { service, prisma, accesstrade } = await buildService();
-      prisma.campaigns = [
+      prisma.assignments = [
         {
-          id: "c-1",
-          atCampaignId: "at-1",
-          name: "Shopee",
-          merchantName: "Shopee",
-          assignments: [
-            {
-              id: "a-1",
-              priority: 100,
-              filterRules: null,
-              category: { id: "cat-1", slug: "robot-hut-bui-lau-nha" }
-            }
-          ]
+          id: "a-tivi",
+          priority: 100,
+          filterRules: null,
+          category: { id: "cat-tivi", slug: "tivi" },
+          campaign: { id: "c-1", name: "Lazada", merchantName: "lazada_kol" }
         },
         {
-          id: "c-2",
-          atCampaignId: "at-2",
-          name: "Lazada",
-          merchantName: "Lazada",
-          assignments: [] // no assignment — should be filtered out by findMany WHERE
+          id: "a-may-loc",
+          priority: 100,
+          filterRules: null,
+          category: { id: "cat-loc", slug: "may-loc-khong-khi" },
+          campaign: { id: "c-1", name: "Lazada", merchantName: "lazada_kol" }
         }
       ];
-      accesstrade.fetchProducts.mockResolvedValueOnce([makeOffer({ externalId: "p-1" })]);
+      accesstrade.fetchProducts.mockResolvedValue([]);
 
       await service.runFullCycle("test");
 
-      expect(accesstrade.fetchProducts).toHaveBeenCalledTimes(1);
-      expect(accesstrade.fetchProducts).toHaveBeenCalledWith(
-        expect.objectContaining({ campaign: "at-1" })
+      expect(accesstrade.fetchProducts).toHaveBeenCalledTimes(2);
+      expect(accesstrade.fetchProducts).toHaveBeenNthCalledWith(
+        1,
+        expect.objectContaining({ campaign: "lazada_kol", limit: 100, page: 1 })
       );
     });
 
-    it("routes offer by first-match-wins (priority asc)", async () => {
-      const { service, prisma, accesstrade, importer } = await buildService();
-      prisma.campaigns = [
+    it("pushes filterRules to AT params (minDiscount, price, sale, discountAmount, domain, lookback)", async () => {
+      const { service, prisma, accesstrade } = await buildService();
+      prisma.assignments = [
         {
-          id: "c-1",
-          atCampaignId: "at-1",
-          name: "Shopee",
-          merchantName: "Shopee",
-          assignments: [
-            // priority 1 = niche robot, chỉ match domain shopee.vn
-            {
-              id: "a-robot",
-              priority: 1,
-              filterRules: { domains: ["shopee.vn"] },
-              category: { id: "cat-robot", slug: "robot-hut-bui-lau-nha" }
-            },
-            // priority 100 = fallback, match mọi domain
-            {
-              id: "a-default",
-              priority: 100,
-              filterRules: {},
-              category: { id: "cat-default", slug: "may-loc-khong-khi" }
-            }
-          ]
+          id: "a-1",
+          priority: 100,
+          filterRules: {
+            minDiscountPercent: 20,
+            maxDiscountPercent: 70,
+            priceMin: 1000000,
+            priceMax: 50000000,
+            salePriceMin: 500000,
+            salePriceMax: 40000000,
+            discountAmountMin: 100000,
+            discountAmountMax: 5000000,
+            updateLookbackDays: 7,
+            domains: ["lazada.vn"]
+          },
+          category: { id: "cat-tivi", slug: "tivi" },
+          campaign: { id: "c-1", name: "Lazada", merchantName: "lazada_kol" }
         }
       ];
-      accesstrade.fetchProducts.mockResolvedValueOnce([
-        makeOffer({ externalId: "p-shopee", affiliateUrl: "https://shopee.vn/a" }),
-        makeOffer({ externalId: "p-lazada", affiliateUrl: "https://lazada.vn/b" })
-      ]);
+      accesstrade.fetchProducts.mockResolvedValue([]);
 
       await service.runFullCycle("test");
 
-      const offers = importer.upsertOffers.mock.calls[0][0];
-      const byId = new Map(offers.map((o) => [o.externalId, o.categorySlug]));
-      expect(byId.get("p-shopee")).toBe("robot-hut-bui-lau-nha");
-      expect(byId.get("p-lazada")).toBe("may-loc-khong-khi");
+      const call = accesstrade.fetchProducts.mock.calls[0][0];
+      expect(call).toMatchObject({
+        campaign: "lazada_kol",
+        limit: 100,
+        page: 1,
+        discountRateFrom: 20,
+        discountRateTo: 70,
+        statusDiscount: 1, // tự bật vì minDiscount > 0
+        priceFrom: 1000000,
+        priceTo: 50000000,
+        salePriceFrom: 500000,
+        salePriceTo: 40000000,
+        discountAmountFrom: 100000,
+        discountAmountTo: 5000000,
+        domain: "lazada.vn"
+      });
+      // updateFrom format DD-MM-YYYY
+      expect(call?.updateFrom).toMatch(/^\d{2}-\d{2}-\d{4}$/);
     });
 
-    it("skips offers when no assignment passes filter", async () => {
-      const { service, prisma, accesstrade, importer } = await buildService();
-      prisma.campaigns = [
+    it("does NOT push domain when multiple domains (AT only accepts 1)", async () => {
+      const { service, prisma, accesstrade } = await buildService();
+      prisma.assignments = [
         {
-          id: "c-1",
-          atCampaignId: "at-1",
-          name: "Shopee",
-          merchantName: "Shopee",
-          assignments: [
-            {
-              id: "a-strict",
-              priority: 100,
-              filterRules: { domains: ["shopee.vn"] },
-              category: { id: "cat-1", slug: "robot-hut-bui-lau-nha" }
-            }
-          ]
+          id: "a-1",
+          priority: 100,
+          filterRules: { domains: ["shopee.vn", "lazada.vn"] },
+          category: { id: "cat-1", slug: "tivi" },
+          campaign: { id: "c-1", name: "X", merchantName: "lazada_kol" }
+        }
+      ];
+      accesstrade.fetchProducts.mockResolvedValue([]);
+
+      await service.runFullCycle("test");
+
+      const call = accesstrade.fetchProducts.mock.calls[0][0];
+      expect(call?.domain).toBeUndefined();
+    });
+
+    it("routes every fetched offer directly to assignment's category (no name match)", async () => {
+      const { service, prisma, accesstrade, importer } = await buildService();
+      prisma.assignments = [
+        {
+          id: "a-tivi",
+          priority: 100,
+          filterRules: null,
+          category: { id: "cat-tivi", slug: "tivi" },
+          campaign: { id: "c-1", name: "Lazada", merchantName: "lazada_kol" }
         }
       ];
       accesstrade.fetchProducts.mockResolvedValueOnce([
-        makeOffer({ externalId: "p-1", affiliateUrl: "https://lazada.vn/x" })
+        makeOffer({ externalId: "p-1", campaign: "anything" }),
+        makeOffer({ externalId: "p-2", campaign: undefined }) // không cần campaign trong response
       ]);
 
       await service.runFullCycle("test");
 
       const offers = importer.upsertOffers.mock.calls[0][0];
-      expect(offers).toHaveLength(0);
+      expect(offers).toHaveLength(2);
+      expect(offers.every((o) => o.categorySlug === "tivi")).toBe(true);
+      expect(offers.every((o) => o.campaignDbId === "c-1")).toBe(true);
     });
 
     it("falls back to DEFAULT_FILTER_RULES when assignment.filterRules is invalid", async () => {
       const { service, prisma, accesstrade, importer } = await buildService();
-      prisma.campaigns = [
+      prisma.assignments = [
         {
-          id: "c-1",
-          atCampaignId: "at-1",
-          name: "Shopee",
-          merchantName: "Shopee",
-          assignments: [
-            {
-              id: "a-bad",
-              priority: 100,
-              filterRules: { minDiscountPercent: 9999, garbage: "yes" },
-              category: { id: "cat-1", slug: "robot-hut-bui-lau-nha" }
-            }
-          ]
+          id: "a-bad",
+          priority: 100,
+          filterRules: { garbageField: true },
+          category: { id: "cat-1", slug: "tivi" },
+          campaign: { id: "c-1", name: "Lazada", merchantName: "lazada_kol" }
         }
       ];
       accesstrade.fetchProducts.mockResolvedValueOnce([
@@ -227,27 +227,19 @@ describe(CrawlerService.name, () => {
       await service.runFullCycle("test");
 
       const offers = importer.upsertOffers.mock.calls[0][0];
-      // DEFAULT_FILTER_RULES.minDiscountPercent = 0 → offer pass
       expect(offers).toHaveLength(1);
     });
 
-    it("sets categorySlug from matched assignment, not from inferCategorySlug", async () => {
+    it("sets categorySlug from assignment, not from inferCategorySlug", async () => {
       const { service, prisma, accesstrade, importer } = await buildService();
       const inferSpy = jest.spyOn(categoryInference, "inferCategorySlug");
-      prisma.campaigns = [
+      prisma.assignments = [
         {
-          id: "c-1",
-          atCampaignId: "at-1",
-          name: "Shopee",
-          merchantName: "Shopee",
-          assignments: [
-            {
-              id: "a-1",
-              priority: 100,
-              filterRules: {},
-              category: { id: "cat-1", slug: "may-loc-khong-khi" }
-            }
-          ]
+          id: "a-1",
+          priority: 100,
+          filterRules: {},
+          category: { id: "cat-1", slug: "may-loc-khong-khi" },
+          campaign: { id: "c-1", name: "X", merchantName: "lazada_kol" }
         }
       ];
       accesstrade.fetchProducts.mockResolvedValueOnce([
@@ -258,10 +250,73 @@ describe(CrawlerService.name, () => {
 
       expect(inferSpy).not.toHaveBeenCalled();
       const offers = importer.upsertOffers.mock.calls[0][0];
-      expect(offers).toHaveLength(1);
       expect(offers[0].categorySlug).toBe("may-loc-khong-khi");
       expect(offers[0].campaignDbId).toBe("c-1");
       inferSpy.mockRestore();
+    });
+
+    it("returns assignments breakdown in CycleResult", async () => {
+      const { service, prisma, accesstrade } = await buildService();
+      prisma.assignments = [
+        {
+          id: "a-tivi",
+          priority: 100,
+          filterRules: null,
+          category: { id: "cat-tivi", slug: "tivi" },
+          campaign: { id: "c-1", name: "Lazada", merchantName: "lazada_kol" }
+        }
+      ];
+      accesstrade.fetchProducts.mockResolvedValueOnce([
+        makeOffer({ externalId: "p-1" }),
+        makeOffer({ externalId: "p-2" })
+      ]);
+
+      const result = await service.runFullCycle("test");
+
+      expect(result.assignments).toHaveLength(1);
+      expect(result.assignments[0]).toMatchObject({
+        assignmentId: "a-tivi",
+        campaignId: "c-1",
+        merchantSlug: "lazada_kol",
+        categorySlug: "tivi",
+        fetched: 2,
+        routed: 2,
+        failedFilter: 0
+      });
+    });
+  });
+
+  describe("rulesToFetchOpts", () => {
+    it("returns empty when rules are empty", () => {
+      expect(rulesToFetchOpts({})).toEqual({});
+    });
+
+    it("ignores minDiscountPercent=0 (no push)", () => {
+      const opts = rulesToFetchOpts({ minDiscountPercent: 0 });
+      expect(opts.discountRateFrom).toBeUndefined();
+      expect(opts.statusDiscount).toBeUndefined();
+    });
+
+    it("auto-sets statusDiscount=1 when minDiscountPercent > 0", () => {
+      const opts = rulesToFetchOpts({ minDiscountPercent: 20 });
+      expect(opts.discountRateFrom).toBe(20);
+      expect(opts.statusDiscount).toBe(1);
+    });
+
+    it("respects explicit status_discount=0 override", () => {
+      const opts = rulesToFetchOpts({ status_discount: 0 });
+      expect(opts.statusDiscount).toBe(0);
+    });
+
+    it("skips domain when multiple or zero", () => {
+      expect(rulesToFetchOpts({ domains: [] }).domain).toBeUndefined();
+      expect(rulesToFetchOpts({ domains: ["a", "b"] }).domain).toBeUndefined();
+      expect(rulesToFetchOpts({ domains: ["lazada.vn"] }).domain).toBe("lazada.vn");
+    });
+
+    it("converts updateLookbackDays to DD-MM-YYYY", () => {
+      const opts = rulesToFetchOpts({ updateLookbackDays: 7 });
+      expect(opts.updateFrom).toMatch(/^\d{2}-\d{2}-\d{4}$/);
     });
   });
 
@@ -276,9 +331,9 @@ describe(CrawlerService.name, () => {
 
     it("respects price range", () => {
       const offer = makeOffer({ price: 500 });
-      expect(offerPassesFilter(offer, { priceMin: 1000 })).toBe(false);
-      expect(offerPassesFilter(offer, { priceMax: 100 })).toBe(false);
-      expect(offerPassesFilter(offer, { priceMin: 100, priceMax: 1000 })).toBe(true);
+      expect(offerPassesFilter(offer, { priceMin: 1000 } as FilterRules)).toBe(false);
+      expect(offerPassesFilter(offer, { priceMax: 100 } as FilterRules)).toBe(false);
+      expect(offerPassesFilter(offer, { priceMin: 100, priceMax: 1000 } as FilterRules)).toBe(true);
     });
 
     it("respects domains whitelist", () => {

@@ -38,11 +38,20 @@ export interface FetchProductsOpts {
   limit?: number;
   campaign?: string;
   domain?: string;
+  /** AT `price_from/to` — giá gốc (VND). */
   priceFrom?: number;
   priceTo?: number;
+  /** AT `discount_from/to` — giá sau giảm (VND). */
+  salePriceFrom?: number;
+  salePriceTo?: number;
+  /** AT `discount_amount_from/to` — số tiền giảm tuyệt đối (VND). */
+  discountAmountFrom?: number;
+  discountAmountTo?: number;
+  /** AT `discount_rate_from/to` — % giảm. */
   discountRateFrom?: number;
   discountRateTo?: number;
   statusDiscount?: 0 | 1;
+  /** AT `update_from/to` — format DD-MM-YYYY. */
   updateFrom?: string;
   updateTo?: string;
 }
@@ -198,26 +207,27 @@ export class AccesstradeClient implements AffiliateClient {
     return Boolean(process.env.ACCESSTRADE_ACCESS_TOKEN);
   }
 
-  async fetchProducts(opts: FetchProductsOpts = {}): Promise<NormalizedOffer[]> {
-    if (!this.isConfigured()) {
-      this.logger.warn("Accesstrade not configured — skipping");
-      return [];
-    }
+  /**
+   * Trung tâm gọi AT API. Khi `ACCESSTRADE_LOG_VERBOSE=true` in **đúng 1 dòng curl**
+   * trước mỗi call để paste Postman/terminal replay. Off thì im hoàn toàn.
+   *
+   * **CẢNH BÁO**: verbose mode in token raw — chỉ dùng dev local, KHÔNG bật prod.
+   */
+  private async atFetch(
+    path: string,
+    params: URLSearchParams
+  ): Promise<{ ok: boolean; status: number; body: string }> {
     const base = process.env.ACCESSTRADE_API_BASE ?? "https://api.accesstrade.vn/v1";
     const token = process.env.ACCESSTRADE_ACCESS_TOKEN as string;
-    const params = new URLSearchParams();
-    params.set("page", String(opts.page ?? 1));
-    params.set("limit", String(opts.limit ?? 50));
-    if (opts.campaign) params.set("campaign", opts.campaign);
-    if (opts.domain) params.set("domain", opts.domain);
-    if (opts.priceFrom !== undefined) params.set("price_from", String(opts.priceFrom));
-    if (opts.priceTo !== undefined) params.set("price_to", String(opts.priceTo));
-    if (opts.discountRateFrom !== undefined) params.set("discount_rate_from", String(opts.discountRateFrom));
-    if (opts.discountRateTo !== undefined) params.set("discount_rate_to", String(opts.discountRateTo));
-    if (opts.statusDiscount !== undefined) params.set("status_discount", String(opts.statusDiscount));
-    if (opts.updateFrom) params.set("update_from", opts.updateFrom);
-    if (opts.updateTo) params.set("update_to", opts.updateTo);
-    const url = `${base}/datafeeds?${params.toString()}`;
+    const verbose = process.env.ACCESSTRADE_LOG_VERBOSE === "true";
+    const qs = params.toString();
+    const url = qs ? `${base}${path}?${qs}` : `${base}${path}`;
+
+    if (verbose) {
+      this.logger.log(
+        `[AT] curl -i -H "Authorization: Token ${token}" -H "Accept: application/json" "${url}"`
+      );
+    }
 
     try {
       const resp = await fetch(url, {
@@ -226,16 +236,47 @@ export class AccesstradeClient implements AffiliateClient {
           Accept: "application/json"
         }
       });
-      if (!resp.ok) {
-        const body = await resp.text();
-        this.logger.error(`Accesstrade ${resp.status}: ${body.slice(0, 300)}`);
-        return [];
+      const body = await resp.text();
+      return { ok: resp.ok, status: resp.status, body };
+    } catch (error: unknown) {
+      if (verbose) {
+        this.logger.error(
+          `[AT] FETCH_THROW ${error instanceof Error ? error.message : String(error)}`
+        );
       }
-      const json = (await resp.json()) as ListResponse;
+      return { ok: false, status: 0, body: "" };
+    }
+  }
+
+  async fetchProducts(opts: FetchProductsOpts = {}): Promise<NormalizedOffer[]> {
+    if (!this.isConfigured()) {
+      this.logger.warn("Accesstrade not configured — skipping");
+      return [];
+    }
+    const params = new URLSearchParams();
+    params.set("page", String(opts.page ?? 1));
+    params.set("limit", String(opts.limit ?? 50));
+    if (opts.campaign) params.set("campaign", opts.campaign);
+    if (opts.domain) params.set("domain", opts.domain);
+    if (opts.priceFrom !== undefined) params.set("price_from", String(opts.priceFrom));
+    if (opts.priceTo !== undefined) params.set("price_to", String(opts.priceTo));
+    if (opts.salePriceFrom !== undefined) params.set("discount_from", String(opts.salePriceFrom));
+    if (opts.salePriceTo !== undefined) params.set("discount_to", String(opts.salePriceTo));
+    if (opts.discountAmountFrom !== undefined) params.set("discount_amount_from", String(opts.discountAmountFrom));
+    if (opts.discountAmountTo !== undefined) params.set("discount_amount_to", String(opts.discountAmountTo));
+    if (opts.discountRateFrom !== undefined) params.set("discount_rate_from", String(opts.discountRateFrom));
+    if (opts.discountRateTo !== undefined) params.set("discount_rate_to", String(opts.discountRateTo));
+    if (opts.statusDiscount !== undefined) params.set("status_discount", String(opts.statusDiscount));
+    if (opts.updateFrom) params.set("update_from", opts.updateFrom);
+    if (opts.updateTo) params.set("update_to", opts.updateTo);
+
+    const { ok, body } = await this.atFetch("/datafeeds", params);
+    if (!ok) return [];
+    try {
+      const json = JSON.parse(body) as ListResponse;
       const items = Array.isArray(json.data) ? json.data : [];
       return items.map((p) => this.toNormalized(p));
-    } catch (error: unknown) {
-      this.logger.error("Accesstrade fetch failed", error instanceof Error ? error.stack : String(error));
+    } catch {
       return [];
     }
   }
@@ -251,33 +292,17 @@ export class AccesstradeClient implements AffiliateClient {
       this.logger.warn("Accesstrade not configured — skipping campaigns fetch");
       return [];
     }
-    const base = process.env.ACCESSTRADE_API_BASE ?? "https://api.accesstrade.vn/v1";
-    const token = process.env.ACCESSTRADE_ACCESS_TOKEN as string;
     const params = new URLSearchParams();
     if (opts.approval) params.set("approval", opts.approval);
     if (opts.page) params.set("page", String(opts.page));
     if (opts.limit) params.set("limit", String(opts.limit));
-    const url = `${base}/campaigns?${params.toString()}`;
 
+    const { ok, body } = await this.atFetch("/campaigns", params);
+    if (!ok) return [];
     try {
-      const resp = await fetch(url, {
-        headers: {
-          Authorization: `Token ${token}`,
-          Accept: "application/json"
-        }
-      });
-      if (!resp.ok) {
-        const body = await resp.text();
-        this.logger.error(`Accesstrade /campaigns ${resp.status}: ${body.slice(0, 300)}`);
-        return [];
-      }
-      const json = (await resp.json()) as CampaignListResponse;
+      const json = JSON.parse(body) as CampaignListResponse;
       return Array.isArray(json.data) ? json.data : [];
-    } catch (error: unknown) {
-      this.logger.error(
-        "Accesstrade fetchCampaigns failed",
-        error instanceof Error ? error.stack : String(error)
-      );
+    } catch {
       return [];
     }
   }
@@ -287,8 +312,6 @@ export class AccesstradeClient implements AffiliateClient {
       this.logger.warn("Accesstrade not configured — skipping orders fetch");
       return [];
     }
-    const base = process.env.ACCESSTRADE_API_BASE ?? "https://api.accesstrade.vn/v1";
-    const token = process.env.ACCESSTRADE_ACCESS_TOKEN as string;
     const params = new URLSearchParams();
     params.set("since", opts.since.toISOString());
     params.set("until", opts.until.toISOString());
@@ -296,27 +319,13 @@ export class AccesstradeClient implements AffiliateClient {
     if (opts.limit) params.set("limit", String(Math.min(opts.limit, 300)));
     if (opts.merchant) params.set("merchant", opts.merchant);
     if (opts.status !== undefined) params.set("status", String(opts.status));
-    const url = `${base}/order-list?${params.toString()}`;
 
+    const { ok, body } = await this.atFetch("/order-list", params);
+    if (!ok) return [];
     try {
-      const resp = await fetch(url, {
-        headers: {
-          Authorization: `Token ${token}`,
-          Accept: "application/json"
-        }
-      });
-      if (!resp.ok) {
-        const body = await resp.text();
-        this.logger.error(`Accesstrade /order-list ${resp.status}: ${body.slice(0, 300)}`);
-        return [];
-      }
-      const json = (await resp.json()) as OrderListResponse;
+      const json = JSON.parse(body) as OrderListResponse;
       return Array.isArray(json.data) ? json.data : [];
-    } catch (error: unknown) {
-      this.logger.error(
-        "Accesstrade fetchOrders failed",
-        error instanceof Error ? error.stack : String(error)
-      );
+    } catch {
       return [];
     }
   }
@@ -326,34 +335,18 @@ export class AccesstradeClient implements AffiliateClient {
       this.logger.warn("Accesstrade not configured — skipping top_products");
       return [];
     }
-    const base = process.env.ACCESSTRADE_API_BASE ?? "https://api.accesstrade.vn/v1";
-    const token = process.env.ACCESSTRADE_ACCESS_TOKEN as string;
     const params = new URLSearchParams();
     // AT /top_products dùng DD-MM-YYYY (gotcha #9), KHÔNG phải ISO.
     if (opts.dateFrom) params.set("date_from", AccesstradeClient.toAtDayFormat(opts.dateFrom));
     if (opts.dateTo) params.set("date_to", AccesstradeClient.toAtDayFormat(opts.dateTo));
     if (opts.merchant) params.set("merchant", opts.merchant);
-    const url = `${base}/top_products${params.toString() ? `?${params.toString()}` : ""}`;
 
+    const { ok, body } = await this.atFetch("/top_products", params);
+    if (!ok) return [];
     try {
-      const resp = await fetch(url, {
-        headers: {
-          Authorization: `Token ${token}`,
-          Accept: "application/json"
-        }
-      });
-      if (!resp.ok) {
-        const body = await resp.text();
-        this.logger.error(`Accesstrade /top_products ${resp.status}: ${body.slice(0, 300)}`);
-        return [];
-      }
-      const json = (await resp.json()) as { data?: AtTopProduct[]; total?: number };
+      const json = JSON.parse(body) as { data?: AtTopProduct[]; total?: number };
       return Array.isArray(json.data) ? json.data : [];
-    } catch (error: unknown) {
-      this.logger.error(
-        "Accesstrade fetchTopProducts failed",
-        error instanceof Error ? error.stack : String(error)
-      );
+    } catch {
       return [];
     }
   }
@@ -391,29 +384,19 @@ export class AccesstradeClient implements AffiliateClient {
       this.logger.warn(`Accesstrade not configured — skipping ${path}`);
       return null;
     }
-    const base = process.env.ACCESSTRADE_API_BASE ?? "https://api.accesstrade.vn/v1";
-    const token = process.env.ACCESSTRADE_ACCESS_TOKEN as string;
-    const url = `${base}${path}`;
+    // `path` đã include cả query string (`/offers_informations/coupon?icon_text=…`).
+    // Tách query string ra cho `atFetch` tái sử dụng pattern logging.
+    const qIdx = path.indexOf("?");
+    const pureP = qIdx === -1 ? path : path.slice(0, qIdx);
+    const qsRaw = qIdx === -1 ? "" : path.slice(qIdx + 1);
+    const params = new URLSearchParams(qsRaw);
 
+    const { ok, body } = await this.atFetch(pureP, params);
+    if (!ok) return null;
     try {
-      const resp = await fetch(url, {
-        headers: {
-          Authorization: `Token ${token}`,
-          Accept: "application/json"
-        }
-      });
-      if (!resp.ok) {
-        const body = await resp.text();
-        this.logger.error(`Accesstrade ${path} ${resp.status}: ${body.slice(0, 300)}`);
-        return null;
-      }
-      const json = (await resp.json()) as { data?: T };
+      const json = JSON.parse(body) as { data?: T };
       return json.data ?? null;
-    } catch (error: unknown) {
-      this.logger.error(
-        `Accesstrade ${path} failed`,
-        error instanceof Error ? error.stack : String(error)
-      );
+    } catch {
       return null;
     }
   }
@@ -449,7 +432,16 @@ export class AccesstradeClient implements AffiliateClient {
       sku: p.sku,
       sourceProductId: p.product_id,
       atCategorySlug: p.cate,
-      discountAmount: p.discount_amount
+      discountAmount: p.discount_amount,
+      salePrice: p.sale_price,
+      promotion: p.promotion ?? undefined,
+      updateTime: p.update_time,
+      statusDiscount: p.status_discount,
+      discountRate: p.discount_rate,
+      metadata: {
+        // Giữ raw AT response để admin debug khi cần. Không dùng cho business logic.
+        atRaw: p
+      }
     };
   }
 }

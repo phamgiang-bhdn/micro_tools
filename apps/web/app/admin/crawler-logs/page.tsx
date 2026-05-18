@@ -1,8 +1,6 @@
 import type React from "react";
-import { runCrawlerNowAction } from "../actions";
 import {
   adminGet,
-  AdminButton,
   DataTable,
   PageHeader,
   Pagination,
@@ -10,6 +8,7 @@ import {
   paginateRows,
   type ColumnDef
 } from "../../../components/admin/ui";
+import { RunCrawlerButton } from "./run-crawler-button";
 
 export const dynamic = "force-dynamic";
 
@@ -142,11 +141,7 @@ export default async function CrawlerLogsPage({ searchParams }: PageProps): Prom
             ) : null}
           </span>
         }
-        actions={
-          <form action={runCrawlerNowAction}>
-            <AdminButton type="submit" size="md">▶ Chạy ngay</AdminButton>
-          </form>
-        }
+        actions={<RunCrawlerButton />}
       />
 
       <div>

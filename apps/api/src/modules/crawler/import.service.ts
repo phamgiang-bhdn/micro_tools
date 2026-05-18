@@ -48,21 +48,38 @@ export class ImportService {
       });
 
       const scrapedData = {
+        // Identity
         sourceId: offer.externalId,
         sourceNetwork: offer.source,
-        brand: offer.brand,
-        store: offer.store,
+        sku: offer.sku,
+        sourceProductId: offer.sourceProductId,
+        // Display
         image: offer.image,
         description: offer.description,
-        category: offer.category,
+        brand: offer.brand,
+        // Money
         price: offer.price,
         originalPrice: offer.originalPrice,
+        salePrice: offer.salePrice,
         currency: offer.currency,
         discountPercent: offer.discountPercent,
+        discountRate: offer.discountRate,
+        discountAmount: offer.discountAmount,
+        statusDiscount: offer.statusDiscount,
+        promotion: offer.promotion,
+        // Classification
+        category: offer.category,
+        atCategorySlug: offer.atCategorySlug,
+        // Source context
+        store: offer.store,
+        merchant: offer.merchantName,
+        campaign: offer.campaign,
+        updateTime: offer.updateTime,
+        // Editorial (admin/AI override)
         badge: offer.badge,
         highlights: offer.highlights,
-        merchant: offer.merchantName,
-        campaign: offer.campaign
+        // Network-specific raw (full AT response cho admin debug)
+        metadata: offer.metadata
       };
 
       if (existing) {

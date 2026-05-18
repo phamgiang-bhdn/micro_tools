@@ -34,6 +34,16 @@ export interface NormalizedOffer {
   atCategorySlug?: string;
   /** Số tiền giảm (VND). Tham khảo, không dùng làm dedup. */
   discountAmount?: number;
+  /** Giá sau khuyến mại (VND) — AT field `sale_price`. Khác `price` (đã được normalize thành sale price). */
+  salePrice?: number;
+  /** Promotion text (vd "Tặng kèm quà"). AT field `promotion`. */
+  promotion?: string;
+  /** Thời điểm AT update offer này (raw string, format `DD-MM-YYYYTHH:mm:ss`). */
+  updateTime?: string;
+  /** AT raw `status_discount`: 0 = không khuyến mại, 1 = có. */
+  statusDiscount?: 0 | 1;
+  /** AT raw `discount_rate` (%), trước khi normalize sang `discountPercent`. */
+  discountRate?: number;
   /** Pre-resolved Campaign.id từ caller (crawler-cycle per-campaign). Khi set, import skip lookup theo slug. */
   campaignDbId?: string;
   /**
