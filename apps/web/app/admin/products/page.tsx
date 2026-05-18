@@ -22,6 +22,10 @@ export const dynamic = "force-dynamic";
 interface ProductsPageProps {
   searchParams: Promise<{
     nicheId?: string;
+    nicheStatus?: "assigned" | "unassigned";
+    categoryId?: string;
+    sourceId?: string;
+    brandId?: string;
     network?: string;
     isPublic?: string;
     search?: string;
@@ -29,20 +33,40 @@ interface ProductsPageProps {
   }>;
 }
 
+const NICHE_STATUS_OPTIONS = [
+  { value: "unassigned", label: "Chưa gán niche" },
+  { value: "assigned", label: "Đã gán niche" }
+];
+
+interface LookupLite {
+  id: string;
+  slug: string;
+  rawValue: string;
+  displayName: string | null;
+  _count: { products: number };
+}
+
 export default async function ProductsPage({
   searchParams
 }: ProductsPageProps): Promise<React.ReactElement> {
   const filters = await searchParams;
   const qs = new URLSearchParams();
-  if (filters.nicheId) qs.set(ADMIN_PARAMS.niche, filters.nicheId);
+  if (filters.nicheId) qs.set("nicheId", filters.nicheId);
+  if (filters.nicheStatus) qs.set("nicheStatus", filters.nicheStatus);
+  if (filters.categoryId) qs.set("categoryId", filters.categoryId);
+  if (filters.sourceId) qs.set("sourceId", filters.sourceId);
+  if (filters.brandId) qs.set("brandId", filters.brandId);
   if (filters.network) qs.set(ADMIN_PARAMS.network, filters.network);
   if (filters.isPublic) qs.set(ADMIN_PARAMS.isPublic, filters.isPublic);
   if (filters.search) qs.set(ADMIN_PARAMS.search, filters.search);
   qs.set("limit", "500");
 
-  const [products, niches] = await Promise.all([
+  const [products, niches, categories, sources, brands] = await Promise.all([
     adminGet<ProductRow[]>(`/admin/products?${qs.toString()}`),
-    adminGet<NicheLite[]>("/admin/niches")
+    adminGet<NicheLite[]>("/admin/niches"),
+    adminGet<LookupLite[]>("/admin/categories"),
+    adminGet<LookupLite[]>("/admin/sources"),
+    adminGet<LookupLite[]>("/admin/brands")
   ]);
 
   const pageNum = Math.max(1, Number.parseInt(filters.page ?? "1", 10) || 1);
@@ -50,7 +74,11 @@ export default async function ProductsPage({
 
   const buildHref = (p: number): string => {
     const params = new URLSearchParams();
-    if (filters.nicheId) params.set(ADMIN_PARAMS.niche, filters.nicheId);
+    if (filters.nicheId) params.set("nicheId", filters.nicheId);
+    if (filters.nicheStatus) params.set("nicheStatus", filters.nicheStatus);
+    if (filters.categoryId) params.set("categoryId", filters.categoryId);
+    if (filters.sourceId) params.set("sourceId", filters.sourceId);
+    if (filters.brandId) params.set("brandId", filters.brandId);
     if (filters.network) params.set(ADMIN_PARAMS.network, filters.network);
     if (filters.isPublic) params.set(ADMIN_PARAMS.isPublic, filters.isPublic);
     if (filters.search) params.set(ADMIN_PARAMS.search, filters.search);
@@ -60,7 +88,14 @@ export default async function ProductsPage({
   };
 
   const hasFilter = Boolean(
-    filters.search || filters.nicheId || filters.network || filters.isPublic
+    filters.search ||
+      filters.nicheId ||
+      filters.nicheStatus ||
+      filters.categoryId ||
+      filters.sourceId ||
+      filters.brandId ||
+      filters.network ||
+      filters.isPublic
   );
 
   const publicCount = products.filter((p) => p.isPublic).length;
@@ -68,6 +103,15 @@ export default async function ProductsPage({
   const networkCount = new Set(products.map((p) => p.network)).size;
 
   const nicheOptions = niches.map((c) => ({ value: c.id, label: c.name }));
+  const lookupToOption = (c: LookupLite): { value: string; label: string } => ({
+    value: c.id,
+    label: c.displayName
+      ? `${c.displayName} (${c._count.products})`
+      : `${c.rawValue} — chưa đặt tên (${c._count.products})`
+  });
+  const categoryOptions = categories.map(lookupToOption);
+  const sourceOptions = sources.map(lookupToOption);
+  const brandOptions = brands.map(lookupToOption);
 
   return (
     <ListPageShell
@@ -107,10 +151,34 @@ export default async function ProductsPage({
             placeholder="Tên sản phẩm..."
           />
           <NativeFilterSelect
+            label="Trạng thái niche"
+            name="nicheStatus"
+            defaultValue={filters.nicheStatus ?? ""}
+            options={NICHE_STATUS_OPTIONS}
+          />
+          <NativeFilterSelect
             label="Niche"
-            name={ADMIN_PARAMS.niche}
+            name="nicheId"
             defaultValue={filters.nicheId ?? ""}
             options={nicheOptions}
+          />
+          <NativeFilterSelect
+            label="Category (AT)"
+            name="categoryId"
+            defaultValue={filters.categoryId ?? ""}
+            options={categoryOptions}
+          />
+          <NativeFilterSelect
+            label="Nguồn bán"
+            name="sourceId"
+            defaultValue={filters.sourceId ?? ""}
+            options={sourceOptions}
+          />
+          <NativeFilterSelect
+            label="Thương hiệu"
+            name="brandId"
+            defaultValue={filters.brandId ?? ""}
+            options={brandOptions}
           />
           <NativeFilterSelect
             label="Network"

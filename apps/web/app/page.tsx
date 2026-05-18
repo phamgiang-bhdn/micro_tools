@@ -191,7 +191,7 @@ export default async function HomePage({ searchParams }: HomeProps): Promise<Rea
                 <p>Thử bỏ bớt từ khoá hoặc chọn danh mục khác.</p>
               ) : (
                 <p>
-                  Chạy <code className={CODE_KBD}>npm run db:seed</code> rồi tải lại trang.
+                  Chạy <code className={CODE_KBD}>npm run db:reset</code> rồi tải lại trang.
                 </p>
               )
             }

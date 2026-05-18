@@ -92,9 +92,11 @@ model Campaign {
   atEndTime           DateTime?
   atRawData           Json?      @db.JsonB
   atLastSyncedAt      DateTime?
+  /// Per-campaign filter rules. Validate qua `filterRulesSchema`.
+  /// Khi null/empty → crawler dùng DEFAULT_FILTER_RULES.
+  filterRules     Json?               @db.JsonB
   createdAt       DateTime            @default(now())
   updatedAt       DateTime            @updatedAt
-  assignments     CampaignNiche[]
   products        Product[]
   conversions     ConversionWebhook[]
   coupons         Coupon[]
@@ -103,27 +105,6 @@ model Campaign {
   @@index([status])
   @@index([network, status])
   @@index([atCampaignId])
-}
-
-/// N:N join giữa Campaign (upstream AT merchant) và Niche (presentation/SEO layer).
-/// Mỗi cặp có filterRules + priority riêng. First-match-wins ở crawler: sort theo priority asc,
-/// offer pass filterRules đầu tiên → gắn vào Niche của cặp đó.
-model CampaignNiche {
-  id           String   @id @default(uuid()) @db.Uuid
-  campaignId   String   @db.Uuid
-  nicheId      String   @db.Uuid
-  /// Per-pair filter rules (zod `filterRulesSchema` ở dto/filter-rules.dto.ts).
-  filterRules  Json     @db.JsonB
-  /// Lower number = match trước. Default 100. Khi 1 offer match nhiều assignment của cùng campaign → assignment priority thấp nhất thắng.
-  priority     Int      @default(100)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-  campaign     Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
-  niche        Niche    @relation(fields: [nicheId], references: [id], onDelete: Cascade)
-
-  @@unique([campaignId, nicheId])
-  @@index([campaignId, priority])
-  @@index([nicheId])
 }
 
 model Coupon {
@@ -183,12 +164,59 @@ model Niche {
   products        Product[]
   articles        Article[]
   coupons         Coupon[]
-  campaignAssignments CampaignNiche[]
+}
+
+/// AT taxonomy bucket — auto-populated từ `offer.atCategorySlug` (raw AT `cate`).
+/// Mỗi offer crawled tự upsert 1 row Category theo `slug` (normalized).
+/// `displayName` admin tự điền sau — storefront chỉ filter theo Category có displayName.
+/// KHÔNG phải Niche (Niche = SEO/curate layer, Category = AT raw taxonomy để admin lọc sản phẩm).
+model Category {
+  id          String   @id @default(uuid()) @db.Uuid
+  slug        String   @unique
+  rawValue    String
+  displayName String?
+  source      String   @default("accesstrade")
+  createdAt   DateTime @default(now())
+  products    Product[]
+}
+
+/// "Nơi bán" — auto-populated từ hostname của `offer.affiliateUrl` (vd "shopee.vn", "lazada.vn").
+/// Mỗi domain unique → 1 row Source. Admin điền `displayName` ("Shopee VN", "Lazada VN") sau.
+/// Storefront chỉ hiện Source có displayName trong filter (hide khi null).
+model Source {
+  id          String   @id @default(uuid()) @db.Uuid
+  slug        String   @unique
+  rawValue    String
+  displayName String?
+  source      String   @default("accesstrade")
+  createdAt   DateTime @default(now())
+  products    Product[]
+}
+
+/// Thương hiệu — auto-populated từ `offer.brand` (chỉ khi non-empty).
+/// AT trả brand không chuẩn ("Samsung", "SAMSUNG", "samsung ") → unique theo `slug` normalize.
+/// Admin điền `displayName` ("Samsung Electronics") sau. Storefront chỉ hiện brand có displayName.
+model Brand {
+  id          String   @id @default(uuid()) @db.Uuid
+  slug        String   @unique
+  rawValue    String
+  displayName String?
+  source      String   @default("accesstrade")
+  createdAt   DateTime @default(now())
+  products    Product[]
 }
 
 model Product {
   id           String     @id @default(uuid()) @db.Uuid
-  nicheId      String     @db.Uuid
+  /// Niche assigned by admin (PR4 — manual gán tay). NULL = chưa gán → ẩn khỏi storefront.
+  /// Crawler KHÔNG tự gán nicheId; admin assign trong /admin/products (bulk hoặc per-row).
+  nicheId      String?    @db.Uuid
+  /// AT taxonomy bucket (PR2). Auto-populated từ `offer.atCategorySlug`. Khác `nicheId` (SEO layer).
+  categoryId   String?    @db.Uuid
+  /// Nơi bán (PR3). Auto-populated từ hostname của `affiliateUrl`.
+  sourceId     String?    @db.Uuid
+  /// Thương hiệu (PR3). Auto-populated từ `offer.brand` (chỉ khi non-empty).
+  brandId      String?    @db.Uuid
   network      AffiliateNetwork @default(ACCESSTRADE)
   campaignId   String?    @db.Uuid
   name         String
@@ -198,7 +226,10 @@ model Product {
   isPublic     Boolean    @default(true)
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
-  niche        Niche      @relation(fields: [nicheId], references: [id], onDelete: Cascade)
+  niche        Niche?     @relation(fields: [nicheId], references: [id], onDelete: SetNull)
+  category     Category?  @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  source       Source?    @relation(fields: [sourceId], references: [id], onDelete: SetNull)
+  brand        Brand?     @relation(fields: [brandId], references: [id], onDelete: SetNull)
   campaign     Campaign?  @relation(fields: [campaignId], references: [id], onDelete: SetNull)
   clickLogs    ClickLog[]
   extractions  ProductExtraction[]
@@ -207,6 +238,9 @@ model Product {
   @@unique([nicheId, slug])
   @@index([nicheId])
   @@index([campaignId])
+  @@index([categoryId])
+  @@index([sourceId])
+  @@index([brandId])
 }
 
 model ClickLog {

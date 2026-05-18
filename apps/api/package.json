@@ -9,9 +9,13 @@
     "test": "Chạy Jest.",
     "prisma:generate": "Sinh Prisma Client từ schema.prisma.",
     "prisma:migrate": "Tạo migration mới + apply (dev, có thể hỏi tên).",
-    "prisma:deploy": "Chỉ apply migration đã có (CI / máy dev sau khi pull).",
+    "prisma:deploy": "Apply migration đã có + regen Prisma Client (CI / máy dev sau khi pull).",
+    "prisma:reset": "Drop DB → apply lại tất cả migration → chạy seed (pre-release dùng thoải mái).",
     "prisma:studio": "Mở GUI Prisma Studio xem/sửa data.",
     "prisma:seed": "Chạy prisma/seed.js nạp dữ liệu mẫu."
+  },
+  "prisma": {
+    "seed": "node prisma/seed.js"
   },
   "scripts": {
     "start:dev": "nest start --watch",
@@ -20,7 +24,8 @@
     "test": "jest",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
-    "prisma:deploy": "prisma migrate deploy",
+    "prisma:deploy": "prisma migrate deploy && prisma generate",
+    "prisma:reset": "prisma migrate reset --force",
     "prisma:studio": "prisma studio",
     "prisma:seed": "node prisma/seed.js"
   },

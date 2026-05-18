@@ -27,11 +27,11 @@ Dev:
 - `npm run docker:up` / `docker:down`.
 
 Database:
-- `npm run db:deploy` — apply migrations (safe, no prompts). Use after `git pull`.
-- `npm run db:seed` — `node apps/api/prisma/seed.js`.
-- `npm run db:generate` — regenerate Prisma client after editing `schema.prisma`.
-- `npm run prisma:migrate --workspace api` — create + apply a new dev migration (interactive).
+- `npm run db:deploy` — apply pending migrations + regen Prisma Client. Use after `git pull`.
+- `npm run db:migrate -- --name <slug>` — create + apply a new dev migration from `schema.prisma` diff (auto-regens client).
+- `npm run db:reset` — drop DB → re-apply all migrations → run seed. Pre-release reset; **never run in prod**.
 - `npm run prisma:studio --workspace api` — GUI on the DB.
+- `npm run prisma:seed --workspace api` — re-run seed only (rare; `db:reset` already seeds).
 
 Build / lint / test:
 - `npm run build` — builds web then api.
@@ -61,7 +61,7 @@ Nothing reaches the public storefront in either pipeline until a human reviews. 
 ## Conventions
 
 - TypeScript strict; no `any`.
-- After editing `apps/api/prisma/schema.prisma`, run `npm run db:generate` before relying on the new types.
+- After editing `apps/api/prisma/schema.prisma`, run `npm run db:migrate -- --name <slug>` (creates a migration, applies it, regens the client) — don't edit the DB by hand.
 - Seed file is `apps/api/prisma/seed.js` (JS, not TS) — Niche-only (12 niches) + system `PromptTemplate` rows. Does **not** seed Product / ClickLog / ConversionWebhook; those come from crawler + real user clicks. Re-running the seed purges legacy hardcoded product IDs (`a1000001-*`, `b2000001-*`) but leaves crawler-imported products intact.
 
 ## Env files

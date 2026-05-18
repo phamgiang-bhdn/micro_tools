@@ -88,6 +88,27 @@ const NAV: NavGroup[] = [
         match: (p) => p.startsWith("/admin/niches")
       },
       {
+        id: "categories",
+        label: "Category (AT)",
+        href: "/admin/categories",
+        icon: <CategoryIcon />,
+        match: (p) => p.startsWith("/admin/categories")
+      },
+      {
+        id: "sources",
+        label: "Nguồn bán",
+        href: "/admin/sources",
+        icon: <CategoryIcon />,
+        match: (p) => p.startsWith("/admin/sources")
+      },
+      {
+        id: "brands",
+        label: "Thương hiệu",
+        href: "/admin/brands",
+        icon: <CategoryIcon />,
+        match: (p) => p.startsWith("/admin/brands")
+      },
+      {
         id: "products",
         label: "Sản phẩm",
         href: "/admin/products",

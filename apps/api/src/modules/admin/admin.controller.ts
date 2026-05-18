@@ -19,7 +19,7 @@ import { ArticleService } from "../../services/article.service";
 import { PrismaService } from "../../prisma/prisma.service";
 import { CampaignSyncService } from "../crawler/campaign-sync.service";
 import { CouponSyncService } from "../crawler/coupon-sync.service";
-import { DEFAULT_FILTER_RULES, filterRulesSchema } from "../crawler/dto/filter-rules.dto";
+import { filterRulesSchema } from "../crawler/dto/filter-rules.dto";
 import { TopProductsSyncService } from "../crawler/top-products-sync.service";
 import { ReconciliationService } from "../reconciliation/reconciliation.service";
 import { uniqueSlugWithin } from "../../utils/slug.util";
@@ -120,36 +120,6 @@ const createCampaignSchema = z.object({
   notes: z.string().max(2000).nullable().optional()
 });
 
-const createAssignmentSchema = z
-  .object({
-    nicheId: z.string().uuid().optional(),
-    newNiche: z
-      .object({
-        name: z.string().min(1).max(120),
-        slug: z
-          .string()
-          .min(2)
-          .max(80)
-          .regex(/^[a-z0-9-]+$/, "slug chỉ chứa a-z, 0-9, dấu gạch ngang"),
-        schemaConfig: z.record(z.string(), z.unknown())
-      })
-      .optional(),
-    filterRules: filterRulesSchema,
-    priority: z.number().int().min(0).max(10000).optional()
-  })
-  .refine((d) => Boolean(d.nicheId) !== Boolean(d.newNiche), {
-    message: "Phải có đúng 1 trong: nicheId hoặc newNiche"
-  });
-
-const updateAssignmentSchema = z
-  .object({
-    filterRules: filterRulesSchema.optional(),
-    priority: z.number().int().min(0).max(10000).optional()
-  })
-  .refine((d) => d.filterRules !== undefined || d.priority !== undefined, {
-    message: "Cần ít nhất 1 trong: filterRules hoặc priority"
-  });
-
 const updateCampaignSchema = createCampaignSchema.partial().extend({
   network: z.nativeEnum(AffiliateNetwork).optional(),
   externalId: z
@@ -157,7 +127,9 @@ const updateCampaignSchema = createCampaignSchema.partial().extend({
     .min(1)
     .max(120)
     .regex(/^[a-z0-9-]+$/)
-    .optional()
+    .optional(),
+  /// PR5: filterRules ở Campaign level. Null = clear (về DEFAULT_FILTER_RULES khi crawl).
+  filterRules: filterRulesSchema.nullable().optional()
 });
 
 const bulkNicheSchema = z.object({
@@ -165,21 +137,10 @@ const bulkNicheSchema = z.object({
   action: z.enum(["activate", "deactivate", "delete"])
 });
 
-const bulkProductSchema = z.object({
-  ids: z.array(z.string().uuid()).min(1),
-  action: z.enum(["make-public", "make-private", "delete"])
-});
-
-const bulkCampaignSchema = z
+const bulkProductSchema = z
   .object({
     ids: z.array(z.string().uuid()).min(1),
-    action: z.union([
-      z.literal("status:APPROVED"),
-      z.literal("status:PAUSED"),
-      z.literal("status:REJECTED"),
-      z.literal("status:INACTIVE"),
-      z.literal("assign-niche")
-    ]),
+    action: z.enum(["make-public", "make-private", "delete", "assign-niche", "clear-niche"]),
     nicheId: z.string().uuid().optional()
   })
   .refine(
@@ -187,9 +148,27 @@ const bulkCampaignSchema = z
     { message: "nicheId là bắt buộc cho action assign-niche" }
   );
 
+const bulkCampaignSchema = z.object({
+  ids: z.array(z.string().uuid()).min(1),
+  action: z.union([
+    z.literal("status:APPROVED"),
+    z.literal("status:PAUSED"),
+    z.literal("status:REJECTED"),
+    z.literal("status:INACTIVE")
+  ])
+});
+
 const bulkCouponSchema = z.object({
   ids: z.array(z.string().uuid()).min(1),
   action: z.enum(["approve", "archive", "activate", "deactivate", "delete"])
+});
+
+const updateCategorySchema = z.object({
+  displayName: z.string().trim().min(1).max(120).nullable().optional()
+});
+
+const updateLookupDisplayNameSchema = z.object({
+  displayName: z.string().trim().min(1).max(120).nullable().optional()
 });
 
 const updateArticleSchema = z.object({
@@ -405,6 +384,12 @@ export class AdminController {
       throw new HttpException("Extraction not found", HttpStatus.NOT_FOUND);
     }
 
+    if (!extraction.product.niche) {
+      throw new HttpException(
+        "Product chưa được gán niche — không có schemaConfig để extract. Admin gán niche trước trong /admin/products.",
+        HttpStatus.PRECONDITION_FAILED
+      );
+    }
     const schema = extraction.product.niche.schemaConfig as Record<string, unknown>;
     const aiOutput = await this.aiService.parseBySchema<Record<string, unknown>>(extraction.rawContent, schema);
 
@@ -1088,7 +1073,9 @@ export class AdminController {
         : [];
     const nameById = new Map(productNames.map((p) => [p.id, p]));
 
-    const nicheIds = topNiches.map((c) => c.nicheId);
+    const nicheIds = topNiches
+      .map((c) => c.nicheId)
+      .filter((id): id is string => id !== null);
     const nicheNames =
       nicheIds.length > 0
         ? await this.prisma.niche.findMany({
@@ -1112,8 +1099,8 @@ export class AdminController {
       })),
       productCountByNiche: topNiches.map((c) => ({
         nicheId: c.nicheId,
-        name: nicheById.get(c.nicheId)?.name ?? "(deleted)",
-        slug: nicheById.get(c.nicheId)?.slug ?? "",
+        name: c.nicheId ? nicheById.get(c.nicheId)?.name ?? "(deleted)" : "(chưa gán)",
+        slug: c.nicheId ? nicheById.get(c.nicheId)?.slug ?? "" : "",
         count: c._count._all
       })),
       networkBreakdown: networkBreakdown.map((n) => ({
@@ -1146,7 +1133,7 @@ export class AdminController {
     this.authorize(role, apiKey, ["viewer", "reviewer", "admin"]);
     return this.prisma.niche.findMany({
       orderBy: { createdAt: "desc" },
-      include: { _count: { select: { products: true, articles: true, campaignAssignments: true } } }
+      include: { _count: { select: { products: true, articles: true } } }
     });
   }
 
@@ -1159,7 +1146,7 @@ export class AdminController {
     this.authorize(role, apiKey, ["viewer", "reviewer", "admin"]);
     const niche = await this.prisma.niche.findUnique({
       where: { id },
-      include: { _count: { select: { products: true, articles: true, campaignAssignments: true } } }
+      include: { _count: { select: { products: true, articles: true } } }
     });
     if (!niche) throw new HttpException("Niche not found", HttpStatus.NOT_FOUND);
     return niche;
@@ -1271,11 +1258,155 @@ export class AdminController {
     return { success: true, count: result.count };
   }
 
+  // ───── Categories (AT taxonomy — PR2) ─────
+  //
+  // Auto-populated bởi crawler khi import offer (theo offer.atCategorySlug).
+  // Admin chỉ cần điền `displayName` để storefront hiện filter — không tạo/xoá manual ở phase này.
+
+  @Get("categories")
+  async listCategories(
+    @Query("hasDisplayName") hasDisplayName?: string,
+    @Query("search") search?: string,
+    @Headers("x-admin-role") role?: string,
+    @Headers("x-admin-key") apiKey?: string
+  ) {
+    this.authorize(role, apiKey, ["viewer", "reviewer", "admin"]);
+    const where: Prisma.CategoryWhereInput = {};
+    if (hasDisplayName === "true") where.displayName = { not: null };
+    if (hasDisplayName === "false") where.displayName = null;
+    if (search) {
+      where.OR = [
+        { slug: { contains: search, mode: "insensitive" } },
+        { rawValue: { contains: search, mode: "insensitive" } },
+        { displayName: { contains: search, mode: "insensitive" } }
+      ];
+    }
+    return this.prisma.category.findMany({
+      where,
+      orderBy: [{ displayName: { sort: "asc", nulls: "first" } }, { rawValue: "asc" }],
+      include: { _count: { select: { products: true } } }
+    });
+  }
+
+  @Put("categories/:id")
+  async updateCategoryDisplayName(
+    @Param("id") id: string,
+    @Body() payload: unknown,
+    @Headers("x-admin-role") role?: string,
+    @Headers("x-admin-key") apiKey?: string
+  ) {
+    this.authorize(role, apiKey, ["reviewer", "admin"]);
+    const parsed = updateCategorySchema.safeParse(payload);
+    if (!parsed.success) {
+      throw new HttpException(parsed.error.flatten(), HttpStatus.BAD_REQUEST);
+    }
+    return this.prisma.category.update({
+      where: { id },
+      data: {
+        displayName: parsed.data.displayName ?? null
+      }
+    });
+  }
+
+  // ───── Sources (nơi bán — PR3) ─────
+
+  @Get("sources")
+  async listSources(
+    @Query("hasDisplayName") hasDisplayName?: string,
+    @Query("search") search?: string,
+    @Headers("x-admin-role") role?: string,
+    @Headers("x-admin-key") apiKey?: string
+  ) {
+    this.authorize(role, apiKey, ["viewer", "reviewer", "admin"]);
+    const where: Prisma.SourceWhereInput = {};
+    if (hasDisplayName === "true") where.displayName = { not: null };
+    if (hasDisplayName === "false") where.displayName = null;
+    if (search) {
+      where.OR = [
+        { slug: { contains: search, mode: "insensitive" } },
+        { rawValue: { contains: search, mode: "insensitive" } },
+        { displayName: { contains: search, mode: "insensitive" } }
+      ];
+    }
+    return this.prisma.source.findMany({
+      where,
+      orderBy: [{ displayName: { sort: "asc", nulls: "first" } }, { rawValue: "asc" }],
+      include: { _count: { select: { products: true } } }
+    });
+  }
+
+  @Put("sources/:id")
+  async updateSourceDisplayName(
+    @Param("id") id: string,
+    @Body() payload: unknown,
+    @Headers("x-admin-role") role?: string,
+    @Headers("x-admin-key") apiKey?: string
+  ) {
+    this.authorize(role, apiKey, ["reviewer", "admin"]);
+    const parsed = updateLookupDisplayNameSchema.safeParse(payload);
+    if (!parsed.success) {
+      throw new HttpException(parsed.error.flatten(), HttpStatus.BAD_REQUEST);
+    }
+    return this.prisma.source.update({
+      where: { id },
+      data: { displayName: parsed.data.displayName ?? null }
+    });
+  }
+
+  // ───── Brands (thương hiệu — PR3) ─────
+
+  @Get("brands")
+  async listBrands(
+    @Query("hasDisplayName") hasDisplayName?: string,
+    @Query("search") search?: string,
+    @Headers("x-admin-role") role?: string,
+    @Headers("x-admin-key") apiKey?: string
+  ) {
+    this.authorize(role, apiKey, ["viewer", "reviewer", "admin"]);
+    const where: Prisma.BrandWhereInput = {};
+    if (hasDisplayName === "true") where.displayName = { not: null };
+    if (hasDisplayName === "false") where.displayName = null;
+    if (search) {
+      where.OR = [
+        { slug: { contains: search, mode: "insensitive" } },
+        { rawValue: { contains: search, mode: "insensitive" } },
+        { displayName: { contains: search, mode: "insensitive" } }
+      ];
+    }
+    return this.prisma.brand.findMany({
+      where,
+      orderBy: [{ displayName: { sort: "asc", nulls: "first" } }, { rawValue: "asc" }],
+      include: { _count: { select: { products: true } } }
+    });
+  }
+
+  @Put("brands/:id")
+  async updateBrandDisplayName(
+    @Param("id") id: string,
+    @Body() payload: unknown,
+    @Headers("x-admin-role") role?: string,
+    @Headers("x-admin-key") apiKey?: string
+  ) {
+    this.authorize(role, apiKey, ["reviewer", "admin"]);
+    const parsed = updateLookupDisplayNameSchema.safeParse(payload);
+    if (!parsed.success) {
+      throw new HttpException(parsed.error.flatten(), HttpStatus.BAD_REQUEST);
+    }
+    return this.prisma.brand.update({
+      where: { id },
+      data: { displayName: parsed.data.displayName ?? null }
+    });
+  }
+
   // ───── Products (admin manual CRUD) ─────
 
   @Get("products")
   async listProducts(
     @Query("nicheId") nicheId?: string,
+    @Query("nicheStatus") nicheStatus?: string,
+    @Query("categoryId") productCategoryId?: string,
+    @Query("sourceId") sourceId?: string,
+    @Query("brandId") brandId?: string,
     @Query("network") network?: string,
     @Query("isPublic") isPublic?: string,
     @Query("search") search?: string,
@@ -1286,6 +1417,11 @@ export class AdminController {
     this.authorize(role, apiKey, ["viewer", "reviewer", "admin"]);
     const where: Prisma.ProductWhereInput = {};
     if (nicheId) where.nicheId = nicheId;
+    if (nicheStatus === "unassigned") where.nicheId = null;
+    if (nicheStatus === "assigned") where.nicheId = { not: null };
+    if (productCategoryId) where.categoryId = productCategoryId;
+    if (sourceId) where.sourceId = sourceId;
+    if (brandId) where.brandId = brandId;
     if (network && (Object.values(AffiliateNetwork) as string[]).includes(network)) {
       where.network = network as AffiliateNetwork;
     }
@@ -1296,6 +1432,9 @@ export class AdminController {
       where,
       include: {
         niche: { select: { id: true, slug: true, name: true } },
+        category: { select: { id: true, slug: true, rawValue: true, displayName: true } },
+        source: { select: { id: true, slug: true, rawValue: true, displayName: true } },
+        brand: { select: { id: true, slug: true, rawValue: true, displayName: true } },
         campaign: { select: { id: true, name: true, atCampaignId: true } },
         _count: { select: { clickLogs: true, extractions: true } }
       },
@@ -1413,9 +1552,25 @@ export class AdminController {
     if (!parsed.success) {
       throw new HttpException(parsed.error.flatten(), HttpStatus.BAD_REQUEST);
     }
-    const { ids, action } = parsed.data;
+    const { ids, action, nicheId } = parsed.data;
     if (action === "delete") {
       const result = await this.prisma.product.deleteMany({ where: { id: { in: ids } } });
+      return { success: true, count: result.count };
+    }
+    if (action === "assign-niche") {
+      const exists = await this.prisma.niche.findUnique({ where: { id: nicheId! }, select: { id: true } });
+      if (!exists) throw new HttpException("Niche không tồn tại", HttpStatus.BAD_REQUEST);
+      const result = await this.prisma.product.updateMany({
+        where: { id: { in: ids } },
+        data: { nicheId: nicheId! }
+      });
+      return { success: true, count: result.count };
+    }
+    if (action === "clear-niche") {
+      const result = await this.prisma.product.updateMany({
+        where: { id: { in: ids } },
+        data: { nicheId: null, isPublic: false }
+      });
       return { success: true, count: result.count };
     }
     const isPublic = action === "make-public";
@@ -1453,7 +1608,6 @@ export class AdminController {
     @Query("network") network?: string,
     @Query("status") status?: string,
     @Query("search") search?: string,
-    @Query("assignment") assignment?: string,
     @Headers("x-admin-role") role?: string,
     @Headers("x-admin-key") apiKey?: string
   ) {
@@ -1465,8 +1619,6 @@ export class AdminController {
     if (status && (Object.values(CampaignStatus) as string[]).includes(status)) {
       where.status = status as CampaignStatus;
     }
-    if (assignment === "assigned") where.assignments = { some: {} };
-    if (assignment === "unassigned") where.assignments = { none: {} };
     if (search) {
       where.OR = [
         { name: { contains: search, mode: "insensitive" } },
@@ -1479,162 +1631,10 @@ export class AdminController {
       where,
       orderBy: [{ status: "asc" }, { network: "asc" }, { name: "asc" }],
       include: {
-        _count: { select: { products: true, conversions: true } },
-        assignments: {
-          include: { niche: { select: { id: true, name: true, slug: true } } },
-          orderBy: { priority: "asc" }
-        }
+        _count: { select: { products: true, conversions: true } }
       },
       take: 500
     });
-  }
-
-  // ───── Campaign ↔ Niche assignments (N:N) ─────
-
-  @Get("campaigns/:id/assignments")
-  async listCampaignAssignments(
-    @Param("id") id: string,
-    @Headers("x-admin-role") role?: string,
-    @Headers("x-admin-key") apiKey?: string
-  ) {
-    this.authorize(role, apiKey, ["viewer", "reviewer", "admin"]);
-    const campaign = await this.prisma.campaign.findUnique({ where: { id }, select: { id: true } });
-    if (!campaign) throw new HttpException("Campaign not found", HttpStatus.NOT_FOUND);
-    return this.prisma.campaignNiche.findMany({
-      where: { campaignId: id },
-      include: { niche: { select: { id: true, name: true, slug: true } } },
-      orderBy: { priority: "asc" }
-    });
-  }
-
-  @Post("campaigns/:id/assignments")
-  async createCampaignAssignment(
-    @Param("id") id: string,
-    @Body() payload: unknown,
-    @Headers("x-admin-role") role?: string,
-    @Headers("x-admin-key") apiKey?: string
-  ) {
-    this.authorize(role, apiKey, ["admin"]);
-    const parsed = createAssignmentSchema.safeParse(payload);
-    if (!parsed.success) {
-      throw new HttpException(parsed.error.flatten(), HttpStatus.BAD_REQUEST);
-    }
-    const campaign = await this.prisma.campaign.findUnique({ where: { id } });
-    if (!campaign) throw new HttpException("Campaign not found", HttpStatus.NOT_FOUND);
-
-    let nicheId = parsed.data.nicheId ?? null;
-    if (parsed.data.newNiche) {
-      const existing = await this.prisma.niche.findUnique({
-        where: { slug: parsed.data.newNiche.slug }
-      });
-      if (existing) {
-        throw new HttpException(
-          `Slug "${parsed.data.newNiche.slug}" đã tồn tại — chọn slug khác hoặc assign vào niche đó.`,
-          HttpStatus.CONFLICT
-        );
-      }
-      const created = await this.prisma.niche.create({
-        data: {
-          name: parsed.data.newNiche.name,
-          slug: parsed.data.newNiche.slug,
-          status: NicheStatus.ACTIVE,
-          schemaConfig: parsed.data.newNiche.schemaConfig as Prisma.InputJsonValue
-        }
-      });
-      nicheId = created.id;
-    }
-
-    if (!nicheId) {
-      throw new HttpException("Thiếu nicheId", HttpStatus.BAD_REQUEST);
-    }
-    const exists = await this.prisma.niche.findUnique({ where: { id: nicheId } });
-    if (!exists) {
-      throw new HttpException("Niche không tồn tại", HttpStatus.BAD_REQUEST);
-    }
-
-    const dup = await this.prisma.campaignNiche.findUnique({
-      where: { campaignId_nicheId: { campaignId: id, nicheId } }
-    });
-    if (dup) {
-      throw new HttpException(
-        "Cặp (campaign, niche) đã tồn tại — sửa filterRules thay vì tạo mới.",
-        HttpStatus.CONFLICT
-      );
-    }
-
-    const assignment = await this.prisma.campaignNiche.create({
-      data: {
-        campaignId: id,
-        nicheId,
-        filterRules: parsed.data.filterRules as Prisma.InputJsonValue,
-        priority: parsed.data.priority ?? 100
-      },
-      include: { niche: { select: { id: true, name: true, slug: true } } }
-    });
-
-    // Khi assign assignment đầu tiên, auto chuyển campaign sang APPROVED để crawler pick up.
-    if (campaign.status !== CampaignStatus.APPROVED) {
-      await this.prisma.campaign.update({
-        where: { id },
-        data: {
-          status: CampaignStatus.APPROVED,
-          approvedAt: campaign.approvedAt ?? new Date()
-        }
-      });
-    }
-
-    return assignment;
-  }
-
-  @Put("campaigns/:id/assignments/:assignmentId")
-  async updateCampaignAssignment(
-    @Param("id") id: string,
-    @Param("assignmentId") assignmentId: string,
-    @Body() payload: unknown,
-    @Headers("x-admin-role") role?: string,
-    @Headers("x-admin-key") apiKey?: string
-  ) {
-    this.authorize(role, apiKey, ["admin"]);
-    const parsed = updateAssignmentSchema.safeParse(payload);
-    if (!parsed.success) {
-      throw new HttpException(parsed.error.flatten(), HttpStatus.BAD_REQUEST);
-    }
-    const existing = await this.prisma.campaignNiche.findUnique({
-      where: { id: assignmentId }
-    });
-    if (!existing || existing.campaignId !== id) {
-      throw new HttpException("Assignment not found", HttpStatus.NOT_FOUND);
-    }
-    const data: Prisma.CampaignNicheUpdateInput = {};
-    if (parsed.data.filterRules !== undefined) {
-      data.filterRules = parsed.data.filterRules as Prisma.InputJsonValue;
-    }
-    if (parsed.data.priority !== undefined) {
-      data.priority = parsed.data.priority;
-    }
-    return this.prisma.campaignNiche.update({
-      where: { id: assignmentId },
-      data,
-      include: { niche: { select: { id: true, name: true, slug: true } } }
-    });
-  }
-
-  @Delete("campaigns/:id/assignments/:assignmentId")
-  async deleteCampaignAssignment(
-    @Param("id") id: string,
-    @Param("assignmentId") assignmentId: string,
-    @Headers("x-admin-role") role?: string,
-    @Headers("x-admin-key") apiKey?: string
-  ) {
-    this.authorize(role, apiKey, ["admin"]);
-    const existing = await this.prisma.campaignNiche.findUnique({
-      where: { id: assignmentId }
-    });
-    if (!existing || existing.campaignId !== id) {
-      throw new HttpException("Assignment not found", HttpStatus.NOT_FOUND);
-    }
-    await this.prisma.campaignNiche.delete({ where: { id: assignmentId } });
-    return { success: true };
   }
 
   @Get("campaigns/:id")
@@ -1726,6 +1726,11 @@ export class AdminController {
     }
     if (parsed.data.commissionNote !== undefined) data.commissionNote = parsed.data.commissionNote;
     if (parsed.data.notes !== undefined) data.notes = parsed.data.notes;
+    if (parsed.data.filterRules !== undefined) {
+      data.filterRules = parsed.data.filterRules === null
+        ? Prisma.JsonNull
+        : (parsed.data.filterRules as Prisma.InputJsonValue);
+    }
 
     return this.prisma.campaign.update({ where: { id }, data });
   }
@@ -1766,53 +1771,7 @@ export class AdminController {
     if (!parsed.success) {
       throw new HttpException(parsed.error.flatten(), HttpStatus.BAD_REQUEST);
     }
-    const { ids, action, nicheId } = parsed.data;
-    if (action === "assign-niche") {
-      // nicheId đã được validate bởi schema refine
-      const exists = await this.prisma.niche.findUnique({
-        where: { id: nicheId! },
-        select: { id: true }
-      });
-      if (!exists) {
-        throw new HttpException("Niche không tồn tại", HttpStatus.BAD_REQUEST);
-      }
-      // N:N: tạo CampaignNiche cho mỗi campaign trong ids. Cặp đã tồn tại → skip.
-      // Cũng auto-approve campaign khi có assignment mới (signal cho crawler-cycle pick up).
-      let count = 0;
-      let skipped = 0;
-      for (const campaignId of ids) {
-        const dup = await this.prisma.campaignNiche.findUnique({
-          where: { campaignId_nicheId: { campaignId, nicheId: nicheId! } }
-        });
-        if (dup) {
-          skipped += 1;
-          continue;
-        }
-        await this.prisma.campaignNiche.create({
-          data: {
-            campaignId,
-            nicheId: nicheId!,
-            filterRules: DEFAULT_FILTER_RULES as unknown as Prisma.InputJsonValue,
-            priority: 100
-          }
-        });
-        const campaign = await this.prisma.campaign.findUnique({
-          where: { id: campaignId },
-          select: { status: true, approvedAt: true }
-        });
-        if (campaign && campaign.status !== CampaignStatus.APPROVED) {
-          await this.prisma.campaign.update({
-            where: { id: campaignId },
-            data: {
-              status: CampaignStatus.APPROVED,
-              approvedAt: campaign.approvedAt ?? new Date()
-            }
-          });
-        }
-        count += 1;
-      }
-      return { success: true, count, skipped };
-    }
+    const { ids, action } = parsed.data;
     // action format "status:XXX"
     const statusValue = action.replace("status:", "") as CampaignStatus;
     if (!(Object.values(CampaignStatus) as string[]).includes(statusValue)) {

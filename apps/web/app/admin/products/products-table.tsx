@@ -46,7 +46,7 @@ export interface ProductRow {
   affiliateUrl: string;
   updatedAt: string;
   createdAt?: string;
-  niche: { id: string; slug: string; name: string };
+  niche: { id: string; slug: string; name: string } | null;
   scrapedData?: Record<string, unknown> | null;
   campaign?: { id: string; name: string; atCampaignId: string | null } | null;
   _count?: { clickLogs?: number; extractions?: number };
@@ -75,6 +75,8 @@ const EMPTY_CREATE: ProductCreateInput = {
 };
 
 const BULK_ACTIONS: BulkAction[] = [
+  { value: "assign-niche", label: "Gán Niche…", confirm: "" },
+  { value: "clear-niche", label: "Bỏ niche", confirm: "Bỏ gán niche + ẩn các sản phẩm đã chọn? Sản phẩm sẽ rời khỏi storefront cho đến khi gán lại." },
   { value: "make-public", label: "Đặt public", confirm: "Bật public các sản phẩm đã chọn?" },
   { value: "make-private", label: "Đặt private", confirm: "Ẩn khỏi storefront?" },
   {
@@ -155,6 +157,7 @@ export function ProductsTable({
   const [viewing, setViewing] = React.useState<ProductRow | null>(null);
   const { selected, toggleOne, toggleAll, clear, allSelected } = useRowSelection(rows);
   const [bulkAction, setBulkAction] = React.useState<string>("");
+  const [bulkNicheId, setBulkNicheId] = React.useState<string>("");
   const [bulkPending, setBulkPending] = React.useState(false);
 
   const nicheOptions = React.useMemo(
@@ -206,17 +209,23 @@ export function ProductsTable({
 
   const handleBulk = async () => {
     if (!bulkAction || selected.size === 0) return;
+    if (bulkAction === "assign-niche" && !bulkNicheId) {
+      window.alert("Chọn niche trước khi gán.");
+      return;
+    }
     const cfg = BULK_ACTIONS.find((b) => b.value === bulkAction);
     const msg = buildBulkConfirmMessage(cfg, selected.size);
     if (msg && !window.confirm(msg)) return;
     const fd = new FormData();
     fd.set("action", bulkAction);
     for (const id of selected) fd.append("ids", id);
+    if (bulkAction === "assign-niche") fd.set("nicheId", bulkNicheId);
     setBulkPending(true);
     try {
       await bulkProductAction(fd);
       clear();
       setBulkAction("");
+      setBulkNicheId("");
       router.refresh();
     } finally {
       setBulkPending(false);
@@ -331,12 +340,17 @@ export function ProductsTable({
       key: "niche",
       header: "Niche",
       hideOnMobile: true,
-      cell: (p) => (
-        <div className="leading-tight">
-          <div className="text-[12.5px] text-admin-ink">{p.niche.name}</div>
-          <div className="font-mono text-[10.5px] text-admin-mute">{p.niche.slug}</div>
-        </div>
-      )
+      cell: (p) =>
+        p.niche ? (
+          <div className="leading-tight">
+            <div className="text-[12.5px] text-admin-ink">{p.niche.name}</div>
+            <div className="font-mono text-[10.5px] text-admin-mute">{p.niche.slug}</div>
+          </div>
+        ) : (
+          <StatusPill tone="warning" dot>
+            Chưa gán
+          </StatusPill>
+        )
     },
     {
       key: "network",
@@ -390,14 +404,14 @@ export function ProductsTable({
               icon: p.isPublic ? <EyeOff /> : <Eye />,
               onSelect: () => handleTogglePublic(p.id, !p.isPublic)
             },
-            ...(p.isPublic && p.slug
+            ...(p.isPublic && p.slug && p.niche
               ? [
                   {
                     label: "Xem trên storefront",
                     icon: <ExternalLink />,
                     onSelect: () => {
                       window.open(
-                        `/categories/${p.niche.slug}/${p.slug}`,
+                        `/categories/${p.niche!.slug}/${p.slug}`,
                         "_blank",
                         "noopener,noreferrer"
                       );
@@ -426,9 +440,29 @@ export function ProductsTable({
           totalCount={rows.length}
           actions={BULK_ACTIONS}
           action={bulkAction}
-          setAction={setBulkAction}
+          setAction={(v) => {
+            setBulkAction(v);
+            if (v !== "assign-niche") setBulkNicheId("");
+          }}
           onApply={handleBulk}
           pending={bulkPending}
+          extraSlot={
+            bulkAction === "assign-niche" ? (
+              <select
+                value={bulkNicheId}
+                onChange={(e) => setBulkNicheId(e.target.value)}
+                className="h-8 rounded-md border border-admin-line bg-admin-surface px-2 pr-7 text-xs text-admin-ink"
+                aria-label="Chọn niche để gán"
+              >
+                <option value="">— Chọn niche —</option>
+                {niches.map((n) => (
+                  <option key={n.id} value={n.id}>
+                    {n.name}
+                  </option>
+                ))}
+              </select>
+            ) : null
+          }
           rightSlot={
             <div className="flex flex-wrap items-center gap-3">
               <div className="text-xs text-admin-mute">
@@ -522,7 +556,7 @@ export function ProductsTable({
                   </StatusPill>
                 )}
                 <NetworkBadge network={viewing.network} />
-                <span className="text-xs text-admin-mute">{viewing.niche.name}</span>
+                <span className="text-xs text-admin-mute">{viewing.niche?.name ?? "Chưa gán niche"}</span>
               </div>
               <div>
                 <div className="mb-0.5 text-xs font-medium text-admin-mute">Affiliate URL</div>
@@ -646,7 +680,7 @@ function toFormValues(row: ProductRow): ProductUpdateInput {
     id: row.id,
     name: row.name,
     affiliateUrl: row.affiliateUrl,
-    nicheId: row.niche.id,
+    nicheId: row.niche?.id ?? "",
     network: row.network as AffiliateNetwork,
     isPublic: row.isPublic
   };

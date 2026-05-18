@@ -143,12 +143,10 @@ export async function archiveArticleAction(formData: FormData): Promise<void> {
 
 // ───────── Crawler ─────────
 
-export interface CrawlerAssignmentBreakdown {
-  assignmentId: string;
+export interface CrawlerCampaignBreakdown {
   campaignId: string;
   campaignName: string;
   merchantSlug: string;
-  nicheSlug: string;
   fetched: number;
   routed: number;
   failedFilter: number;
@@ -160,7 +158,7 @@ export interface CrawlerCycleResult {
   created: number;
   updated: number;
   skipped: number;
-  assignments: CrawlerAssignmentBreakdown[];
+  campaigns: CrawlerCampaignBreakdown[];
 }
 
 export async function runCrawlerNowAction(): Promise<CrawlerCycleResult> {
@@ -210,7 +208,7 @@ export async function ingestUrlAction(formData: FormData): Promise<void> {
   revalidatePath("/admin");
 }
 
-// ───────── Categories ─────────
+// ───────── Niches ─────────
 
 export async function createNicheAction(formData: FormData): Promise<void> {
   const name = String(formData.get("name") ?? "").trim();
@@ -257,6 +255,39 @@ export async function deleteNicheAction(formData: FormData): Promise<void> {
   if (!id) throw new Error("Thiếu id niche.");
   await adminFetch(`/admin/niches/${id}`, "DELETE");
   revalidatePath("/admin/niches");
+}
+
+// ───────── Categories (AT taxonomy — PR2) ─────────
+//
+// Admin chỉ điền displayName để storefront/filter hiện tên đẹp. Slug + rawValue do crawler auto-populate.
+
+export async function updateCategoryDisplayNameAction(formData: FormData): Promise<void> {
+  const id = String(formData.get("id") ?? "");
+  if (!id) throw new Error("Thiếu id category.");
+  const displayNameRaw = String(formData.get("displayName") ?? "").trim();
+  const displayName = displayNameRaw || null;
+  await adminFetch(`/admin/categories/${id}`, "PUT", { displayName });
+  revalidatePath("/admin/categories");
+}
+
+// ───────── Sources + Brands (PR3) ─────────
+
+export async function updateSourceDisplayNameAction(formData: FormData): Promise<void> {
+  const id = String(formData.get("id") ?? "");
+  if (!id) throw new Error("Thiếu id source.");
+  const displayNameRaw = String(formData.get("displayName") ?? "").trim();
+  const displayName = displayNameRaw || null;
+  await adminFetch(`/admin/sources/${id}`, "PUT", { displayName });
+  revalidatePath("/admin/sources");
+}
+
+export async function updateBrandDisplayNameAction(formData: FormData): Promise<void> {
+  const id = String(formData.get("id") ?? "");
+  if (!id) throw new Error("Thiếu id brand.");
+  const displayNameRaw = String(formData.get("displayName") ?? "").trim();
+  const displayName = displayNameRaw || null;
+  await adminFetch(`/admin/brands/${id}`, "PUT", { displayName });
+  revalidatePath("/admin/brands");
 }
 
 // ───────── Products (admin manual) ─────────
@@ -514,55 +545,6 @@ export async function syncCampaignsFromAccesstrade(): Promise<CampaignSyncResult
   return result;
 }
 
-export interface AssignmentInput {
-  nicheId?: string;
-  newNiche?: { name: string; slug: string; schemaConfig: Record<string, unknown> };
-  filterRules: Record<string, unknown>;
-  priority?: number;
-}
-
-export interface AssignmentUpdateInput {
-  filterRules?: Record<string, unknown>;
-  priority?: number;
-}
-
-export async function createCampaignAssignment(
-  campaignId: string,
-  body: AssignmentInput
-): Promise<void> {
-  await adminFetch(
-    `/admin/campaigns/${campaignId}/assignments`,
-    "POST",
-    body as unknown as Record<string, unknown>
-  );
-  revalidatePath("/admin/campaigns");
-  revalidatePath("/admin/niches");
-}
-
-export async function updateCampaignAssignment(
-  campaignId: string,
-  assignmentId: string,
-  body: AssignmentUpdateInput
-): Promise<void> {
-  await adminFetch(
-    `/admin/campaigns/${campaignId}/assignments/${assignmentId}`,
-    "PUT",
-    body as unknown as Record<string, unknown>
-  );
-  revalidatePath("/admin/campaigns");
-}
-
-export async function deleteCampaignAssignment(
-  campaignId: string,
-  assignmentId: string
-): Promise<void> {
-  await adminFetch(
-    `/admin/campaigns/${campaignId}/assignments/${assignmentId}`,
-    "DELETE"
-  );
-  revalidatePath("/admin/campaigns");
-}
-
 export async function runCampaignCrawlerAction(atCampaignId: string): Promise<void> {
   if (!atCampaignId) throw new Error("Thiếu atCampaignId — sync trước rồi mới chạy crawler.");
   await adminFetch(`/admin/crawler/run-campaign/${encodeURIComponent(atCampaignId)}`, "POST");
@@ -614,14 +596,19 @@ export async function bulkProductAction(formData: FormData): Promise<void> {
   if (!action || ids.length === 0) {
     throw new Error("Chọn ít nhất 1 sản phẩm và 1 hành động.");
   }
-  await post("/admin/products/bulk", { ids, action });
+  const body: Record<string, unknown> = { ids, action };
+  if (action === "assign-niche") {
+    const nicheId = String(formData.get("nicheId") ?? "").trim();
+    if (!nicheId) throw new Error("Chọn niche trước khi gán.");
+    body.nicheId = nicheId;
+  }
+  await post("/admin/products/bulk", body);
   revalidatePath("/admin/products");
 }
 
 export interface BulkCampaignResult {
   success: boolean;
   count: number;
-  skipped?: number;
 }
 
 export async function bulkCampaignAction(formData: FormData): Promise<BulkCampaignResult> {
@@ -630,13 +617,7 @@ export async function bulkCampaignAction(formData: FormData): Promise<BulkCampai
   if (!action || ids.length === 0) {
     throw new Error("Chọn ít nhất 1 campaign và 1 hành động.");
   }
-  const body: Record<string, unknown> = { ids, action };
-  if (action === "assign-niche") {
-    const nicheId = String(formData.get("nicheId") ?? "").trim();
-    if (!nicheId) throw new Error("Chọn niche trước khi gán.");
-    body.nicheId = nicheId;
-  }
-  const result = await adminFetch<BulkCampaignResult>("/admin/campaigns/bulk", "POST", body);
+  const result = await adminFetch<BulkCampaignResult>("/admin/campaigns/bulk", "POST", { ids, action });
   revalidatePath("/admin/campaigns");
   return result;
 }

@@ -275,20 +275,14 @@ npm install
 # 2. Cấu hình DATABASE_URL trong apps/api/.env
 # Ví dụ: DATABASE_URL="postgresql://postgres:your_password@localhost:5432/affiliate_db?schema=public"
 
-# 3. Generate Prisma Client
-npm run db:generate
+# 3. Apply migrations + seed (lần đầu — db:reset đã bao gồm seed)
+npm run db:reset
 
-# 4. Chạy migrations
-npm run db:deploy
-
-# 5. Seed dữ liệu mẫu
-npm run db:seed
-
-# 6. Chạy dev (2 terminals)
+# 4. Chạy dev (2 terminals)
 npm run dev:api   # Terminal 1 - Backend port 4000
 npm run dev:web   # Terminal 2 - Frontend port 3100
 
-# 7. Nếu port bị chiếm, tìm và kill process:
+# 5. Nếu port bị chiếm, tìm và kill process:
 netstat -ano | findstr :4000    # Tìm PID
 netstat -ano | findstr :3100    # Tìm PID
 taskkill /PID <PID> /F          # Kill process
@@ -325,13 +319,13 @@ taskkill /PID <PID> /F          # Kill process
 | --- | --- |
 | `npm run help` | In bảng mô tả tất cả lệnh kèm màu |
 | `npm run bootstrap` | `env:init` + `setup` (chuẩn bị máy dev từ 0) |
-| `npm run setup` | `docker:up` + `db:deploy` + `db:seed` |
+| `npm run setup` | `docker:up` + `db:deploy` + seed |
 | `npm run docker:up` / `docker:down` | Bật / tắt Postgres + pgAdmin |
-| `npm run db:deploy` | Áp Prisma migrations |
-| `npm run db:seed` | Seed dữ liệu mẫu |
-| `npm run db:generate` | Generate Prisma Client (sau khi đổi `schema.prisma`) |
+| `npm run db:deploy` | Áp migration đã có + regen Prisma Client (sau `git pull`) |
+| `npm run db:migrate -- --name xxx` | Tạo migration mới từ schema diff + apply (lúc dev) |
+| `npm run db:reset` | Drop DB → apply lại tất cả migration → seed (pre-release dùng thoải mái) |
 | `npm run dev:api` / `dev:web` | Chạy dev server |
-| `npm run build:api` / `build:web` / `build` | Build production |
+| `npm run build` | Build production (web + api) |
 | `npm run lint:web` | ESLint cho web |
 | `npm run test:api` | Jest cho api |
 

@@ -18,7 +18,7 @@ Crawler is the only feature module (`src/modules/crawler/`) because it owns its 
 ## Prisma
 
 - `PrismaService` (in `src/prisma/`) extends `PrismaClient` and implements `OnModuleInit` → call `$connect()` on startup. **Always inject it**; never `new PrismaClient()` ad hoc.
-- Migrations live in `prisma/migrations/`. After editing `prisma/schema.prisma`, run `npm run prisma:generate` from this workspace (or `npm run db:generate` from root) before the new types are usable.
+- Migrations live in `prisma/migrations/`. After editing `prisma/schema.prisma`, run `npm run db:migrate -- --name <slug>` from root (creates + applies migration + regens client). For a one-off client regen without migrating, `npm run prisma:generate --workspace api`.
 - Use `Prisma.InputJsonValue` when assigning to `Json` columns (`scrapedData`, `aiOutput`, `payload`, `schemaConfig`) — see `admin.controller.ts` for the pattern.
 
 ## Admin endpoints — auth & validation pattern

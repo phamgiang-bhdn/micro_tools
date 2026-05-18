@@ -10,12 +10,10 @@ import { NormalizedOffer } from "./dto/normalized-offer.dto";
 import { EnrichmentService } from "./enrichment.service";
 import { ImportResult, ImportService } from "./import.service";
 
-export interface AssignmentBreakdown {
-  assignmentId: string;
+export interface CampaignBreakdown {
   campaignId: string;
   campaignName: string;
   merchantSlug: string;
-  nicheSlug: string;
   fetched: number;
   routed: number;
   failedFilter: number;
@@ -24,40 +22,36 @@ export interface AssignmentBreakdown {
 export interface CycleResult extends ImportResult {
   fetched: number;
   passedFilter: number;
-  assignments: AssignmentBreakdown[];
+  campaigns: CampaignBreakdown[];
 }
 
-interface AssignmentTask {
+interface CampaignTask {
   id: string;
-  priority: number;
+  name: string;
+  merchantSlug: string;
   filterRules: Prisma.JsonValue;
-  niche: { id: string; slug: string };
-  campaign: {
-    id: string;
-    name: string;
-    merchantSlug: string;
-  };
 }
 
-const PER_ASSIGNMENT_LIMIT = 100;
+const PER_CAMPAIGN_LIMIT = 100;
 const SLEEP_BETWEEN_FETCH_MS = 500;
 
 /**
- * Orchestrator (per-assignment fetch — push filterRules xuống AT để pre-filter server-side):
+ * Orchestrator (per-campaign fetch — push filterRules xuống AT để pre-filter server-side):
  *
- * 1. Lấy tất cả `CampaignNiche` (assignment) của Campaign APPROVED + có atCampaignId + merchantName.
- * 2. Mỗi assignment = 1 fetch `/v1/datafeeds?campaign=<merchantSlug>` + push filterRules đã convert
+ * 1. Lấy tất cả Campaign có `status=APPROVED` + `atCampaignId` + `merchantName`.
+ *    PR5: KHÔNG còn require `CampaignNiche` assignment — campaign approved là crawl được.
+ *    Niche admin gán tay sau ở /admin/products.
+ * 2. Mỗi campaign = 1 fetch `/v1/datafeeds?campaign=<merchantSlug>` + push filterRules đã convert
  *    sang AT param (`discount_rate_from/to`, `price_from/to`, `discount_from/to`, `discount_amount_from/to`,
  *    `status_discount`, `update_from`, `domain` nếu rule chỉ có 1 domain).
- * 3. Mỗi offer fetched → route thẳng vào `assignment.niche.slug` (KHÔNG cần name match, KHÔNG cần
- *    first-match-wins — vì AT đã filter đúng cho assignment này).
+ * 3. Offer fetched → ImportService tạo Product với `nicheId=null, isPublic=false` (PR4) — admin gán
+ *    niche tay sau khi filter theo Category/Source/Brand.
  * 4. Sleep `SLEEP_BETWEEN_FETCH_MS` giữa các fetch để né rate-limit.
- * 5. Trả về `CycleResult.assignments[]` để UI hiển thị breakdown chi tiết per-assignment.
+ * 5. Trả về `CycleResult.campaigns[]` cho UI hiển thị breakdown per-campaign.
  *
- * Limit `PER_ASSIGNMENT_LIMIT = 100` (1 page, không paginate). Đủ cho test + early adopter; scale lên sau.
+ * Limit `PER_CAMPAIGN_LIMIT = 100` (1 page, không paginate). Scale lên sau khi cần.
  *
  * Multi-network skeleton (shopee/tiktok/lazada) vẫn được inject — sprint hiện chỉ Accesstrade active.
- * `niche-inference.util.ts` (@deprecated): crawler-cycle KHÔNG infer niche từ free-text nữa.
  */
 export interface CrawlerProgress {
   isRunning: boolean;
@@ -116,33 +110,33 @@ export class CrawlerService {
       isRunning: true,
       total: 0,
       done: 0,
-      currentLabel: "Đang tải danh sách assignment…",
+      currentLabel: "Đang tải danh sách campaign…",
       startedAt: start,
       finishedAt: null,
       lastError: null
     };
 
     try {
-      const assignments = this.accesstradeEnabled ? await this.loadAssignments() : [];
-      this.progress.total = assignments.length;
-      if (assignments.length === 0) {
-        this.progress.currentLabel = "Không có assignment nào eligible";
+      const campaigns = this.accesstradeEnabled ? await this.loadEligibleCampaigns() : [];
+      this.progress.total = campaigns.length;
+      if (campaigns.length === 0) {
+        this.progress.currentLabel = "Không có campaign nào eligible";
         this.logger.warn(
-          "No eligible assignments (need Campaign APPROVED + atCampaignId + merchantName + ≥1 CampaignNiche). Cycle is a no-op."
+          "No eligible campaigns (need status=APPROVED + atCampaignId + merchantName). Cycle is a no-op."
         );
       }
 
-      const breakdowns: AssignmentBreakdown[] = [];
+      const breakdowns: CampaignBreakdown[] = [];
       const allOffers: NormalizedOffer[] = [];
 
-      for (let i = 0; i < assignments.length; i++) {
-        const a = assignments[i];
-        this.progress.currentLabel = `${a.campaign.merchantSlug} / ${a.niche.slug}`;
-        const result = await this.runForAssignment(a);
+      for (let i = 0; i < campaigns.length; i++) {
+        const c = campaigns[i];
+        this.progress.currentLabel = c.merchantSlug;
+        const result = await this.runForCampaign(c);
         breakdowns.push(result.breakdown);
         allOffers.push(...result.offers);
         this.progress.done = i + 1;
-        if (i < assignments.length - 1) {
+        if (i < campaigns.length - 1) {
           await new Promise((r) => setTimeout(r, SLEEP_BETWEEN_FETCH_MS));
         }
       }
@@ -182,7 +176,7 @@ export class CrawlerService {
       return {
         fetched: totalFetched,
         passedFilter: allOffers.length,
-        assignments: breakdowns,
+        campaigns: breakdowns,
         ...importResult
       };
     } catch (error: unknown) {
@@ -204,49 +198,39 @@ export class CrawlerService {
     }
   }
 
-  private async loadAssignments(): Promise<AssignmentTask[]> {
-    const rows = await this.prisma.campaignNiche.findMany({
+  private async loadEligibleCampaigns(): Promise<CampaignTask[]> {
+    const rows = await this.prisma.campaign.findMany({
       where: {
-        campaign: {
-          status: "APPROVED",
-          atCampaignId: { not: null },
-          merchantName: { not: null }
-        }
+        status: "APPROVED",
+        atCampaignId: { not: null },
+        merchantName: { not: null }
       },
       select: {
         id: true,
-        priority: true,
-        filterRules: true,
-        niche: { select: { id: true, slug: true } },
-        campaign: { select: { id: true, name: true, merchantName: true } }
+        name: true,
+        merchantName: true,
+        filterRules: true
       },
-      orderBy: [{ campaignId: "asc" }, { priority: "asc" }]
+      orderBy: { id: "asc" }
     });
 
     return rows
-      .filter((r): r is typeof r & { campaign: typeof r.campaign & { merchantName: string } } =>
-        Boolean(r.campaign.merchantName)
-      )
+      .filter((r): r is typeof r & { merchantName: string } => Boolean(r.merchantName))
       .map((r) => ({
         id: r.id,
-        priority: r.priority,
-        filterRules: r.filterRules,
-        niche: r.niche,
-        campaign: {
-          id: r.campaign.id,
-          name: r.campaign.name,
-          merchantSlug: r.campaign.merchantName.trim().toLowerCase()
-        }
+        name: r.name,
+        merchantSlug: r.merchantName.trim().toLowerCase(),
+        filterRules: r.filterRules
       }));
   }
 
-  private async runForAssignment(
-    a: AssignmentTask
-  ): Promise<{ breakdown: AssignmentBreakdown; offers: NormalizedOffer[] }> {
-    const rules = this.parseFilterRules(a.filterRules, a.campaign.name, a.id);
+  private async runForCampaign(
+    c: CampaignTask
+  ): Promise<{ breakdown: CampaignBreakdown; offers: NormalizedOffer[] }> {
+    const rules = this.parseFilterRules(c.filterRules, c.name, c.id);
     const fetchOpts: FetchProductsOpts = {
-      campaign: a.campaign.merchantSlug,
-      limit: PER_ASSIGNMENT_LIMIT,
+      campaign: c.merchantSlug,
+      limit: PER_CAMPAIGN_LIMIT,
       page: 1,
       ...rulesToFetchOpts(rules)
     };
@@ -256,7 +240,7 @@ export class CrawlerService {
       batch = await this.accesstrade.fetchProducts(fetchOpts);
     } catch (error: unknown) {
       this.logger.error(
-        `Assignment ${a.id} (${a.campaign.name} → ${a.niche.slug}) fetch failed`,
+        `Campaign ${c.id} (${c.name}) fetch failed`,
         error instanceof Error ? error.stack : String(error)
       );
     }
@@ -270,28 +254,25 @@ export class CrawlerService {
       }
       routed.push({
         ...offer,
-        nicheSlug: a.niche.slug,
-        campaignDbId: a.campaign.id
+        campaignDbId: c.id
       });
     }
 
-    const breakdown: AssignmentBreakdown = {
-      assignmentId: a.id,
-      campaignId: a.campaign.id,
-      campaignName: a.campaign.name,
-      merchantSlug: a.campaign.merchantSlug,
-      nicheSlug: a.niche.slug,
+    const breakdown: CampaignBreakdown = {
+      campaignId: c.id,
+      campaignName: c.name,
+      merchantSlug: c.merchantSlug,
       fetched: batch.length,
       routed: routed.length,
       failedFilter
     };
 
     this.logger.log(
-      `Assignment ${a.campaign.merchantSlug}/${a.niche.slug}: fetched ${batch.length}, routed ${routed.length}, ${failedFilter} failed-client-filter`
+      `Campaign ${c.merchantSlug}: fetched ${batch.length}, routed ${routed.length}, ${failedFilter} failed-client-filter`
     );
     if (batch.length === 0) {
       this.logger.warn(
-        `Assignment ${a.campaign.merchantSlug}/${a.niche.slug}: AT trả 0 offer với filter ${JSON.stringify(fetchOpts)}. Có thể filterRules quá khắt hoặc merchantName sai slug.`
+        `Campaign ${c.merchantSlug}: AT trả 0 offer với filter ${JSON.stringify(fetchOpts)}. Có thể filterRules quá khắt hoặc merchantName sai slug.`
       );
     }
 
@@ -301,7 +282,7 @@ export class CrawlerService {
   private parseFilterRules(
     raw: Prisma.JsonValue,
     campaignName: string,
-    assignmentId: string
+    campaignId: string
   ): FilterRules {
     if (raw === null || raw === undefined) {
       return DEFAULT_FILTER_RULES;
@@ -309,7 +290,7 @@ export class CrawlerService {
     const parsed = filterRulesSchema.safeParse(raw);
     if (!parsed.success) {
       this.logger.warn(
-        `Campaign ${campaignName} assignment ${assignmentId} has invalid filterRules — fallback DEFAULT_FILTER_RULES`
+        `Campaign ${campaignName} (${campaignId}) has invalid filterRules — fallback DEFAULT_FILTER_RULES`
       );
       return DEFAULT_FILTER_RULES;
     }

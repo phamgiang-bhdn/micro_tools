@@ -8,7 +8,6 @@ import {
   Play,
   X as XIcon,
   CheckCircle2,
-  FolderTree,
   PlayCircle,
   Eye
 } from "lucide-react";
@@ -52,7 +51,6 @@ import {
   runCampaignCrawlerAction,
   bulkCampaignAction
 } from "../actions";
-import { ManageAssignmentsDialog, type AssignmentRow } from "./assign-niche-dialog";
 
 export interface CampaignRow {
   id: string;
@@ -65,9 +63,9 @@ export interface CampaignRow {
   approvedAt: string | null;
   commissionNote: string | null;
   notes: string | null;
+  filterRules: Record<string, unknown> | null;
   createdAt: string;
   updatedAt: string;
-  // AT-first fields (STORY-01/02/03)
   atCampaignId: string | null;
   atCategoryName: string | null;
   atSubCategory: string | null;
@@ -78,21 +76,13 @@ export interface CampaignRow {
   atStartTime?: string | null;
   atEndTime?: string | null;
   atLastSyncedAt: string | null;
-  assignments: AssignmentRow[];
   _count: { products: number; conversions: number };
-}
-
-interface NicheSummary {
-  id: string;
-  name: string;
-  slug: string;
 }
 
 interface CampaignsTableProps {
   rows: CampaignRow[];
   filteredCount: number;
   totalCount: number;
-  niches: NicheSummary[];
 }
 
 const EMPTY_CREATE: CampaignCreateInput = {
@@ -109,8 +99,7 @@ const BULK_ACTIONS: BulkAction[] = [
   { value: "status:APPROVED", label: "→ APPROVED", confirm: "Đổi status các campaign sang APPROVED?" },
   { value: "status:PAUSED", label: "→ PAUSED", confirm: "Tạm dừng các campaign?" },
   { value: "status:REJECTED", label: "→ REJECTED", confirm: "Đánh dấu REJECTED?" },
-  { value: "status:INACTIVE", label: "→ INACTIVE", confirm: "Vô hiệu hoá?" },
-  { value: "assign-niche", label: "Gán Niche…", confirm: "" }
+  { value: "status:INACTIVE", label: "→ INACTIVE", confirm: "Vô hiệu hoá?" }
 ];
 
 const dateFmt = new Intl.DateTimeFormat("vi-VN", {
@@ -124,17 +113,14 @@ const dateFmt = new Intl.DateTimeFormat("vi-VN", {
 export function CampaignsTable({
   rows,
   filteredCount,
-  totalCount,
-  niches
+  totalCount
 }: CampaignsTableProps): React.ReactElement {
   const router = useRouter();
   const [createOpen, setCreateOpen] = React.useState(false);
   const [editing, setEditing] = React.useState<CampaignRow | null>(null);
-  const [assigning, setAssigning] = React.useState<CampaignRow | null>(null);
   const [viewing, setViewing] = React.useState<CampaignRow | null>(null);
   const { selected, toggleOne, toggleAll, clear, allSelected } = useRowSelection(rows);
   const [bulkAction, setBulkAction] = React.useState<string>("");
-  const [bulkNicheId, setBulkNicheId] = React.useState<string>("");
   const [bulkPending, setBulkPending] = React.useState(false);
 
   const handleCreate = async (data: CampaignCreateInput) => {
@@ -193,29 +179,18 @@ export function CampaignsTable({
 
   const handleBulk = async () => {
     if (!bulkAction || selected.size === 0) return;
-    if (bulkAction === "assign-niche" && !bulkNicheId) {
-      window.alert("Chọn niche trước khi gán.");
-      return;
-    }
     const cfg = BULK_ACTIONS.find((b) => b.value === bulkAction);
     const msg = buildBulkConfirmMessage(cfg, selected.size);
     if (msg && !window.confirm(msg)) return;
     const fd = new FormData();
     fd.set("action", bulkAction);
-    if (bulkAction === "assign-niche") fd.set("nicheId", bulkNicheId);
     for (const id of selected) fd.append("ids", id);
     setBulkPending(true);
     try {
-      const result = await bulkCampaignAction(fd);
+      await bulkCampaignAction(fd);
       clear();
       setBulkAction("");
-      setBulkNicheId("");
       router.refresh();
-      if (result && bulkAction === "assign-niche" && (result.skipped ?? 0) > 0) {
-        window.alert(
-          `Gán ${result.count} campaign. ${result.skipped} campaign đã có assignment với niche này — skipped.`
-        );
-      }
     } finally {
       setBulkPending(false);
     }
@@ -285,38 +260,12 @@ export function CampaignsTable({
       )
     },
     {
-      key: "niche",
-      header: "Niche",
-      hideOnMobile: true,
-      cell: (c) => {
-        if (c.assignments.length === 0) {
-          return <StatusPill tone="warning">Chưa assign</StatusPill>;
-        }
-        const first = c.assignments[0];
-        const restCount = c.assignments.length - 1;
-        return (
-          <div
-            className="text-sm"
-            title={c.assignments.map((a) => `[p${a.priority}] ${a.niche.name}`).join(", ")}
-          >
-            <div className="text-admin-ink">
-              {first.niche.name}
-              {restCount > 0 ? (
-                <span className="ml-1 text-admin-mute">+{restCount}</span>
-              ) : null}
-            </div>
-            <div className="font-mono text-[11px] text-admin-mute">{first.niche.slug}</div>
-          </div>
-        );
-      }
-    },
-    {
       key: "rules",
-      header: "Assignments",
+      header: "Filter rules",
       hideOnMobile: true,
       cell: (c) => (
         <span className="text-[12px] text-admin-mute">
-          {c.assignments.length === 0 ? "—" : `${c.assignments.length} niche`}
+          {c.filterRules ? summarizeFilterRules(c.filterRules as never) : "—"}
         </span>
       )
     },
@@ -372,15 +321,9 @@ export function CampaignsTable({
                 onSelect: () => setViewing(c)
               },
               {
-                label: "Quản lý niche",
-                icon: <FolderTree />,
-                disabled: !c.atCampaignId,
-                onSelect: () => setAssigning(c)
-              },
-              {
                 label: "Chạy crawler cho campaign này",
                 icon: <PlayCircle />,
-                disabled: !c.atCampaignId || c.assignments.length === 0,
+                disabled: !c.atCampaignId || c.status !== "APPROVED",
                 onSelect: () => handleRunCrawler(c.atCampaignId)
               },
               ...statusMore
@@ -399,28 +342,9 @@ export function CampaignsTable({
           totalCount={rows.length}
           actions={BULK_ACTIONS}
           action={bulkAction}
-          setAction={(v) => {
-            setBulkAction(v);
-            if (v !== "assign-niche") setBulkNicheId("");
-          }}
+          setAction={setBulkAction}
           onApply={handleBulk}
           pending={bulkPending}
-          extraSlot={
-            bulkAction === "assign-niche" ? (
-              <select
-                value={bulkNicheId}
-                onChange={(e) => setBulkNicheId(e.target.value)}
-                className="h-8 rounded-md border border-admin-line bg-admin-surface px-2 pr-7 text-xs text-admin-ink"
-              >
-                <option value="">— Chọn niche —</option>
-                {niches.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
-            ) : null
-          }
           rightSlot={
             <div className="flex flex-wrap items-center gap-3">
               <div className="text-xs text-admin-mute">
@@ -470,22 +394,6 @@ export function CampaignsTable({
         <CampaignFields editing />
       </FormDialog>
 
-      {assigning ? (
-        <ManageAssignmentsDialog
-          open={true}
-          onOpenChange={(o) => !o && setAssigning(null)}
-          onChanged={() => router.refresh()}
-          campaign={{
-            id: assigning.id,
-            name: assigning.name,
-            atCampaignId: assigning.atCampaignId,
-            assignments: assigning.assignments
-          }}
-          niches={niches}
-        />
-      ) : null}
-
-      {/* VIEW DETAIL */}
       <Dialog open={viewing !== null} onOpenChange={(o) => !o && setViewing(null)}>
         <DialogContent
           size="xl"
@@ -521,19 +429,6 @@ export function CampaignsTable({
               <AdminButton variant="ghost" size="sm" onClick={() => setViewing(null)}>
                 Đóng
               </AdminButton>
-              {viewing && viewing.atCampaignId ? (
-                <AdminButton
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => {
-                    const target = viewing;
-                    setViewing(null);
-                    setAssigning(target);
-                  }}
-                >
-                  Quản lý niche
-                </AdminButton>
-              ) : null}
               {viewing ? (
                 <AdminButton
                   size="sm"
@@ -591,14 +486,6 @@ export function CampaignsTable({
                   label="End"
                   value={viewing.atEndTime ? dateFmt.format(new Date(viewing.atEndTime)) : "—"}
                 />
-                <KV
-                  label="Assigned niches"
-                  value={
-                    viewing.assignments.length === 0
-                      ? "Chưa assign"
-                      : `${viewing.assignments.length} niche`
-                  }
-                />
                 <KV label="Last AT sync" value={relativeTime(viewing.atLastSyncedAt)} />
                 <KV
                   label="Products / Conversions"
@@ -606,34 +493,12 @@ export function CampaignsTable({
                 />
               </div>
               <div>
-                <div className="mb-1 text-xs font-medium text-admin-mute">Assignments (priority asc)</div>
-                {viewing.assignments.length === 0 ? (
-                  <div className="text-[12px] text-admin-mute">Chưa có niche nào.</div>
-                ) : (
-                  <ul className="space-y-2">
-                    {viewing.assignments.map((a) => (
-                      <li
-                        key={a.id}
-                        className="rounded-md border border-admin-line bg-admin-subtle/30 p-2 text-[12px]"
-                      >
-                        <div className="flex items-center justify-between gap-2">
-                          <div className="text-admin-ink">
-                            <span className="mr-2 inline-flex h-5 min-w-[1.5rem] items-center justify-center rounded-full bg-admin-surface px-1.5 font-mono text-[10px] text-admin-mute">
-                              p{a.priority}
-                            </span>
-                            {a.niche.name}
-                            <span className="ml-1 font-mono text-[11px] text-admin-mute">
-                              ({a.niche.slug})
-                            </span>
-                          </div>
-                          <span className="text-[11px] text-admin-mute">
-                            {summarizeFilterRules(a.filterRules as never)}
-                          </span>
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
-                )}
+                <div className="mb-1 text-xs font-medium text-admin-mute">Filter rules</div>
+                <div className="text-[12.5px] text-admin-ink">
+                  {viewing.filterRules
+                    ? summarizeFilterRules(viewing.filterRules as never)
+                    : "Chưa cấu hình — crawler dùng DEFAULT_FILTER_RULES."}
+                </div>
               </div>
               {viewing.commissionNote ? (
                 <KV label="Ghi chú hoa hồng" value={viewing.commissionNote} multiline />
@@ -763,16 +628,13 @@ function iconForStatus(s: CampaignStatus): React.ReactNode {
 }
 
 function relativeTime(iso: string | null): string {
-  if (!iso) return "—";
-  const then = new Date(iso).getTime();
-  if (Number.isNaN(then)) return "—";
-  const diff = Date.now() - then;
-  const sec = Math.round(diff / 1000);
-  if (sec < 60) return `${sec}s trước`;
-  const min = Math.round(sec / 60);
-  if (min < 60) return `${min}p trước`;
-  const h = Math.round(min / 60);
-  if (h < 24) return `${h}h trước`;
-  const d = Math.round(h / 24);
-  return `${d}d trước`;
+  if (!iso) return "Chưa sync";
+  const ms = Date.now() - new Date(iso).getTime();
+  const mins = Math.floor(ms / 60_000);
+  if (mins < 1) return "vừa xong";
+  if (mins < 60) return `${mins}m trước`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h trước`;
+  const days = Math.floor(hrs / 24);
+  return `${days} ngày trước`;
 }

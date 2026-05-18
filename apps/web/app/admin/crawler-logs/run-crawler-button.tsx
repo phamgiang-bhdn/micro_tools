@@ -140,39 +140,37 @@ function ResultPanel({
           <Stat label="Cập nhật (~)" value={result.updated} tone="muted" />
         </div>
 
-        {result.assignments.length > 0 ? (
+        {result.campaigns.length > 0 ? (
           <div className="mt-3 overflow-hidden rounded-lg border border-admin-line">
             <table className="w-full text-[12px]">
               <thead className="bg-admin-subtle/60 text-[11px] uppercase tracking-wide text-admin-mute">
                 <tr>
-                  <th className="px-2.5 py-1.5 text-left font-medium">Assignment</th>
+                  <th className="px-2.5 py-1.5 text-left font-medium">Campaign</th>
                   <th className="px-2.5 py-1.5 text-right font-medium">Fetched</th>
                   <th className="px-2.5 py-1.5 text-right font-medium">Routed</th>
                   <th className="px-2.5 py-1.5 text-right font-medium">Filter fail</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-admin-line/70">
-                {result.assignments.map((a) => (
-                  <tr key={a.assignmentId}>
+                {result.campaigns.map((c) => (
+                  <tr key={c.campaignId}>
                     <td className="px-2.5 py-1.5">
-                      <div className="font-mono text-[11.5px] text-admin-ink">
-                        {a.merchantSlug} / {a.nicheSlug}
-                      </div>
-                      <div className="text-[11px] text-admin-mute">{a.campaignName}</div>
+                      <div className="font-mono text-[11.5px] text-admin-ink">{c.merchantSlug}</div>
+                      <div className="text-[11px] text-admin-mute">{c.campaignName}</div>
                     </td>
-                    <td className="px-2.5 py-1.5 text-right font-mono">{a.fetched}</td>
+                    <td className="px-2.5 py-1.5 text-right font-mono">{c.fetched}</td>
                     <td className="px-2.5 py-1.5 text-right font-mono">
                       <span
                         className={
-                          a.routed > 0 ? "font-semibold text-emerald-600" : "text-admin-mute"
+                          c.routed > 0 ? "font-semibold text-emerald-600" : "text-admin-mute"
                         }
                       >
-                        {a.routed}
+                        {c.routed}
                       </span>
                     </td>
                     <td className="px-2.5 py-1.5 text-right font-mono">
-                      <span className={a.failedFilter > 0 ? "text-amber-600" : "text-admin-mute"}>
-                        {a.failedFilter}
+                      <span className={c.failedFilter > 0 ? "text-amber-600" : "text-admin-mute"}>
+                        {c.failedFilter}
                       </span>
                     </td>
                   </tr>

@@ -5,7 +5,6 @@ import { LazadaAffiliateClient } from "./clients/lazada.client";
 import { ShopeeAffiliateClient } from "./clients/shopee.client";
 import { TiktokAffiliateClient } from "./clients/tiktok.client";
 import { CrawlerService, offerPassesFilter, rulesToFetchOpts } from "./crawler.service";
-import * as nicheInference from "./niche-inference.util";
 import { DEFAULT_FILTER_RULES, FilterRules } from "./dto/filter-rules.dto";
 import { NormalizedOffer } from "./dto/normalized-offer.dto";
 import { EnrichmentService } from "./enrichment.service";
@@ -23,20 +22,19 @@ function makeOffer(overrides: Partial<NormalizedOffer> = {}): NormalizedOffer {
   };
 }
 
-interface AssignmentRow {
+interface CampaignRow {
   id: string;
-  priority: number;
+  name: string;
+  merchantName: string;
   filterRules: unknown;
-  niche: { id: string; slug: string };
-  campaign: { id: string; name: string; merchantName: string };
 }
 
 class FakePrisma {
-  assignments: AssignmentRow[] = [];
+  campaigns: CampaignRow[] = [];
   lastCrawlerLogUpdate: Record<string, unknown> | null = null;
 
-  campaignNiche = {
-    findMany: jest.fn(async () => this.assignments)
+  campaign = {
+    findMany: jest.fn(async () => this.campaigns)
   };
 
   crawlerLog = {
@@ -90,24 +88,12 @@ async function buildService(): Promise<{
 }
 
 describe(CrawlerService.name, () => {
-  describe("runFullCycle", () => {
-    it("loops per assignment, 1 fetch per assignment with merchantSlug pushed down", async () => {
+  describe("runFullCycle (PR5 — per-campaign, no niche routing)", () => {
+    it("loops per eligible campaign, 1 fetch per campaign with merchantSlug pushed down", async () => {
       const { service, prisma, accesstrade } = await buildService();
-      prisma.assignments = [
-        {
-          id: "a-tivi",
-          priority: 100,
-          filterRules: null,
-          niche: { id: "cat-tivi", slug: "tivi" },
-          campaign: { id: "c-1", name: "Lazada", merchantName: "lazada_kol" }
-        },
-        {
-          id: "a-may-loc",
-          priority: 100,
-          filterRules: null,
-          niche: { id: "cat-loc", slug: "may-loc-khong-khi" },
-          campaign: { id: "c-1", name: "Lazada", merchantName: "lazada_kol" }
-        }
+      prisma.campaigns = [
+        { id: "c-1", name: "Lazada", merchantName: "lazada_kol", filterRules: null },
+        { id: "c-2", name: "Shopee", merchantName: "shopee_kol", filterRules: null }
       ];
       accesstrade.fetchProducts.mockResolvedValue([]);
 
@@ -120,12 +106,13 @@ describe(CrawlerService.name, () => {
       );
     });
 
-    it("pushes filterRules to AT params (minDiscount, price, sale, discountAmount, domain, lookback)", async () => {
+    it("pushes filterRules from Campaign.filterRules to AT params", async () => {
       const { service, prisma, accesstrade } = await buildService();
-      prisma.assignments = [
+      prisma.campaigns = [
         {
-          id: "a-1",
-          priority: 100,
+          id: "c-1",
+          name: "Lazada",
+          merchantName: "lazada_kol",
           filterRules: {
             minDiscountPercent: 20,
             maxDiscountPercent: 70,
@@ -137,9 +124,7 @@ describe(CrawlerService.name, () => {
             discountAmountMax: 5000000,
             updateLookbackDays: 7,
             domains: ["lazada.vn"]
-          },
-          niche: { id: "cat-tivi", slug: "tivi" },
-          campaign: { id: "c-1", name: "Lazada", merchantName: "lazada_kol" }
+          }
         }
       ];
       accesstrade.fetchProducts.mockResolvedValue([]);
@@ -153,7 +138,7 @@ describe(CrawlerService.name, () => {
         page: 1,
         discountRateFrom: 20,
         discountRateTo: 70,
-        statusDiscount: 1, // tự bật vì minDiscount > 0
+        statusDiscount: 1,
         priceFrom: 1000000,
         priceTo: 50000000,
         salePriceFrom: 500000,
@@ -162,19 +147,17 @@ describe(CrawlerService.name, () => {
         discountAmountTo: 5000000,
         domain: "lazada.vn"
       });
-      // updateFrom format DD-MM-YYYY
       expect(call?.updateFrom).toMatch(/^\d{2}-\d{2}-\d{4}$/);
     });
 
     it("does NOT push domain when multiple domains (AT only accepts 1)", async () => {
       const { service, prisma, accesstrade } = await buildService();
-      prisma.assignments = [
+      prisma.campaigns = [
         {
-          id: "a-1",
-          priority: 100,
-          filterRules: { domains: ["shopee.vn", "lazada.vn"] },
-          niche: { id: "cat-1", slug: "tivi" },
-          campaign: { id: "c-1", name: "X", merchantName: "lazada_kol" }
+          id: "c-1",
+          name: "X",
+          merchantName: "lazada_kol",
+          filterRules: { domains: ["shopee.vn", "lazada.vn"] }
         }
       ];
       accesstrade.fetchProducts.mockResolvedValue([]);
@@ -185,39 +168,31 @@ describe(CrawlerService.name, () => {
       expect(call?.domain).toBeUndefined();
     });
 
-    it("routes every fetched offer directly to assignment's niche (no name match)", async () => {
+    it("routes offer to campaignDbId only (no nicheSlug — PR5 niche manual)", async () => {
       const { service, prisma, accesstrade, importer } = await buildService();
-      prisma.assignments = [
-        {
-          id: "a-tivi",
-          priority: 100,
-          filterRules: null,
-          niche: { id: "cat-tivi", slug: "tivi" },
-          campaign: { id: "c-1", name: "Lazada", merchantName: "lazada_kol" }
-        }
+      prisma.campaigns = [
+        { id: "c-1", name: "Lazada", merchantName: "lazada_kol", filterRules: null }
       ];
       accesstrade.fetchProducts.mockResolvedValueOnce([
-        makeOffer({ externalId: "p-1", campaign: "anything" }),
-        makeOffer({ externalId: "p-2", campaign: undefined }) // không cần campaign trong response
+        makeOffer({ externalId: "p-1" }),
+        makeOffer({ externalId: "p-2" })
       ]);
 
       await service.runFullCycle("test");
 
       const offers = importer.upsertOffers.mock.calls[0][0];
       expect(offers).toHaveLength(2);
-      expect(offers.every((o) => o.nicheSlug === "tivi")).toBe(true);
       expect(offers.every((o) => o.campaignDbId === "c-1")).toBe(true);
     });
 
-    it("falls back to DEFAULT_FILTER_RULES when assignment.filterRules is invalid", async () => {
+    it("falls back to DEFAULT_FILTER_RULES when Campaign.filterRules is invalid", async () => {
       const { service, prisma, accesstrade, importer } = await buildService();
-      prisma.assignments = [
+      prisma.campaigns = [
         {
-          id: "a-bad",
-          priority: 100,
-          filterRules: { garbageField: true },
-          niche: { id: "cat-1", slug: "tivi" },
-          campaign: { id: "c-1", name: "Lazada", merchantName: "lazada_kol" }
+          id: "c-bad",
+          name: "Lazada",
+          merchantName: "lazada_kol",
+          filterRules: { garbageField: true }
         }
       ];
       accesstrade.fetchProducts.mockResolvedValueOnce([
@@ -230,41 +205,10 @@ describe(CrawlerService.name, () => {
       expect(offers).toHaveLength(1);
     });
 
-    it("sets nicheSlug from assignment, not from inferNicheSlug", async () => {
-      const { service, prisma, accesstrade, importer } = await buildService();
-      const inferSpy = jest.spyOn(nicheInference, "inferNicheSlug");
-      prisma.assignments = [
-        {
-          id: "a-1",
-          priority: 100,
-          filterRules: {},
-          niche: { id: "cat-1", slug: "may-loc-khong-khi" },
-          campaign: { id: "c-1", name: "X", merchantName: "lazada_kol" }
-        }
-      ];
-      accesstrade.fetchProducts.mockResolvedValueOnce([
-        makeOffer({ externalId: "p-1", nicheSlug: "" })
-      ]);
-
-      await service.runFullCycle("test");
-
-      expect(inferSpy).not.toHaveBeenCalled();
-      const offers = importer.upsertOffers.mock.calls[0][0];
-      expect(offers[0].nicheSlug).toBe("may-loc-khong-khi");
-      expect(offers[0].campaignDbId).toBe("c-1");
-      inferSpy.mockRestore();
-    });
-
-    it("returns assignments breakdown in CycleResult", async () => {
+    it("returns campaigns breakdown in CycleResult", async () => {
       const { service, prisma, accesstrade } = await buildService();
-      prisma.assignments = [
-        {
-          id: "a-tivi",
-          priority: 100,
-          filterRules: null,
-          niche: { id: "cat-tivi", slug: "tivi" },
-          campaign: { id: "c-1", name: "Lazada", merchantName: "lazada_kol" }
-        }
+      prisma.campaigns = [
+        { id: "c-1", name: "Lazada", merchantName: "lazada_kol", filterRules: null }
       ];
       accesstrade.fetchProducts.mockResolvedValueOnce([
         makeOffer({ externalId: "p-1" }),
@@ -273,12 +217,10 @@ describe(CrawlerService.name, () => {
 
       const result = await service.runFullCycle("test");
 
-      expect(result.assignments).toHaveLength(1);
-      expect(result.assignments[0]).toMatchObject({
-        assignmentId: "a-tivi",
+      expect(result.campaigns).toHaveLength(1);
+      expect(result.campaigns[0]).toMatchObject({
         campaignId: "c-1",
         merchantSlug: "lazada_kol",
-        nicheSlug: "tivi",
         fetched: 2,
         routed: 2,
         failedFilter: 0
