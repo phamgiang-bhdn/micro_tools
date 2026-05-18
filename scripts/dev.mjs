@@ -1,14 +1,102 @@
 /**
  * dev: Chạy cả Frontend (Next.js) và Backend (NestJS) cùng lúc
+ * Tự động kiểm tra và setup môi trường nếu cần thiết
  * Chỉ cần 1 lệnh: npm run dev
  */
-import { spawn } from "child_process";
-import { dirname, join } from "path";
+import { spawn, spawnSync } from "child_process";
+import { dirname, join, existsSync } from "path";
 import { fileURLToPath } from "url";
+import fs from "fs";
 import { bannerOk, bannerRun, bannerFail, c } from "./colors.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const isWin = process.platform === "win32";
+
+// ========== Auto-setup functions ==========
+
+function checkNodeModules() {
+  const nodeModulesPath = join(root, "node_modules");
+  return existsSync(nodeModulesPath);
+}
+
+function checkEnvFile() {
+  const envPath = join(root, ".env");
+  return existsSync(envPath);
+}
+
+function checkDockerRunning() {
+  try {
+    const result = spawnSync("docker", ["compose", "ps", "--services", "--filter", "status=running"], {
+      cwd: root,
+      stdio: ["pipe", "pipe", "pipe"],
+      shell: true
+    });
+    const output = result.stdout.toString().trim();
+    return output.includes("postgres") || output.includes("db");
+  } catch {
+    return false;
+  }
+}
+
+function runCommandSync(cmd, args, description) {
+  console.log(`\n${c.yellow}[SETUP]${c.reset} ${description}`);
+  const result = spawnSync(cmd, args, {
+    cwd: root,
+    stdio: "inherit",
+    shell: true
+  });
+  if (result.status !== 0) {
+    bannerFail(`${description} thất bại`);
+    return false;
+  }
+  bannerOk(`${description} thành công`);
+  return true;
+}
+
+async function autoSetup() {
+  let needsSetup = false;
+
+  // 1. Check node_modules
+  if (!checkNodeModules()) {
+    console.log(`\n${c.yellow}[CHECK]${c.reset} Dependencies chưa được cài đặt`);
+    needsSetup = true;
+    if (!runCommandSync(isWin ? "npm.cmd" : "npm", ["install"], "Cài đặt dependencies")) {
+      process.exit(1);
+    }
+  }
+
+  // 2. Check .env file
+  if (!checkEnvFile()) {
+    console.log(`${c.yellow}[CHECK]${c.reset} File .env chưa tồn tại`);
+    needsSetup = true;
+    if (!runCommandSync("node", ["scripts/copy-env-if-missing.mjs"], "Tạo file .env")) {
+      process.exit(1);
+    }
+  }
+
+  // 3. Check Docker
+  if (!checkDockerRunning()) {
+    console.log(`${c.yellow}[CHECK]${c.reset} Docker containers chưa chạy`);
+    needsSetup = true;
+    if (!runCommandSync("docker", ["compose", "up", "-d"], "Khởi động Docker containers")) {
+      console.log(`${c.yellow}[WARN]${c.reset} Không thể khởi động Docker. Bạn cần cài Docker Desktop.`);
+    }
+    // Đợi DB khởi động
+    console.log(`${c.yellow}[WAIT]${c.reset} Đợi database khởi động (5 giây)...`);
+    await new Promise(resolve => setTimeout(resolve, 5000));
+    
+    // Deploy migrations
+    if (!runCommandSync("npm", ["run", "prisma:deploy", "--workspace", "api"], "Deploy database migrations")) {
+      console.log(`${c.yellow}[WARN]${c.reset} Migration thất bại. Kiểm tra database connection.`);
+    }
+  }
+
+  if (needsSetup) {
+    bannerOk("Setup hoàn tất!");
+  } else {
+    bannerOk("Môi trường đã sẵn sàng");
+  }
+}
 
 let apiProcess = null;
 let webProcess = null;
@@ -76,6 +164,10 @@ process.on("SIGTERM", handleShutdown);
 
 // Build command line string for shell execution
 const npmCmd = isWin ? "npm" : "npm";
+
+// Run auto-setup before starting servers
+console.log(`\n${c.cyan}${c.bold}🔍 Kiểm tra môi trường...${c.reset}`);
+await autoSetup();
 
 console.log(`\n${c.magenta}${c.bold}═══════════════════════════════════════════════════${c.reset}`);
 console.log(`${c.magenta}${c.bold}         🚀 STARTING DEVELOPMENT SERVERS${c.reset}`);
