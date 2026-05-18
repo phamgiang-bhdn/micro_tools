@@ -19,11 +19,16 @@ export interface ColumnDef<T> {
   header: React.ReactNode;
   cell: (row: T) => React.ReactNode;
   align?: "left" | "right" | "center";
+  /** Chiều rộng cố định, nếu set → cell overflow-hidden + truncate. */
   width?: string;
+  /** Chiều rộng tối đa (mặc định mọi cột text trong admin = 240px). */
+  maxWidth?: string;
   className?: string;
   hideOnMobile?: boolean;
-  /** Cho phép cell tự wrap. Mặc định false (nowrap, scroll ngang). */
+  /** Cho phép cell tự wrap. Mặc định false (truncate + tooltip). */
   wrap?: boolean;
+  /** Bỏ truncate cho cột (vd action column). */
+  noTruncate?: boolean;
 }
 
 interface DataTableProps<T> {
@@ -120,20 +125,36 @@ export function DataTable<T>({
                       clickable ? "cursor-pointer" : null
                     )}
                   >
-                    {columns.map((c) => (
-                      <td
-                        key={c.key}
-                        className={cn(
-                          "px-4 py-3 align-middle text-admin-ink",
-                          c.wrap ? "whitespace-normal" : "whitespace-nowrap",
-                          c.align ? ALIGN[c.align] : null,
-                          c.hideOnMobile ? "hidden md:table-cell" : null,
-                          c.className
-                        )}
-                      >
-                        {c.cell(row)}
-                      </td>
-                    ))}
+                    {columns.map((c) => {
+                      const truncate = !c.wrap && !c.noTruncate;
+                      const inlineStyle: React.CSSProperties = {};
+                      if (c.width) inlineStyle.width = c.width;
+                      if (c.maxWidth) inlineStyle.maxWidth = c.maxWidth;
+                      else if (truncate) inlineStyle.maxWidth = "240px";
+                      const cellContent = c.cell(row);
+                      const titleAttr =
+                        truncate && typeof cellContent === "string" ? cellContent : undefined;
+                      return (
+                        <td
+                          key={c.key}
+                          title={titleAttr}
+                          className={cn(
+                            "px-4 py-2.5 align-middle text-admin-ink",
+                            c.wrap
+                              ? "whitespace-normal"
+                              : truncate
+                                ? "max-w-[240px] truncate"
+                                : "whitespace-nowrap",
+                            c.align ? ALIGN[c.align] : null,
+                            c.hideOnMobile ? "hidden md:table-cell" : null,
+                            c.className
+                          )}
+                          style={Object.keys(inlineStyle).length > 0 ? inlineStyle : undefined}
+                        >
+                          {c.cell(row)}
+                        </td>
+                      );
+                    })}
                   </tr>
                 );
               })

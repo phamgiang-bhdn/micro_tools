@@ -52,8 +52,8 @@ export default async function BrandsPage({
 
   return (
     <ListPageShell
-      eyebrow="Catalog"
-      title="Domain"
+      eyebrow="Danh mục"
+      title="Tên miền"
       subtitle={
         <>
           Domain — crawler tự upsert từ{" "}
@@ -103,7 +103,7 @@ export default async function BrandsPage({
           <LookupTable
             rows={items}
             entityLabel="domain"
-            rawHeader="Domain"
+            rawHeader="Tên miền"
             updateAction={updateBrandDisplayNameAction}
           />
           <Pagination

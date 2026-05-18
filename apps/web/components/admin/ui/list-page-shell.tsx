@@ -1,26 +1,28 @@
 import type React from "react";
-import { PageHeader } from "./page-header";
-import { OverviewStats, type OverviewStat } from "./overview-stats";
 import { cn } from "../../../lib/utils";
+import { OverviewStats, type OverviewStat } from "./overview-stats";
 
 /**
  * Layout chuẩn cho mọi list page trong /admin.
  *
- *   [PageHeader  (eyebrow + title + subtitle + actions)]
- *   [OverviewStats (optional KPI cards) ]
- *   [Filter      (slot — thường là <FilterBar>)]
- *   [Table + Pagination (slot — thường là <DataTable> + <Pagination>)]
+ *   [Title + Actions]   (gọn, một dòng — không eyebrow / không subtitle)
+ *   [OverviewStats]     (optional KPI cards)
+ *   [Filter]            (FilterBar)
+ *   [Table + Pagination]
  *
- * Đừng tạo layout list page riêng — extend file này nếu thiếu slot.
+ * Eyebrow + subtitle đã bị bỏ để tiết kiệm diện tích — chỉ giữ title.
+ * Props `eyebrow` / `subtitle` giữ cho backward compat nhưng **không render**.
  */
 interface ListPageShellProps {
+  /** @deprecated không còn render — giữ prop để khỏi vỡ callers. */
   eyebrow?: string;
   title: string;
+  /** @deprecated không còn render — giữ prop để khỏi vỡ callers. */
   subtitle?: React.ReactNode;
   /** Buttons phía trên cùng (vd "+ Tạo coupon"). */
   actions?: React.ReactNode;
 
-  /** Optional: KPI cards. Bỏ qua nếu page không có overview. */
+  /** KPI cards. Bỏ qua nếu page không có overview. */
   overview?: OverviewStat[];
   overviewCols?: 2 | 3 | 4 | 5;
 
@@ -37,9 +39,7 @@ interface ListPageShellProps {
 }
 
 export function ListPageShell({
-  eyebrow,
   title,
-  subtitle,
   actions,
   overview,
   overviewCols = 4,
@@ -49,8 +49,11 @@ export function ListPageShell({
   className
 }: ListPageShellProps): React.ReactElement {
   return (
-    <div className={cn("space-y-5", className)}>
-      <PageHeader eyebrow={eyebrow} title={title} subtitle={subtitle} actions={actions} />
+    <div className={cn("space-y-3", className)}>
+      <header className="flex flex-wrap items-center justify-between gap-2">
+        <h1 className="text-lg font-semibold tracking-tight text-admin-ink">{title}</h1>
+        {actions ? <div className="flex items-center gap-2">{actions}</div> : null}
+      </header>
       {overview && overview.length > 0 ? (
         <OverviewStats items={overview} cols={overviewCols} />
       ) : null}

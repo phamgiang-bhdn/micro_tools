@@ -19,8 +19,6 @@ import {
   ControlledDateField,
   type ColumnDef
 } from "../../../components/admin/ui";
-import { BulkBar, selectionColumnRenderers, buildBulkConfirmMessage, type BulkAction } from "../../../components/admin/bulk-bar";
-import { useRowSelection } from "../../../components/admin/use-row-selection";
 import {
   NETWORK_OPTIONS,
   CAMPAIGN_STATUS_META,
@@ -94,9 +92,6 @@ const EMPTY_CREATE: CampaignCreateInput = {
   notes: null
 };
 
-// Bulk status đổi tay đã bị bỏ — trạng thái chiến dịch lấy từ Accesstrade khi đồng bộ.
-const BULK_ACTIONS: BulkAction[] = [];
-
 const dateFmt = new Intl.DateTimeFormat("vi-VN", {
   day: "2-digit",
   month: "2-digit",
@@ -112,11 +107,8 @@ export function CampaignsTable({
 }: CampaignsTableProps): React.ReactElement {
   const router = useRouter();
   const [createOpen, setCreateOpen] = React.useState(false);
+  // Một dialog dùng chung cho "Xem chi tiết" + "Sửa" — cùng form, hiện đầy đủ data.
   const [editing, setEditing] = React.useState<CampaignRow | null>(null);
-  const [viewing, setViewing] = React.useState<CampaignRow | null>(null);
-  const { selected, toggleOne, toggleAll, clear, allSelected } = useRowSelection(rows);
-  const [bulkAction, setBulkAction] = React.useState<string>("");
-  const [bulkPending, setBulkPending] = React.useState(false);
 
   const handleCreate = async (data: CampaignCreateInput) => {
     const fd = new FormData();
@@ -206,8 +198,8 @@ export function CampaignsTable({
     if (eligible.length === 0) {
       window.alert(
         skipped > 0
-          ? `Tất cả ${skipped} campaign đã chọn chưa đủ điều kiện (cần atCampaignId + merchantName). Sync from Accesstrade trước.`
-          : "Chưa chọn campaign nào."
+          ? `${skipped} chiến dịch chưa đủ điều kiện — cần đồng bộ từ Accesstrade trước (thiếu ID Accesstrade hoặc tên cửa hàng).`
+          : "Chưa chọn chiến dịch nào."
       );
       return;
     }
@@ -268,27 +260,7 @@ export function CampaignsTable({
     }
   };
 
-  // Bulk thao tác đã bị bỏ — trạng thái chiến dịch chỉ đồng bộ từ Accesstrade.
-  // Giữ state để BulkBar render nhưng không có action nào — chỉ tick để dùng "Lấy sản phẩm đã chọn".
-  const handleBulk = async () => {
-    /* no-op */
-  };
-
-  const sel = selectionColumnRenderers<CampaignRow>({
-    allSelected,
-    toggleAll,
-    isSelected: (id) => selected.has(id),
-    toggleOne,
-    rowLabel: (c) => `campaign ${c.name}`
-  });
-
   const columns: ColumnDef<CampaignRow>[] = [
-    {
-      key: "select",
-      header: sel.header,
-      width: "40px",
-      cell: sel.cell
-    },
     {
       key: "name",
       header: "Chiến dịch",
@@ -367,7 +339,7 @@ export function CampaignsTable({
     },
     {
       key: "synced",
-      header: "Sync",
+      header: "Đồng bộ",
       hideOnMobile: true,
       cell: (c) => (
         <span className="text-[11px] text-admin-mute">{relativeTime(c.atLastSyncedAt)}</span>
@@ -388,9 +360,9 @@ export function CampaignsTable({
         const lock = c._count.products > 0 || c._count.conversions > 0;
         return (
           <RowActions
-            onView={() => setViewing(c)}
+            onView={() => setEditing(c)}
             onEdit={() => setEditing(c)}
-            onDelete={lock ? undefined : () => handleDelete(c.id)}
+            onDelete={() => handleDelete(c.id)}
             deleteConfirm={`Xoá chiến dịch "${c.name}"?`}
             deleteDisabled={lock}
             deleteDisabledReason="Có sản phẩm/đơn hàng — không xoá được"
@@ -416,50 +388,27 @@ export function CampaignsTable({
   return (
     <>
       <div className="admin-card overflow-hidden p-0">
-        <BulkBar
-          selectedCount={selected.size}
-          totalCount={rows.length}
-          actions={BULK_ACTIONS}
-          action={bulkAction}
-          setAction={setBulkAction}
-          onApply={handleBulk}
-          pending={bulkPending}
-          rightSlot={
-            <div className="flex flex-wrap items-center gap-3">
-              <div className="text-xs text-admin-mute">
-                Đang hiển thị: <span className="font-semibold text-admin-ink">{filteredCount}</span>
-                {filteredCount !== totalCount ? <span> / {totalCount}</span> : null}
-              </div>
-              <AdminButton
-                size="sm"
-                variant="secondary"
-                iconLeft={<PlayCircle />}
-                disabled={selected.size === 0}
-                onClick={() =>
-                  openCrawlDialog(rows.filter((r) => selected.has(r.id)))
-                }
-              >
-                Lấy sản phẩm đã chọn{selected.size > 0 ? ` (${selected.size})` : ""}
-              </AdminButton>
-              <AdminButton size="sm" iconLeft={<Plus />} onClick={() => setCreateOpen(true)}>
-                Tạo campaign
-              </AdminButton>
-            </div>
-          }
-        />
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-admin-line bg-admin-subtle/40 px-4 py-2.5">
+          <span className="text-xs text-admin-mute">
+            Đang hiển thị: <span className="font-semibold text-admin-ink">{filteredCount}</span>
+            {filteredCount !== totalCount ? <span> / {totalCount}</span> : null}
+          </span>
+          <AdminButton size="sm" iconLeft={<Plus />} onClick={() => setCreateOpen(true)}>
+            Tạo chiến dịch
+          </AdminButton>
+        </div>
         <DataTable
           columns={columns}
           rows={rows}
           rowKey={(c) => c.id}
-          emptyState="Không có campaign nào khớp filter. Bấm 'Sync from Accesstrade' phía trên hoặc đổi filter."
+          emptyState="Không có chiến dịch nào khớp bộ lọc. Bấm 'Đồng bộ từ Accesstrade' phía trên hoặc đổi bộ lọc."
         />
       </div>
 
       <FormDialog<CampaignCreateInput>
         open={createOpen}
         onOpenChange={setCreateOpen}
-        title="Tạo campaign affiliate"
-        description="Mỗi campaign là 1 merchant trên affiliate network. externalId phải duy nhất trong scope của network."
+        title="Tạo chiến dịch affiliate"
         size="lg"
         schema={campaignCreateSchema}
         defaultValues={EMPTY_CREATE}
@@ -473,131 +422,37 @@ export function CampaignsTable({
       <FormDialog<CampaignUpdateInput>
         open={editing !== null}
         onOpenChange={(o) => !o && setEditing(null)}
-        title={editing ? `Sửa campaign "${editing.name}"` : "Sửa campaign"}
-        size="lg"
+        title={
+          editing ? (
+            <div className="flex items-center gap-2">
+              {editing.atLogo ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={editing.atLogo}
+                  alt=""
+                  className="size-6 rounded-md border border-admin-line bg-white object-contain"
+                />
+              ) : null}
+              <span>{editing.name}</span>
+              <StatusPill tone={CAMPAIGN_STATUS_META[editing.status].tone} dot>
+                {CAMPAIGN_STATUS_META[editing.status].label}
+              </StatusPill>
+              <NetworkBadge network={editing.network} />
+            </div>
+          ) : (
+            "Chi tiết chiến dịch"
+          )
+        }
+        size="xl"
         schema={campaignUpdateSchema}
         defaultValues={editing ? toFormValues(editing) : { id: "", ...EMPTY_CREATE }}
         resetOnOpen
         onSubmit={handleUpdate}
-        submitLabel="Lưu"
+        submitLabel="Lưu thay đổi"
       >
+        {editing ? <CampaignReadonlyInfo row={editing} /> : null}
         <CampaignFields editing />
       </FormDialog>
-
-      <Dialog open={viewing !== null} onOpenChange={(o) => !o && setViewing(null)}>
-        <DialogContent
-          size="xl"
-          title={
-            viewing ? (
-              <div className="flex items-center gap-2">
-                {viewing.atLogo ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={viewing.atLogo}
-                    alt=""
-                    className="size-6 rounded-md border border-admin-line bg-white object-contain"
-                  />
-                ) : null}
-                <span>{viewing.name}</span>
-              </div>
-            ) : (
-              "Chiến dịch"
-            )
-          }
-          description={
-            viewing ? (
-              <div className="flex items-center gap-2">
-                <NetworkBadge network={viewing.network} />
-                <StatusPill tone={CAMPAIGN_STATUS_META[viewing.status].tone} dot>
-                  {CAMPAIGN_STATUS_META[viewing.status].label}
-                </StatusPill>
-              </div>
-            ) : undefined
-          }
-          footer={
-            <DialogFooter>
-              <AdminButton variant="ghost" size="sm" onClick={() => setViewing(null)}>
-                Đóng
-              </AdminButton>
-              {viewing ? (
-                <AdminButton
-                  size="sm"
-                  onClick={() => {
-                    const target = viewing;
-                    setViewing(null);
-                    setEditing(target);
-                  }}
-                >
-                  Sửa
-                </AdminButton>
-              ) : null}
-            </DialogFooter>
-          }
-        >
-          {viewing ? (
-            <div className="space-y-4 text-sm">
-              <div className="grid grid-cols-2 gap-3 text-xs">
-                <KV label="externalId" mono value={viewing.externalId} />
-                <KV label="atCampaignId" mono value={viewing.atCampaignId ?? "—"} />
-                <KV label="Cửa hàng (merchant)" value={viewing.merchantName ?? "—"} />
-                <KV
-                  label="Merchant URL"
-                  value={
-                    viewing.atMerchantUrl ? (
-                      <a
-                        href={viewing.atMerchantUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-admin-accent hover:underline"
-                      >
-                        {viewing.atMerchantUrl}
-                      </a>
-                    ) : (
-                      "—"
-                    )
-                  }
-                />
-                <KV label="AT category" value={viewing.atCategoryName ?? "—"} />
-                <KV label="AT sub-category" value={viewing.atSubCategory ?? "—"} />
-                <KV label="Scope" value={viewing.atScope ?? "—"} />
-                <KV
-                  label="Cookie duration (s)"
-                  value={
-                    viewing.atCookieDurationSec != null
-                      ? String(viewing.atCookieDurationSec)
-                      : "—"
-                  }
-                />
-                <KV
-                  label="Start"
-                  value={viewing.atStartTime ? dateFmt.format(new Date(viewing.atStartTime)) : "—"}
-                />
-                <KV
-                  label="End"
-                  value={viewing.atEndTime ? dateFmt.format(new Date(viewing.atEndTime)) : "—"}
-                />
-                <KV label="Last AT sync" value={relativeTime(viewing.atLastSyncedAt)} />
-                <KV
-                  label="Products / Conversions"
-                  value={`${viewing._count.products} / ${viewing._count.conversions}`}
-                />
-              </div>
-              <div>
-                <div className="mb-1 text-xs font-medium text-admin-mute">Filter rules</div>
-                <div className="text-[12.5px] text-admin-ink">
-                  {viewing.filterRules
-                    ? summarizeFilterRules(viewing.filterRules as never)
-                    : "Chưa cấu hình — crawler dùng DEFAULT_FILTER_RULES."}
-                </div>
-              </div>
-              {viewing.commissionNote ? (
-                <KV label="Ghi chú hoa hồng" value={viewing.commissionNote} multiline />
-              ) : null}
-              {viewing.notes ? <KV label="Ghi chú nội bộ" value={viewing.notes} multiline /> : null}
-            </div>
-          ) : null}
-        </DialogContent>
-      </Dialog>
 
       {/* FILTER RULES DIALOG */}
       <Dialog
@@ -610,10 +465,9 @@ export function CampaignsTable({
           size="xl"
           title={
             filterRulesCampaign
-              ? `Filter rules: ${filterRulesCampaign.name}`
+              ? `Bộ lọc: ${filterRulesCampaign.name}`
               : "Bộ lọc"
           }
-          description="Push xuống AT để pre-filter offer khi crawl. Bỏ trống = không filter field đó."
           footer={
             <DialogFooter>
               <AdminButton
@@ -669,13 +523,6 @@ export function CampaignsTable({
                 : crawlDialogRows && crawlDialogRows.length === 1
                   ? `Lấy sản phẩm: ${crawlDialogRows[0].name}`
                   : `Lấy sản phẩm — ${crawlDialogRows?.length ?? 0} chiến dịch`
-          }
-          description={
-            crawlResult
-              ? "Xem chi tiết kết quả bên dưới. Bấm Đóng để quay lại danh sách."
-              : crawlPending
-                ? "Đang gọi Accesstrade — vui lòng không đóng tab cho đến khi xong."
-                : "Xác nhận trước khi chạy. Có thể chỉnh số lượng tối đa mỗi chiến dịch."
           }
           footer={
             <DialogFooter>
@@ -968,6 +815,65 @@ function KV({
         }
       >
         {value}
+      </div>
+    </div>
+  );
+}
+
+function CampaignReadonlyInfo({ row }: { row: CampaignRow }): React.ReactElement {
+  return (
+    <div className="sm:col-span-2 -mt-1 mb-1 rounded-lg border border-admin-line bg-admin-subtle/30 p-3">
+      <div className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-admin-mute">
+        Thông tin từ Accesstrade
+      </div>
+      <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-xs sm:grid-cols-3">
+        <KV label="Mã nội bộ" mono value={row.externalId} />
+        <KV label="ID Accesstrade" mono value={row.atCampaignId ?? "—"} />
+        <KV label="Phân loại AT" value={row.atCategoryName ?? "—"} />
+        <KV label="Phân loại con" value={row.atSubCategory ?? "—"} />
+        <KV label="Phạm vi" value={row.atScope ?? "—"} />
+        <KV
+          label="Cookie (giây)"
+          value={row.atCookieDurationSec != null ? String(row.atCookieDurationSec) : "—"}
+        />
+        <KV
+          label="Bắt đầu"
+          value={row.atStartTime ? dateFmt.format(new Date(row.atStartTime)) : "—"}
+        />
+        <KV
+          label="Kết thúc"
+          value={row.atEndTime ? dateFmt.format(new Date(row.atEndTime)) : "—"}
+        />
+        <KV label="Đồng bộ gần nhất" value={relativeTime(row.atLastSyncedAt)} />
+        <KV
+          label="Trang cửa hàng"
+          value={
+            row.atMerchantUrl ? (
+              <a
+                href={row.atMerchantUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-admin-accent hover:underline"
+              >
+                {row.atMerchantUrl}
+              </a>
+            ) : (
+              "—"
+            )
+          }
+        />
+        <KV
+          label="Sản phẩm / Đơn"
+          value={`${row._count.products} / ${row._count.conversions}`}
+        />
+        <KV
+          label="Bộ lọc đang dùng"
+          value={
+            row.filterRules
+              ? summarizeFilterRules(row.filterRules as never)
+              : "Mặc định (chưa cấu hình)"
+          }
+        />
       </div>
     </div>
   );

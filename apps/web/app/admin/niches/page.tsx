@@ -56,14 +56,8 @@ export default async function NichesPage({
   return (
     <ListPageShell
       eyebrow="Cấu hình"
-      title="Niche"
-      subtitle={
-        <>
-          Mỗi niche là một micro-tool.{" "}
-          <code className="rounded bg-admin-subtle px-1 py-0.5 text-xs">schemaConfig</code> định
-          nghĩa field AI bóc tách cho sản phẩm trong niche đó.
-        </>
-      }
+      title="Ngành hàng"
+      subtitle="Mỗi ngành hàng là một micro-tool — quản lý field hiển thị, SEO và sản phẩm liên kết."
       overview={[
         {
           label: "Tổng niche",

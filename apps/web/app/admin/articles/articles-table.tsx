@@ -20,17 +20,9 @@ import {
   StatusPill,
   Tooltip,
   ControlledTextField,
-  ControlledTextareaField,
   ControlledSelectField,
   type ColumnDef
 } from "../../../components/admin/ui";
-import {
-  BulkBar,
-  selectionColumnRenderers,
-  buildBulkConfirmMessage,
-  type BulkAction
-} from "../../../components/admin/bulk-bar";
-import { useRowSelection } from "../../../components/admin/use-row-selection";
 import {
   ARTICLE_STATUS_META,
   ARTICLE_TYPE_META,
@@ -40,14 +32,9 @@ import {
   articleGenerateSchema,
   type ArticleGenerateInput
 } from "../../../lib/admin/schemas";
-import type {
-  ArticleAdminSummary,
-  ArticleStatus,
-  ArticleType
-} from "../../../lib/types";
+import type { ArticleAdminSummary } from "../../../lib/types";
 import {
   archiveArticleAction,
-  bulkArticleAction,
   deleteArticleAction,
   duplicateArticleAction,
   generateArticleAction,
@@ -74,17 +61,6 @@ const dateFmt = new Intl.DateTimeFormat("vi-VN", {
   minute: "2-digit"
 });
 
-const BULK_ACTIONS: BulkAction[] = [
-  { value: "publish", label: "Đăng tất cả", confirm: "Đăng tất cả các bài đã chọn lên blog?" },
-  { value: "archive", label: "Lưu trữ", confirm: "Chuyển các bài đã chọn vào lưu trữ?" },
-  {
-    value: "delete",
-    label: "Xoá vĩnh viễn",
-    confirm: "Xoá VĨNH VIỄN các bài đã chọn? Không thể hoàn tác.",
-    tone: "danger"
-  }
-];
-
 const EMPTY_GENERATE: ArticleGenerateInput = {
   type: "BUYING_GUIDE",
   topic: "",
@@ -99,28 +75,6 @@ export function ArticlesTable({
 }: ArticlesTableProps): React.ReactElement {
   const router = useRouter();
   const [createOpen, setCreateOpen] = React.useState(false);
-  const { selected, toggleOne, toggleAll, clear, allSelected } = useRowSelection(rows);
-  const [bulkAction, setBulkAction] = React.useState<string>("");
-  const [bulkPending, setBulkPending] = React.useState(false);
-
-  const handleBulk = async () => {
-    if (!bulkAction || selected.size === 0) return;
-    const cfg = BULK_ACTIONS.find((b) => b.value === bulkAction);
-    const msg = buildBulkConfirmMessage(cfg, selected.size);
-    if (msg && !window.confirm(msg)) return;
-    const fd = new FormData();
-    fd.set("action", bulkAction);
-    for (const id of selected) fd.append("ids", id);
-    setBulkPending(true);
-    try {
-      await bulkArticleAction(fd);
-      clear();
-      setBulkAction("");
-      router.refresh();
-    } finally {
-      setBulkPending(false);
-    }
-  };
 
   const callSingle = async (action: typeof publishArticleAction, id: string) => {
     const fd = new FormData();
@@ -149,21 +103,7 @@ export function ArticlesTable({
     return { ok: true };
   };
 
-  const sel = selectionColumnRenderers<ArticleAdminSummary>({
-    allSelected,
-    toggleAll,
-    isSelected: (id) => selected.has(id),
-    toggleOne,
-    rowLabel: (a) => `bài ${a.title}`
-  });
-
   const columns: ColumnDef<ArticleAdminSummary>[] = [
-    {
-      key: "select",
-      header: sel.header,
-      width: "40px",
-      cell: sel.cell
-    },
     {
       key: "title",
       header: "Tiêu đề",
@@ -187,7 +127,7 @@ export function ArticlesTable({
     },
     {
       key: "niche",
-      header: "Niche",
+      header: "Ngành hàng",
       hideOnMobile: true,
       cell: (a) => <span className="text-xs text-admin-mute">{a.niche?.name ?? "—"}</span>
     },
@@ -256,20 +196,12 @@ export function ArticlesTable({
   return (
     <>
       <div className="admin-card overflow-hidden p-0">
-        <BulkBar
-          selectedCount={selected.size}
-          totalCount={rows.length}
-          actions={BULK_ACTIONS}
-          action={bulkAction}
-          setAction={setBulkAction}
-          onApply={handleBulk}
-          pending={bulkPending}
-          rightSlot={
-            <AdminButton size="sm" iconLeft={<Sparkles />} onClick={() => setCreateOpen(true)}>
-              Tạo bài viết
-            </AdminButton>
-          }
-        />
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-admin-line bg-admin-subtle/40 px-4 py-2.5">
+          <span className="text-xs text-admin-mute">{rows.length} bài viết</span>
+          <AdminButton size="sm" iconLeft={<Sparkles />} onClick={() => setCreateOpen(true)}>
+            Tạo bài viết
+          </AdminButton>
+        </div>
         <DataTable
           columns={columns}
           rows={rows}
@@ -363,7 +295,6 @@ function GenerateDialog({
       open={open}
       onOpenChange={onOpenChange}
       title="Tạo bài viết AI"
-      description="AI sẽ sinh bản nháp dựa trên prompt template đang active. Bạn duyệt + chỉnh trước khi publish."
       size="xl"
       schema={articleGenerateSchema}
       defaultValues={EMPTY_GENERATE}

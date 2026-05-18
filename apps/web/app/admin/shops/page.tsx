@@ -42,15 +42,9 @@ export default async function ShopsPage({
 
   return (
     <ListPageShell
-      eyebrow="Catalog"
-      title="Shop"
-      subtitle={
-        <>
-          Cửa hàng admin tự tạo + gán tay cho sản phẩm. Khác với{" "}
-          <span className="font-medium">Domain</span> (auto từ <code className="rounded bg-admin-subtle px-1 py-0.5 text-xs">offer.domain</code>) —
-          Shop là entity admin quản lý để hiện trên storefront thay cho campaign.
-        </>
-      }
+      eyebrow="Danh mục"
+      title="Cửa hàng"
+      subtitle="Cửa hàng admin tự tạo + gán tay cho sản phẩm — hiện trên storefront thay cho campaign."
       overview={[
         {
           label: "Tổng shop",

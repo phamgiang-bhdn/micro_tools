@@ -48,7 +48,7 @@ const NAV: NavGroup[] = [
     entries: [
       {
         id: "campaigns",
-        label: "Campaign",
+        label: "Chiến dịch",
         href: "/admin/campaigns",
         icon: <CampaignIcon />,
         match: (p) => p.startsWith("/admin/campaigns")
@@ -78,18 +78,18 @@ const NAV: NavGroup[] = [
   },
   {
     id: "catalog",
-    label: "Catalog",
+    label: "Danh mục",
     entries: [
       {
         id: "niches",
-        label: "Niche",
+        label: "Ngành hàng",
         href: "/admin/niches",
         icon: <CategoryIcon />,
         match: (p) => p.startsWith("/admin/niches")
       },
       {
         id: "categories",
-        label: "Category (AT)",
+        label: "Phân loại (AT)",
         href: "/admin/categories",
         icon: <CategoryIcon />,
         match: (p) => p.startsWith("/admin/categories")
@@ -103,14 +103,14 @@ const NAV: NavGroup[] = [
       },
       {
         id: "brands",
-        label: "Domain",
+        label: "Tên miền",
         href: "/admin/brands",
         icon: <CategoryIcon />,
         match: (p) => p.startsWith("/admin/brands")
       },
       {
         id: "shops",
-        label: "Shop",
+        label: "Cửa hàng",
         href: "/admin/shops",
         icon: <ShopIcon />,
         match: (p) => p.startsWith("/admin/shops")

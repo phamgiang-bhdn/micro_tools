@@ -18,6 +18,9 @@ body {
 body[data-shell="admin"] {
   background-color: #f4f5fa;
   color: #0b1220;
+  /* Tắt antialiased (subpixel mặc định) → trên Windows chữ "có thân" hơn, không bị mỏng/mờ. */
+  -webkit-font-smoothing: auto;
+  -moz-osx-font-smoothing: auto;
 }
 
 @layer utilities {

@@ -83,7 +83,7 @@ export function NicheEditForm({ niche }: EditFormProps): React.ReactElement {
             <TabsList>
               <TabsTrigger value="basic">Thông tin cơ bản</TabsTrigger>
               <TabsTrigger value="seo">SEO</TabsTrigger>
-              <TabsTrigger value="schema">schemaConfig</TabsTrigger>
+              <TabsTrigger value="schema">Cấu trúc field</TabsTrigger>
             </TabsList>
 
             <TabsContent value="basic">
@@ -111,10 +111,8 @@ export function NicheEditForm({ niche }: EditFormProps): React.ReactElement {
             </TabsContent>
 
             <TabsContent value="seo">
-              <SectionCard
-                title="SEO meta"
-                description="Hiển thị trên Google search + OG card khi share. Để trống = dùng giá trị mặc định."
-              >
+              <SectionCard title="SEO meta">
+
                 <div className="grid gap-3">
                   <ControlledTextField<NicheUpdateInput>
                     name="seoTitle"
@@ -136,10 +134,8 @@ export function NicheEditForm({ niche }: EditFormProps): React.ReactElement {
             </TabsContent>
 
             <TabsContent value="schema">
-              <SectionCard
-                title="schemaConfig (JSON)"
-                description="Định nghĩa các field AI sẽ bóc tách cho sản phẩm trong niche này. Sửa chỉ ảnh hưởng sản phẩm mới — sản phẩm cũ giữ scrapedData hiện tại."
-              >
+              <SectionCard title="Cấu trúc field (JSON)">
+
                 <ControlledTextareaField<NicheUpdateInput>
                   name="schemaConfig"
                   label=""

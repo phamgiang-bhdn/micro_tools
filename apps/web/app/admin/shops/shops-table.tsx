@@ -164,7 +164,7 @@ export function ShopsTable({ rows, totalCount }: ShopsTableProps): React.ReactEl
         return (
           <RowActions
             onEdit={() => setEditing(s)}
-            onDelete={lock ? undefined : () => handleDelete(s.id, s.name)}
+            onDelete={() => handleDelete(s.id, s.name)}
             deleteConfirm={`Xoá shop "${s.name}"? Hành động không thể hoàn tác.`}
             deleteDisabled={lock}
             deleteDisabledReason={`Có ${s._count.products} sản phẩm — bỏ gán shop khỏi sản phẩm trước`}
@@ -196,8 +196,7 @@ export function ShopsTable({ rows, totalCount }: ShopsTableProps): React.ReactEl
       <FormDialog<ShopCreateInput>
         open={createOpen}
         onOpenChange={setCreateOpen}
-        title="Tạo shop mới"
-        description="Cửa hàng để gán cho sản phẩm. Slug duy nhất, dùng để route nội bộ."
+        title="Tạo cửa hàng mới"
         size="lg"
         schema={shopCreateSchema}
         defaultValues={EMPTY_CREATE}

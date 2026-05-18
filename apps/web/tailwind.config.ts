@@ -53,9 +53,10 @@ const config: Config = {
           surface: "#ffffff",
           "surface-2": "#fafbff",
           ink: "#0b1220",
-          "ink-soft": "#1f2937",
-          mute: "#5a6478",
-          "mute-soft": "#7c8699",
+          "ink-soft": "#111827",
+          // Mute đậm hơn (slate-600 thay vì #5a6478) — chữ thứ cấp không còn "mờ mờ" trên light bg.
+          mute: "#475569",
+          "mute-soft": "#64748b",
           line: "#dfe3ee",
           "line-strong": "#c7cddc",
           subtle: "#eef0f8",

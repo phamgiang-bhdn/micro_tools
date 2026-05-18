@@ -47,9 +47,7 @@ export function Field({
         {required ? <span aria-hidden className="text-admin-danger">*</span> : null}
       </label>
       {children}
-      {hint && !error ? (
-        <p className="text-[11.5px] leading-relaxed text-admin-mute">{hint}</p>
-      ) : null}
+      {/* Hint dưới field đã bị bỏ — dùng placeholder hoặc title attr. Chỉ hiện error. */}
       {error ? (
         <p className="text-[11.5px] font-medium leading-relaxed text-admin-danger">{error}</p>
       ) : null}

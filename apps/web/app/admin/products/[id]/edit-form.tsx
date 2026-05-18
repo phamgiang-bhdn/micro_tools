@@ -250,7 +250,7 @@ export function ProductEditForm({ product, niches }: EditFormProps): React.React
                   />
                   <ControlledSelectField<ProductUpdateInput>
                     name="nicheId"
-                    label="Niche"
+                    label="Ngành hàng"
                     options={nicheOptions}
                     required
                   />
@@ -285,10 +285,8 @@ export function ProductEditForm({ product, niches }: EditFormProps): React.React
             </TabsContent>
 
             <TabsContent value="json">
-              <SectionCard
-                title="scrapedData (JSON)"
-                description="Edit thẳng JSON. Tab Fields sẽ auto-sync khi JSON hợp lệ."
-              >
+              <SectionCard title="Dữ liệu thô (JSON)">
+
                 {jsonError ? (
                   <div className="mb-2 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-800">
                     {jsonError}
@@ -433,10 +431,8 @@ function ExtraFieldsCard({
   if (extras.length === 0) return null;
 
   return (
-    <SectionCard
-      title={`Field khác (${extras.length})`}
-      description="Field không có trong nhóm chuẩn — bao gồm raw AT response, schemaConfig fields. Read-only ở đây; chỉnh ở tab JSON."
-    >
+    <SectionCard title={`Field khác (${extras.length})`}>
+
       <div className="space-y-2">
         {extras.map(([key, value]) => (
           <details key={key} className="rounded-md border border-admin-line bg-admin-subtle/20 px-3 py-2">

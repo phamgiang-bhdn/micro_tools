@@ -140,7 +140,7 @@ export default async function ProductsPage({
 
   return (
     <ListPageShell
-      eyebrow="Catalog"
+      eyebrow="Danh mục"
       title="Sản phẩm"
       subtitle="Quản lý sản phẩm crawler đã nạp. Toggle ẩn/hiện, sửa giá ở trang chi tiết."
       overview={[
@@ -182,13 +182,13 @@ export default async function ProductsPage({
             options={NICHE_STATUS_OPTIONS}
           />
           <NativeFilterSelect
-            label="Niche"
+            label="Ngành hàng"
             name="nicheId"
             defaultValue={filters.nicheId ?? ""}
             options={nicheOptions}
           />
           <NativeFilterSelect
-            label="Category (AT)"
+            label="Phân loại (AT)"
             name="categoryId"
             defaultValue={filters.categoryId ?? ""}
             options={categoryOptions}
@@ -200,7 +200,7 @@ export default async function ProductsPage({
             options={sourceOptions}
           />
           <NativeFilterSelect
-            label="Domain"
+            label="Tên miền"
             name="brandId"
             defaultValue={filters.brandId ?? ""}
             options={brandOptions}
@@ -212,7 +212,7 @@ export default async function ProductsPage({
             options={SHOP_STATUS_OPTIONS}
           />
           <NativeFilterSelect
-            label="Shop"
+            label="Cửa hàng"
             name="shopId"
             defaultValue={filters.shopId ?? ""}
             options={shopOptions}

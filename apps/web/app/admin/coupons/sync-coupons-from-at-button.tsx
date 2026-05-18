@@ -20,14 +20,14 @@ export function SyncCouponsFromAtButton(): React.ReactElement {
         const result: CouponSyncResult = await syncCouponsFromAccesstrade();
         setTone("success");
         setStatus(
-          `Đã pull ${result.fetched} coupon — ${result.created} mới (chờ duyệt), ${result.updated} cập nhật${
+          `Đã lấy ${result.fetched} mã — ${result.created} mới (chờ duyệt), ${result.updated} cập nhật${
             result.skipped > 0 ? `, ${result.skipped} bỏ qua` : ""
           }.`
         );
         router.refresh();
       } catch (error: unknown) {
         setTone("error");
-        setStatus(error instanceof Error ? error.message : "Sync thất bại — xem log server.");
+        setStatus(error instanceof Error ? error.message : "Đồng bộ thất bại — xem log server.");
       }
     });
   };
@@ -42,7 +42,7 @@ export function SyncCouponsFromAtButton(): React.ReactElement {
         loading={pending}
         disabled={pending}
       >
-        Sync from Accesstrade
+        Đồng bộ từ Accesstrade
       </AdminButton>
       {status ? (
         <span className={tone === "error" ? "text-xs text-red-600" : "text-xs text-emerald-600"}>

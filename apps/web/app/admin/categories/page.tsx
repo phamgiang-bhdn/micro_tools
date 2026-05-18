@@ -51,8 +51,8 @@ export default async function CategoriesPage({
 
   return (
     <ListPageShell
-      eyebrow="Catalog"
-      title="Category (AT taxonomy)"
+      eyebrow="Danh mục"
+      title="Phân loại (Accesstrade)"
       subtitle={
         <>
           Bucket phân loại từ Accesstrade — crawler tự upsert khi import offer (theo

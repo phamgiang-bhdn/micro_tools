@@ -23,14 +23,14 @@ export function SyncFromAtButton(): React.ReactElement {
         const result: CampaignSyncResult = await syncCampaignsFromAccesstrade();
         setTone("success");
         setStatus(
-          `Đã sync ${result.fetched} campaign — ${result.created} mới, ${result.updated} cập nhật${
+          `Đã đồng bộ ${result.fetched} chiến dịch — ${result.created} mới, ${result.updated} cập nhật${
             result.skipped > 0 ? `, ${result.skipped} bỏ qua` : ""
           }.`
         );
         router.refresh();
       } catch (error: unknown) {
         setTone("error");
-        setStatus(error instanceof Error ? error.message : "Sync thất bại — xem log server.");
+        setStatus(error instanceof Error ? error.message : "Đồng bộ thất bại — xem log server.");
       }
     });
   };
@@ -45,7 +45,7 @@ export function SyncFromAtButton(): React.ReactElement {
         loading={pending}
         disabled={pending}
       >
-        Sync from Accesstrade
+        Đồng bộ từ Accesstrade
       </AdminButton>
       {status ? (
         <span

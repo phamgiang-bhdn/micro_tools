@@ -1,13 +1,11 @@
 "use client";
 
 import * as React from "react";
-import { Plus, PowerOff, Power, Copy, CheckCircle2, Eye } from "lucide-react";
+import { Plus, PowerOff, Power, Copy, CheckCircle2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import {
   AdminButton,
   DataTable,
-  Dialog,
-  DialogContent,
   FormDialog,
   RowActions,
   StatusPill,
@@ -19,13 +17,6 @@ import {
   ControlledTextareaField,
   type ColumnDef
 } from "../../../components/admin/ui";
-import {
-  BulkBar,
-  selectionColumnRenderers,
-  buildBulkConfirmMessage,
-  type BulkAction
-} from "../../../components/admin/bulk-bar";
-import { useRowSelection } from "../../../components/admin/use-row-selection";
 import { NETWORK_OPTIONS } from "../../../lib/admin/constants";
 import {
   couponCreateSchema,
@@ -38,15 +29,8 @@ import {
   toggleCouponActiveAction,
   deleteCouponAction,
   approveCouponAction,
-  archiveCouponAction,
-  bulkCouponAction
+  archiveCouponAction
 } from "../actions";
-
-const BULK_ACTIONS: BulkAction[] = [
-  { value: "approve", label: "Duyệt (active)", confirm: "Duyệt các coupon đã chọn?" },
-  { value: "archive", label: "Lưu trữ", confirm: "Lưu trữ các coupon?" },
-  { value: "delete", label: "Xoá", confirm: "Xoá vĩnh viễn coupon? Không hoàn tác.", tone: "danger" }
-];
 
 export interface CouponRow {
   id: string;
@@ -107,37 +91,7 @@ export function CouponsTable({
   const router = useRouter();
   const [createOpen, setCreateOpen] = React.useState(false);
   const [editing, setEditing] = React.useState<CouponRow | null>(null);
-  const [viewing, setViewing] = React.useState<CouponRow | null>(null);
-  const { selected, toggleOne, toggleAll, clear, allSelected } = useRowSelection(rows);
-  const [bulkAction, setBulkAction] = React.useState<string>("");
-  const [bulkPending, setBulkPending] = React.useState(false);
-
-  const handleBulk = async () => {
-    if (!bulkAction || selected.size === 0) return;
-    const cfg = BULK_ACTIONS.find((b) => b.value === bulkAction);
-    const msg = buildBulkConfirmMessage(cfg, selected.size);
-    if (msg && !window.confirm(msg)) return;
-    const fd = new FormData();
-    fd.set("action", bulkAction);
-    for (const id of selected) fd.append("ids", id);
-    setBulkPending(true);
-    try {
-      await bulkCouponAction(fd);
-      clear();
-      setBulkAction("");
-      router.refresh();
-    } finally {
-      setBulkPending(false);
-    }
-  };
-
-  const sel = selectionColumnRenderers<CouponRow>({
-    allSelected,
-    toggleAll,
-    isSelected: (id) => selected.has(id),
-    toggleOne,
-    rowLabel: (c) => `coupon ${c.code}`
-  });
+  // Form chung cho "Xem chi tiết" + "Sửa".
 
   const nicheOptions = React.useMemo(
     () => niches.map((c) => ({ value: c.id, label: c.name })),
@@ -191,12 +145,6 @@ export function CouponsTable({
   };
 
   const columns: ColumnDef<CouponRow>[] = [
-    {
-      key: "select",
-      header: sel.header,
-      width: "40px",
-      cell: sel.cell
-    },
     {
       key: "merchant",
       header: "Cửa hàng",
@@ -331,15 +279,6 @@ export function CouponsTable({
             icon: c.isActive ? <PowerOff /> : <Power />,
             onSelect: () => handleToggle(c.id, !c.isActive)
           },
-          ...(c.contentHtml
-            ? [
-                {
-                  label: "Xem nội dung",
-                  icon: <Eye />,
-                  onSelect: () => setViewing(c)
-                }
-              ]
-            : []),
           {
             label: "Copy mã",
             icon: <Copy />,
@@ -354,6 +293,7 @@ export function CouponsTable({
         ];
         return (
           <RowActions
+            onView={() => setEditing(c)}
             onEdit={() => setEditing(c)}
             onDelete={() => handleDelete(c.id)}
             deleteConfirm={`Xoá mã "${c.code}"?`}
@@ -367,26 +307,15 @@ export function CouponsTable({
   return (
     <>
       <div className="admin-card overflow-hidden p-0">
-        <BulkBar
-          selectedCount={selected.size}
-          totalCount={rows.length}
-          actions={BULK_ACTIONS}
-          action={bulkAction}
-          setAction={setBulkAction}
-          onApply={handleBulk}
-          pending={bulkPending}
-          rightSlot={
-            <div className="flex flex-wrap items-center gap-3">
-              <div className="text-xs text-admin-mute">
-                Đang hiển thị: <span className="font-semibold text-admin-ink">{filteredCount}</span>
-                {filteredCount !== totalCount ? <span> / {totalCount}</span> : null}
-              </div>
-              <AdminButton size="sm" iconLeft={<Plus />} onClick={() => setCreateOpen(true)}>
-                Tạo coupon
-              </AdminButton>
-            </div>
-          }
-        />
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-admin-line bg-admin-subtle/40 px-4 py-2.5">
+          <span className="text-xs text-admin-mute">
+            Đang hiển thị: <span className="font-semibold text-admin-ink">{filteredCount}</span>
+            {filteredCount !== totalCount ? <span> / {totalCount}</span> : null}
+          </span>
+          <AdminButton size="sm" iconLeft={<Plus />} onClick={() => setCreateOpen(true)}>
+            Tạo mã giảm giá
+          </AdminButton>
+        </div>
         <DataTable
           columns={columns}
           rows={rows}
@@ -400,7 +329,6 @@ export function CouponsTable({
         open={createOpen}
         onOpenChange={setCreateOpen}
         title="Tạo mã giảm giá"
-        description="Mã có thể gắn theo network, niche, sản phẩm cụ thể — hoặc để trống nếu áp cho toàn site."
         size="lg"
         schema={couponCreateSchema}
         defaultValues={EMPTY_CREATE}
@@ -415,51 +343,65 @@ export function CouponsTable({
       <FormDialog<CouponCreateInput>
         open={editing !== null}
         onOpenChange={(o) => !o && setEditing(null)}
-        title={editing ? `Sửa mã "${editing.code}"` : "Sửa coupon"}
-        size="lg"
+        title={
+          editing ? (
+            <div className="flex items-center gap-2">
+              <span className="font-mono">{editing.code}</span>
+              <span className="text-sm font-normal text-admin-mute">
+                {editing.merchantDisplay ?? editing.merchantSlug ?? ""}
+              </span>
+            </div>
+          ) : (
+            "Chi tiết mã giảm giá"
+          )
+        }
+        size="xl"
         schema={couponCreateSchema}
         defaultValues={editing ? toFormValues(editing) : EMPTY_CREATE}
         resetOnOpen
         onSubmit={handleUpdate}
-        submitLabel="Lưu"
+        submitLabel="Lưu thay đổi"
       >
+        {editing ? <CouponReadonlyInfo row={editing} /> : null}
         <CouponFields nicheOptions={nicheOptions} editing />
       </FormDialog>
-
-      {/* VIEW content (pre-sanitized by api/common/sanitize-html.util.ts) */}
-      <Dialog open={viewing !== null} onOpenChange={(o) => !o && setViewing(null)}>
-        <DialogContent
-          size="lg"
-          title={viewing?.merchantDisplay ?? viewing?.merchantSlug ?? "Coupon"}
-          description={viewing?.description ?? undefined}
-        >
-          <div className="space-y-3 overflow-auto px-5 py-4 text-sm">
-            {viewing?.imageUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={viewing.imageUrl}
-                alt=""
-                className="max-h-48 rounded-lg border border-admin-line object-contain"
-              />
-            ) : null}
-            {viewing?.contentHtml ? (
-              <div
-                className="prose prose-sm max-w-none"
-                // contentHtml đã được sanitize ở backend (sanitize-coupon-html util)
-                dangerouslySetInnerHTML={{ __html: viewing.contentHtml }}
-              />
-            ) : (
-              <p className="text-admin-mute">Coupon này không có nội dung mô tả.</p>
-            )}
-            {viewing?.atLastSyncedAt ? (
-              <p className="text-[11px] text-admin-mute">
-                Đã sync: {new Date(viewing.atLastSyncedAt).toLocaleString("vi-VN")}
-              </p>
-            ) : null}
-          </div>
-        </DialogContent>
-      </Dialog>
     </>
+  );
+}
+
+function CouponReadonlyInfo({ row }: { row: CouponRow }): React.ReactElement {
+  return (
+    <div className="sm:col-span-2 -mt-1 mb-1 space-y-2 rounded-lg border border-admin-line bg-admin-subtle/30 p-3 text-xs">
+      <div className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-admin-mute">
+        Xem trước
+      </div>
+      <div className="flex flex-wrap gap-3">
+        {row.imageUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={row.imageUrl}
+            alt=""
+            className="max-h-32 rounded-md border border-admin-line object-contain"
+          />
+        ) : null}
+        <div className="flex-1 min-w-0">
+          {row.contentHtml ? (
+            <div
+              className="prose prose-sm max-w-none text-[12.5px] text-admin-ink"
+              // contentHtml đã được sanitize ở backend
+              dangerouslySetInnerHTML={{ __html: row.contentHtml }}
+            />
+          ) : (
+            <p className="text-admin-mute">Mã này không có nội dung mô tả.</p>
+          )}
+        </div>
+      </div>
+      {row.atLastSyncedAt ? (
+        <p className="text-[10.5px] text-admin-mute">
+          Đồng bộ gần nhất: {new Date(row.atLastSyncedAt).toLocaleString("vi-VN")}
+        </p>
+      ) : null}
+    </div>
   );
 }
 

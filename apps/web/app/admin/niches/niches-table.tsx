@@ -3,13 +3,10 @@
 import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Plus, ExternalLink, Eye } from "lucide-react";
+import { Plus, ExternalLink } from "lucide-react";
 import {
   AdminButton,
   DataTable,
-  Dialog,
-  DialogContent,
-  DialogFooter,
   FormDialog,
   RowActions,
   StatusPill,
@@ -18,8 +15,6 @@ import {
   ControlledSelectField,
   type ColumnDef
 } from "../../../components/admin/ui";
-import { BulkBar, selectionColumnRenderers, buildBulkConfirmMessage, type BulkAction } from "../../../components/admin/bulk-bar";
-import { useRowSelection } from "../../../components/admin/use-row-selection";
 import { NICHE_STATUS_META, NICHE_STATUS_OPTIONS } from "../../../lib/admin/constants";
 import {
   nicheCreateSchema,
@@ -30,10 +25,8 @@ import {
 import {
   createNicheAction,
   updateNicheAction,
-  deleteNicheAction,
-  bulkNicheAction
+  deleteNicheAction
 } from "../actions";
-import { withToast } from "../../../lib/admin/notify";
 
 export interface NicheRow {
   id: string;
@@ -68,17 +61,6 @@ const EMPTY_CREATE: NicheCreateInput = {
   seoDescription: null
 };
 
-const BULK_ACTIONS: BulkAction[] = [
-  { value: "activate", label: "Bật hiển thị", confirm: "Bật public các niche đã chọn?" },
-  { value: "deactivate", label: "Ẩn", confirm: "Ẩn các niche đã chọn?" },
-  {
-    value: "delete",
-    label: "Xoá",
-    confirm: "Xoá niche? Không hoàn tác. Sẽ fail nếu còn sản phẩm.",
-    tone: "danger"
-  }
-];
-
 const dateFmt = new Intl.DateTimeFormat("vi-VN", {
   day: "2-digit",
   month: "2-digit",
@@ -94,11 +76,8 @@ export function NichesTable({
 }: NichesTableProps): React.ReactElement {
   const router = useRouter();
   const [createOpen, setCreateOpen] = React.useState(false);
+  // Form chung cho "Xem chi tiết" + "Sửa".
   const [editing, setEditing] = React.useState<NicheRow | null>(null);
-  const [viewing, setViewing] = React.useState<NicheRow | null>(null);
-  const { selected, toggleOne, toggleAll, clear, allSelected } = useRowSelection(rows);
-  const [bulkAction, setBulkAction] = React.useState<string>("");
-  const [bulkPending, setBulkPending] = React.useState(false);
 
   const handleCreate = async (data: NicheCreateInput) => {
     const fd = new FormData();
@@ -132,43 +111,7 @@ export function NichesTable({
     router.refresh();
   };
 
-  const handleBulk = async () => {
-    if (!bulkAction || selected.size === 0) return;
-    const cfg = BULK_ACTIONS.find((b) => b.value === bulkAction);
-    const msg = buildBulkConfirmMessage(cfg, selected.size);
-    if (msg && !window.confirm(msg)) return;
-    const fd = new FormData();
-    fd.set("action", bulkAction);
-    for (const id of selected) fd.append("ids", id);
-    setBulkPending(true);
-    const result = await withToast(() => bulkNicheAction(fd), {
-      loading: `Đang xử lý ${selected.size} niche…`,
-      success: `Đã ${cfg?.label.toLowerCase() ?? "xử lý"} ${selected.size} niche`,
-      error: (e) => (e instanceof Error ? e.message : "Thao tác hàng loạt thất bại")
-    });
-    setBulkPending(false);
-    if (result !== null) {
-      clear();
-      setBulkAction("");
-      router.refresh();
-    }
-  };
-
-  const sel = selectionColumnRenderers<NicheRow>({
-    allSelected,
-    toggleAll,
-    isSelected: (id) => selected.has(id),
-    toggleOne,
-    rowLabel: (c) => `niche ${c.name}`
-  });
-
   const columns: ColumnDef<NicheRow>[] = [
-    {
-      key: "select",
-      header: sel.header,
-      width: "40px",
-      cell: sel.cell
-    },
     {
       key: "name",
       header: "Tên",
@@ -232,9 +175,9 @@ export function NichesTable({
         const lock = c._count.products > 0;
         return (
           <RowActions
-            onView={() => setViewing(c)}
+            onView={() => setEditing(c)}
             onEdit={() => setEditing(c)}
-            onDelete={lock ? undefined : () => handleDelete(c.id)}
+            onDelete={() => handleDelete(c.id)}
             deleteConfirm={`Xoá ngành hàng "${c.name}"? Hành động không thể hoàn tác.`}
             deleteDisabled={lock}
             deleteDisabledReason={`Có ${c._count.products} sản phẩm — xoá sản phẩm trước`}
@@ -256,20 +199,15 @@ export function NichesTable({
   return (
     <>
       <div className="admin-card overflow-hidden p-0">
-        <BulkBar
-          selectedCount={selected.size}
-          totalCount={rows.length}
-          actions={BULK_ACTIONS}
-          action={bulkAction}
-          setAction={setBulkAction}
-          onApply={handleBulk}
-          pending={bulkPending}
-          rightSlot={
-            <AdminButton size="sm" iconLeft={<Plus />} onClick={() => setCreateOpen(true)}>
-              Tạo niche
-            </AdminButton>
-          }
-        />
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-admin-line bg-admin-subtle/40 px-4 py-2.5">
+          <span className="text-xs text-admin-mute">
+            Đang hiển thị: <span className="font-semibold text-admin-ink">{filteredCount}</span>
+            {filteredCount !== totalCount ? <span> / {totalCount}</span> : null}
+          </span>
+          <AdminButton size="sm" iconLeft={<Plus />} onClick={() => setCreateOpen(true)}>
+            Tạo ngành hàng
+          </AdminButton>
+        </div>
         <DataTable
           columns={columns}
           rows={rows}
@@ -282,19 +220,13 @@ export function NichesTable({
       <FormDialog<NicheCreateInput>
         open={createOpen}
         onOpenChange={setCreateOpen}
-        title="Tạo niche mới"
-        description={
-          <span>
-            <code className="rounded bg-admin-subtle px-1 py-0.5 text-xs">schemaConfig</code> định
-            nghĩa field AI bóc tách cho sản phẩm trong niche này.
-          </span>
-        }
+        title="Tạo ngành hàng mới"
         size="xl"
         schema={nicheCreateSchema}
         defaultValues={EMPTY_CREATE}
         resetOnOpen
         onSubmit={handleCreate}
-        submitLabel="Tạo niche"
+        submitLabel="Tạo ngành hàng"
       >
         <NicheFields />
       </FormDialog>
@@ -303,14 +235,44 @@ export function NichesTable({
       <FormDialog<NicheUpdateInput>
         open={editing !== null}
         onOpenChange={(o) => !o && setEditing(null)}
-        title={editing ? `Sửa niche "${editing.name}"` : "Sửa niche"}
+        title={
+          editing ? (
+            <div className="flex items-center gap-2">
+              <span>{editing.name}</span>
+              <StatusPill tone={NICHE_STATUS_META[editing.status].tone} dot>
+                {NICHE_STATUS_META[editing.status].label}
+              </StatusPill>
+            </div>
+          ) : (
+            "Chi tiết ngành hàng"
+          )
+        }
         size="xl"
         schema={nicheUpdateSchema}
         defaultValues={editing ? toFormValues(editing) : { id: "", ...EMPTY_CREATE }}
         resetOnOpen
         onSubmit={handleUpdate}
-        submitLabel="Lưu"
+        submitLabel="Lưu thay đổi"
       >
+        {editing ? (
+          <div className="sm:col-span-2 -mt-1 mb-1 rounded-lg border border-admin-line bg-admin-subtle/30 p-3 text-xs">
+            <div className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-admin-mute">
+              Thông tin hệ thống
+            </div>
+            <div className="grid grid-cols-2 gap-x-4 gap-y-2 sm:grid-cols-3">
+              <FieldRow
+                label="Số liệu"
+                value={`${editing._count.products} sản phẩm · ${editing._count.articles} bài viết${
+                  typeof editing._count.campaigns === "number"
+                    ? ` · ${editing._count.campaigns} chiến dịch`
+                    : ""
+                }`}
+              />
+              <FieldRow label="Tạo lúc" value={dateFmt.format(new Date(editing.createdAt))} />
+              <FieldRow label="Cập nhật" value={dateFmt.format(new Date(editing.updatedAt))} />
+            </div>
+          </div>
+        ) : null}
         <NicheFields editing />
         <Link
           href={editing ? `/admin/niches/${editing.id}` : "#"}
@@ -320,71 +282,6 @@ export function NichesTable({
         </Link>
       </FormDialog>
 
-      {/* VIEW DETAIL */}
-      <Dialog open={viewing !== null} onOpenChange={(o) => !o && setViewing(null)}>
-        <DialogContent
-          size="xl"
-          title={viewing?.name ?? "Niche"}
-          description={viewing ? <span className="font-mono">{viewing.slug}</span> : undefined}
-          footer={
-            <DialogFooter>
-              <AdminButton variant="ghost" size="sm" onClick={() => setViewing(null)}>
-                Đóng
-              </AdminButton>
-              {viewing ? (
-                <AdminButton
-                  size="sm"
-                  onClick={() => {
-                    const target = viewing;
-                    setViewing(null);
-                    setEditing(target);
-                  }}
-                >
-                  Sửa
-                </AdminButton>
-              ) : null}
-            </DialogFooter>
-          }
-        >
-          {viewing ? (
-            <div className="space-y-4 text-sm">
-              <div className="flex flex-wrap items-center gap-2">
-                <StatusPill tone={NICHE_STATUS_META[viewing.status].tone} dot>
-                  {NICHE_STATUS_META[viewing.status].label}
-                </StatusPill>
-                <span className="text-xs text-admin-mute">
-                  {viewing._count.products} sản phẩm · {viewing._count.articles} bài viết
-                  {typeof viewing._count.campaigns === "number"
-                    ? ` · ${viewing._count.campaigns} campaign`
-                    : ""}
-                </span>
-              </div>
-              <FieldRow label="SEO title" value={viewing.seoTitle ?? "—"} />
-              <FieldRow
-                label="SEO description"
-                value={viewing.seoDescription ?? "—"}
-                multiline
-              />
-              <div>
-                <div className="mb-1 text-xs font-medium text-admin-mute">schemaConfig</div>
-                <pre className="max-h-96 overflow-auto rounded-md border border-admin-line bg-admin-subtle/30 p-3 text-[11px] leading-relaxed text-admin-ink">
-                  {JSON.stringify(viewing.schemaConfig ?? {}, null, 2)}
-                </pre>
-              </div>
-              <div className="grid grid-cols-2 gap-3 text-[11px] text-admin-mute">
-                <div>
-                  <div className="font-medium text-admin-ink">Tạo lúc</div>
-                  {dateFmt.format(new Date(viewing.createdAt))}
-                </div>
-                <div>
-                  <div className="font-medium text-admin-ink">Cập nhật</div>
-                  {dateFmt.format(new Date(viewing.updatedAt))}
-                </div>
-              </div>
-            </div>
-          ) : null}
-        </DialogContent>
-      </Dialog>
     </>
   );
 }
@@ -447,16 +344,15 @@ function NicheFields({ editing }: { editing?: boolean }): React.ReactElement {
             rows={2}
             fullRow
           />
+          <ControlledTextareaField<NicheCreateInput>
+            name="schemaConfig"
+            label="Cấu trúc field (JSON)"
+            mono
+            rows={6}
+            fullRow
+          />
         </>
       ) : null}
-      <ControlledTextareaField<NicheCreateInput>
-        name="schemaConfig"
-        label="schemaConfig (JSON)"
-        mono
-        rows={6}
-        fullRow
-        hint='Ví dụ: {"suctionPower": "number", "batteryMinutes": "number"}'
-      />
     </>
   );
 }

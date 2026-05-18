@@ -30,7 +30,10 @@ export function FilterBar({
     <form
       method="get"
       action={action}
-      className={cn("admin-card flex flex-wrap items-end gap-3 p-4", className)}
+      className={cn(
+        "admin-card flex flex-wrap items-center gap-2 px-3 py-2",
+        className
+      )}
     >
       {hiddenFields
         ? Object.entries(hiddenFields).map(([k, v]) =>
@@ -38,11 +41,11 @@ export function FilterBar({
           )
         : null}
       {children}
-      <div className="ml-auto flex flex-wrap items-end gap-2">
-        <AdminButton type="submit" size="md" iconLeft={<Filter />}>
+      <div className="ml-auto flex flex-wrap items-center gap-1.5">
+        <AdminButton type="submit" size="sm" iconLeft={<Filter />}>
           Lọc
         </AdminButton>
-        <AdminLinkButton href={resetHref} variant="outline" size="md" iconLeft={<X />}>
+        <AdminLinkButton href={resetHref} variant="outline" size="sm" iconLeft={<X />}>
           Xoá
         </AdminLinkButton>
         {extraActions}
@@ -57,9 +60,10 @@ export function FilterBar({
  */
 interface NativeFilterSelectProps
   extends React.SelectHTMLAttributes<HTMLSelectElement> {
+  /** Label → render thành option "— {label} —" placeholder để user biết field này lọc gì. */
   label: React.ReactNode;
   options: Array<{ value: string; label: string }>;
-  /** Option "Tất cả" mặc định prepended. */
+  /** Option "Tất cả" mặc định prepended (đã chứa label như placeholder). */
   includeAll?: boolean;
   allLabel?: string;
 }
@@ -68,39 +72,38 @@ export function NativeFilterSelect({
   label,
   options,
   includeAll = true,
-  allLabel = "Tất cả",
+  allLabel,
   className,
   id,
   name,
   ...props
 }: NativeFilterSelectProps): React.ReactElement {
   const selId = id ?? name;
+  const placeholder = allLabel ?? (typeof label === "string" ? `Tất cả: ${label}` : "Tất cả");
   return (
-    <div className="space-y-1">
-      <label htmlFor={selId} className="text-xs font-semibold text-admin-ink">
-        {label}
-      </label>
-      <select
-        id={selId}
-        name={name}
-        className={cn(
-          "h-10 min-w-[10rem] rounded-lg border border-admin-line bg-admin-surface px-3 pr-8 text-sm text-admin-ink focus:border-admin-accent focus:outline-none focus:ring-2 focus:ring-admin-accent/20",
-          className
-        )}
-        {...props}
-      >
-        {includeAll ? <option value="">{allLabel}</option> : null}
-        {options.map((o) => (
-          <option key={o.value} value={o.value}>
-            {o.label}
-          </option>
-        ))}
-      </select>
-    </div>
+    <select
+      id={selId}
+      name={name}
+      title={typeof label === "string" ? label : undefined}
+      aria-label={typeof label === "string" ? label : undefined}
+      className={cn(
+        "h-9 min-w-[10rem] rounded-md border border-admin-line bg-admin-surface px-3 pr-8 text-sm text-admin-ink focus:border-admin-accent focus:outline-none focus:ring-2 focus:ring-admin-accent/20",
+        className
+      )}
+      {...props}
+    >
+      {includeAll ? <option value="">{placeholder}</option> : null}
+      {options.map((o) => (
+        <option key={o.value} value={o.value}>
+          {o.label}
+        </option>
+      ))}
+    </select>
   );
 }
 
 interface FilterTextInputProps extends React.InputHTMLAttributes<HTMLInputElement> {
+  /** Label → set thành placeholder + title nếu placeholder không truyền. */
   label: React.ReactNode;
 }
 
@@ -109,24 +112,24 @@ export function NativeFilterInput({
   className,
   id,
   name,
+  placeholder,
   ...props
 }: FilterTextInputProps): React.ReactElement {
   const inputId = id ?? name;
+  const ph = placeholder ?? (typeof label === "string" ? label : undefined);
   return (
-    <div className="space-y-1">
-      <label htmlFor={inputId} className="text-xs font-semibold text-admin-ink">
-        {label}
-      </label>
-      <input
-        id={inputId}
-        name={name}
-        className={cn(
-          "h-10 w-56 rounded-lg border border-admin-line bg-admin-surface px-3 text-sm text-admin-ink focus:border-admin-accent focus:outline-none focus:ring-2 focus:ring-admin-accent/20",
-          className
-        )}
-        {...props}
-      />
-    </div>
+    <input
+      id={inputId}
+      name={name}
+      placeholder={ph}
+      title={typeof label === "string" ? label : undefined}
+      aria-label={typeof label === "string" ? label : undefined}
+      className={cn(
+        "h-9 w-56 rounded-md border border-admin-line bg-admin-surface px-3 text-sm text-admin-ink placeholder:text-admin-mute focus:border-admin-accent focus:outline-none focus:ring-2 focus:ring-admin-accent/20",
+        className
+      )}
+      {...props}
+    />
   );
 }
 

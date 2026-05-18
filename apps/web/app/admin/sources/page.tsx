@@ -52,8 +52,8 @@ export default async function SourcesPage({
 
   return (
     <ListPageShell
-      eyebrow="Catalog"
-      title="Nguồn bán (Source)"
+      eyebrow="Danh mục"
+      title="Nguồn bán"
       subtitle={
         <>
           Sàn / website bán hàng — crawler tự upsert từ hostname của{" "}
@@ -102,7 +102,7 @@ export default async function SourcesPage({
           <LookupTable
             rows={items}
             entityLabel="nguồn bán"
-            rawHeader="Domain"
+            rawHeader="Tên miền"
             updateAction={updateSourceDisplayNameAction}
           />
           <Pagination

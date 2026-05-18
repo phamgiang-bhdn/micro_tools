@@ -8,9 +8,6 @@ import { formatMoney } from "../../../lib/format";
 import {
   AdminButton,
   DataTable,
-  Dialog,
-  DialogContent,
-  DialogFooter,
   FormDialog,
   RowActions,
   StatusPill,
@@ -20,8 +17,6 @@ import {
   ControlledCheckboxField,
   type ColumnDef
 } from "../../../components/admin/ui";
-import { BulkBar, selectionColumnRenderers, buildBulkConfirmMessage, type BulkAction } from "../../../components/admin/bulk-bar";
-import { useRowSelection } from "../../../components/admin/use-row-selection";
 import { NETWORK_OPTIONS, type AffiliateNetwork } from "../../../lib/admin/constants";
 import {
   productCreateSchema,
@@ -33,9 +28,7 @@ import {
   createProductAction,
   updateProductAction,
   deleteProductAction,
-  toggleProductPublicAction,
-  bulkProductAction,
-  bulkAssignShopAction
+  toggleProductPublicAction
 } from "../actions";
 
 export interface ProductRow {
@@ -83,22 +76,6 @@ const EMPTY_CREATE: ProductCreateInput = {
   isPublic: false,
   scrapedData: undefined
 };
-
-const BULK_ACTIONS: BulkAction[] = [
-  { value: "assign-niche", label: "Gán Niche…", confirm: "" },
-  { value: "clear-niche", label: "Bỏ niche", confirm: "Bỏ gán niche + ẩn các sản phẩm đã chọn? Sản phẩm sẽ rời khỏi storefront cho đến khi gán lại." },
-  { value: "assign-shop", label: "Gán Shop…", confirm: "" },
-  { value: "clear-shop", label: "Bỏ shop", confirm: "Bỏ gán shop cho các sản phẩm đã chọn?" },
-  { value: "make-public", label: "Đặt public", confirm: "Bật public các sản phẩm đã chọn?" },
-  { value: "make-private", label: "Đặt private", confirm: "Ẩn khỏi storefront?" },
-  {
-    value: "delete",
-    label: "Xoá",
-    confirm:
-      "Xoá vĩnh viễn sản phẩm? Không hoàn tác — sẽ xoá luôn ClickLog/Extraction cascade.",
-    tone: "danger"
-  }
-];
 
 const dateFmt = new Intl.DateTimeFormat("vi-VN", {
   day: "2-digit",
@@ -167,12 +144,7 @@ export function ProductsTable({
   const router = useRouter();
   const [createOpen, setCreateOpen] = React.useState(false);
   const [editing, setEditing] = React.useState<ProductRow | null>(null);
-  const [viewing, setViewing] = React.useState<ProductRow | null>(null);
-  const { selected, toggleOne, toggleAll, clear, allSelected } = useRowSelection(rows);
-  const [bulkAction, setBulkAction] = React.useState<string>("");
-  const [bulkNicheId, setBulkNicheId] = React.useState<string>("");
-  const [bulkShopId, setBulkShopId] = React.useState<string>("");
-  const [bulkPending, setBulkPending] = React.useState(false);
+  // Form chung cho "Xem chi tiết" + "Sửa".
 
   const nicheOptions = React.useMemo(
     () => niches.map((c) => ({ value: c.id, label: c.name })),
@@ -227,59 +199,7 @@ export function ProductsTable({
     router.refresh();
   };
 
-  const handleBulk = async () => {
-    if (!bulkAction || selected.size === 0) return;
-    if (bulkAction === "assign-niche" && !bulkNicheId) {
-      window.alert("Chọn niche trước khi gán.");
-      return;
-    }
-    if (bulkAction === "assign-shop" && !bulkShopId) {
-      window.alert("Chọn shop trước khi gán.");
-      return;
-    }
-    const cfg = BULK_ACTIONS.find((b) => b.value === bulkAction);
-    const msg = buildBulkConfirmMessage(cfg, selected.size);
-    if (msg && !window.confirm(msg)) return;
-    const fd = new FormData();
-    for (const id of selected) fd.append("ids", id);
-    setBulkPending(true);
-    try {
-      if (bulkAction === "assign-shop") {
-        fd.set("shopId", bulkShopId);
-        await bulkAssignShopAction(fd);
-      } else if (bulkAction === "clear-shop") {
-        fd.set("shopId", "");
-        await bulkAssignShopAction(fd);
-      } else {
-        fd.set("action", bulkAction);
-        if (bulkAction === "assign-niche") fd.set("nicheId", bulkNicheId);
-        await bulkProductAction(fd);
-      }
-      clear();
-      setBulkAction("");
-      setBulkNicheId("");
-      setBulkShopId("");
-      router.refresh();
-    } finally {
-      setBulkPending(false);
-    }
-  };
-
-  const sel = selectionColumnRenderers<ProductRow>({
-    allSelected,
-    toggleAll,
-    isSelected: (id) => selected.has(id),
-    toggleOne,
-    rowLabel: (p) => `sản phẩm ${p.name}`
-  });
-
   const columns: ColumnDef<ProductRow>[] = [
-    {
-      key: "select",
-      header: sel.header,
-      width: "40px",
-      cell: sel.cell
-    },
     {
       key: "image",
       header: <span className="sr-only">Ảnh</span>,
@@ -371,7 +291,7 @@ export function ProductsTable({
     },
     {
       key: "niche",
-      header: "Niche",
+      header: "Ngành hàng",
       hideOnMobile: true,
       cell: (p) =>
         p.niche ? (
@@ -444,7 +364,7 @@ export function ProductsTable({
       width: "120px",
       cell: (p) => (
         <RowActions
-          onView={() => setViewing(p)}
+          onView={() => setEditing(p)}
           onEdit={() => setEditing(p)}
           onDelete={() => handleDelete(p.id)}
           deleteConfirm={`Xoá sản phẩm "${p.name}"? Hành động không thể hoàn tác.`}
@@ -454,21 +374,19 @@ export function ProductsTable({
               icon: p.isPublic ? <EyeOff /> : <Eye />,
               onSelect: () => handleTogglePublic(p.id, !p.isPublic)
             },
-            ...(p.isPublic && p.slug && p.niche
-              ? [
-                  {
-                    label: "Xem trên gian hàng",
-                    icon: <ExternalLink />,
-                    onSelect: () => {
-                      window.open(
-                        `/categories/${p.niche!.slug}/${p.slug}`,
-                        "_blank",
-                        "noopener,noreferrer"
-                      );
-                    }
-                  }
-                ]
-              : []),
+            {
+              label: "Xem trên gian hàng",
+              icon: <ExternalLink />,
+              disabled: !p.isPublic || !p.slug || !p.niche,
+              onSelect: () => {
+                if (!p.isPublic || !p.slug || !p.niche) return;
+                window.open(
+                  `/categories/${p.niche.slug}/${p.slug}`,
+                  "_blank",
+                  "noopener,noreferrer"
+                );
+              }
+            },
             {
               label: "Mở trang chi tiết",
               icon: <ExternalLink />,
@@ -485,62 +403,16 @@ export function ProductsTable({
   return (
     <>
       <div className="admin-card overflow-hidden p-0">
-        <BulkBar
-          selectedCount={selected.size}
-          totalCount={rows.length}
-          actions={BULK_ACTIONS}
-          action={bulkAction}
-          setAction={(v) => {
-            setBulkAction(v);
-            if (v !== "assign-niche") setBulkNicheId("");
-            if (v !== "assign-shop") setBulkShopId("");
-          }}
-          onApply={handleBulk}
-          pending={bulkPending}
-          extraSlot={
-            bulkAction === "assign-niche" ? (
-              <select
-                value={bulkNicheId}
-                onChange={(e) => setBulkNicheId(e.target.value)}
-                className="h-8 rounded-md border border-admin-line bg-admin-surface px-2 pr-7 text-xs text-admin-ink"
-                aria-label="Chọn niche để gán"
-              >
-                <option value="">— Chọn niche —</option>
-                {niches.map((n) => (
-                  <option key={n.id} value={n.id}>
-                    {n.name}
-                  </option>
-                ))}
-              </select>
-            ) : bulkAction === "assign-shop" ? (
-              <select
-                value={bulkShopId}
-                onChange={(e) => setBulkShopId(e.target.value)}
-                className="h-8 rounded-md border border-admin-line bg-admin-surface px-2 pr-7 text-xs text-admin-ink"
-                aria-label="Chọn shop để gán"
-              >
-                <option value="">— Chọn shop —</option>
-                {shops.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.name}
-                  </option>
-                ))}
-              </select>
-            ) : null
-          }
-          rightSlot={
-            <div className="flex flex-wrap items-center gap-3">
-              <div className="text-xs text-admin-mute">
-                Đang hiển thị: <span className="font-semibold text-admin-ink">{rows.length}</span>
-                {totalCount !== rows.length ? <span> / {totalCount}</span> : null}
-                {hasFilter ? <span className="ml-1 text-admin-mute">(theo lọc)</span> : null}
-              </div>
-              <AdminButton size="sm" iconLeft={<Plus />} onClick={() => setCreateOpen(true)}>
-                Thêm sản phẩm
-              </AdminButton>
-            </div>
-          }
-        />
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-admin-line bg-admin-subtle/40 px-4 py-2.5">
+          <span className="text-xs text-admin-mute">
+            Đang hiển thị: <span className="font-semibold text-admin-ink">{rows.length}</span>
+            {totalCount !== rows.length ? <span> / {totalCount}</span> : null}
+            {hasFilter ? <span className="ml-1 text-admin-mute">(theo lọc)</span> : null}
+          </span>
+          <AdminButton size="sm" iconLeft={<Plus />} onClick={() => setCreateOpen(true)}>
+            Thêm sản phẩm
+          </AdminButton>
+        </div>
         <DataTable
           columns={columns}
           rows={rows}
@@ -553,7 +425,6 @@ export function ProductsTable({
         open={createOpen}
         onOpenChange={setCreateOpen}
         title="Thêm sản phẩm thủ công"
-        description="Thường crawler tự nạp — chỉ thêm tay khi cần override hoặc thử nghiệm."
         size="lg"
         schema={productCreateSchema}
         defaultValues={EMPTY_CREATE}
@@ -567,133 +438,42 @@ export function ProductsTable({
       <FormDialog<ProductUpdateInput>
         open={editing !== null}
         onOpenChange={(o) => !o && setEditing(null)}
-        title={editing ? `Sửa "${editing.name}"` : "Sửa sản phẩm"}
-        size="lg"
+        title={
+          editing ? (
+            <div className="flex items-center gap-2">
+              <span className="truncate">{editing.name}</span>
+              {editing.isPublic ? (
+                <StatusPill tone="success" dot>
+                  Đang hiện
+                </StatusPill>
+              ) : (
+                <StatusPill tone="neutral" dot>
+                  Đang ẩn
+                </StatusPill>
+              )}
+              <NetworkBadge network={editing.network} />
+            </div>
+          ) : (
+            "Chi tiết sản phẩm"
+          )
+        }
+        size="xl"
         schema={productUpdateSchema}
         defaultValues={editing ? toFormValues(editing) : { id: "", ...EMPTY_CREATE }}
         resetOnOpen
         onSubmit={handleUpdate}
-        submitLabel="Lưu"
+        submitLabel="Lưu thay đổi"
       >
+        {editing ? <ProductReadonlyInfo row={editing} /> : null}
         <ProductFields nicheOptions={nicheOptions} shopOptions={shopOptions} editing />
         <Link
           href={editing ? `/admin/products/${editing.id}` : "#"}
           className="sm:col-span-2 inline-flex items-center gap-1.5 text-xs font-medium text-admin-accent hover:underline"
         >
-          <ExternalLink className="size-3" /> Sửa scrapedData (giá, ảnh, specs…) ở trang chi tiết
+          <ExternalLink className="size-3" /> Mở trang chi tiết để sửa giá, ảnh, thông số…
         </Link>
       </FormDialog>
 
-      {/* VIEW DETAIL */}
-      <Dialog open={viewing !== null} onOpenChange={(o) => !o && setViewing(null)}>
-        <DialogContent
-          size="xl"
-          title={viewing?.name ?? "Sản phẩm"}
-          description={viewing?.slug ? <span className="font-mono">{viewing.slug}</span> : undefined}
-          footer={
-            <DialogFooter>
-              <AdminButton variant="ghost" size="sm" onClick={() => setViewing(null)}>
-                Đóng
-              </AdminButton>
-              {viewing ? (
-                <AdminButton
-                  size="sm"
-                  onClick={() => {
-                    window.location.href = `/admin/products/${viewing.id}`;
-                  }}
-                >
-                  Sửa
-                </AdminButton>
-              ) : null}
-            </DialogFooter>
-          }
-        >
-          {viewing ? (
-            <div className="space-y-4 text-sm">
-              <div className="flex flex-wrap items-center gap-2">
-                {viewing.isPublic ? (
-                  <StatusPill tone="success" dot>
-                    Đang hiện
-                  </StatusPill>
-                ) : (
-                  <StatusPill tone="neutral" dot>
-                    Đang ẩn
-                  </StatusPill>
-                )}
-                <NetworkBadge network={viewing.network} />
-                <span className="text-xs text-admin-mute">{viewing.niche?.name ?? "Chưa gán niche"}</span>
-              </div>
-              <div>
-                <div className="mb-0.5 text-xs font-medium text-admin-mute">Affiliate URL</div>
-                <div className="flex items-center gap-2">
-                  <code className="line-clamp-1 flex-1 rounded bg-admin-subtle px-2 py-1 font-mono text-[11px] text-admin-ink">
-                    {viewing.affiliateUrl}
-                  </code>
-                  <a
-                    href={viewing.affiliateUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1 text-xs font-medium text-admin-accent hover:underline"
-                  >
-                    Mở <ExternalLink className="size-3" />
-                  </a>
-                </div>
-              </div>
-              <div>
-                <div className="mb-0.5 text-xs font-medium text-admin-mute">Shop</div>
-                <div className="text-admin-ink">
-                  {viewing.shop ? (
-                    <span className="inline-flex items-center gap-2">
-                      {viewing.shop.logoUrl ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          src={viewing.shop.logoUrl}
-                          alt={viewing.shop.name}
-                          className="size-5 rounded border border-admin-line object-cover"
-                        />
-                      ) : null}
-                      <span>{viewing.shop.name}</span>
-                      <span className="font-mono text-[11px] text-admin-mute">{viewing.shop.slug}</span>
-                    </span>
-                  ) : (
-                    <span className="text-admin-mute">Chưa gán — sửa sản phẩm để gán shop</span>
-                  )}
-                </div>
-              </div>
-              {viewing._count ? (
-                <div className="grid grid-cols-2 gap-3 text-xs">
-                  <div>
-                    <div className="font-medium text-admin-mute">ClickLogs</div>
-                    <div className="text-admin-ink">{viewing._count.clickLogs ?? 0}</div>
-                  </div>
-                  <div>
-                    <div className="font-medium text-admin-mute">Extractions</div>
-                    <div className="text-admin-ink">{viewing._count.extractions ?? 0}</div>
-                  </div>
-                </div>
-              ) : null}
-              <div>
-                <div className="mb-1 text-xs font-medium text-admin-mute">scrapedData</div>
-                <pre className="max-h-96 overflow-auto rounded-md border border-admin-line bg-admin-subtle/30 p-3 text-[11px] leading-relaxed text-admin-ink">
-                  {JSON.stringify(viewing.scrapedData ?? {}, null, 2)}
-                </pre>
-              </div>
-              <div className="grid grid-cols-2 gap-3 text-[11px] text-admin-mute">
-                {viewing.createdAt ? (
-                  <div>
-                    <div className="font-medium text-admin-ink">Tạo lúc</div>
-                    {dateFmt.format(new Date(viewing.createdAt))}
-                  </div>
-                ) : null}
-                <div>
-                  <div className="font-medium text-admin-ink">Cập nhật</div>
-                  {dateFmt.format(new Date(viewing.updatedAt))}
-                </div>
-              </div>
-            </div>
-          ) : null}
-        </DialogContent>
-      </Dialog>
     </>
   );
 }
@@ -726,7 +506,7 @@ function ProductFields({
       />
       <ControlledSelectField<ProductCreateInput>
         name="nicheId"
-        label="Niche"
+        label="Ngành hàng"
         options={nicheOptions}
         required
       />
@@ -751,6 +531,52 @@ function ProductFields({
         fullRow
       />
     </>
+  );
+}
+
+function ProductReadonlyInfo({ row }: { row: ProductRow }): React.ReactElement {
+  return (
+    <div className="sm:col-span-2 -mt-1 mb-1 space-y-3 rounded-lg border border-admin-line bg-admin-subtle/30 p-3 text-xs">
+      <div>
+        <div className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-admin-mute">
+          Thông tin chung
+        </div>
+        <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 sm:grid-cols-3">
+          <div>
+            <div className="text-[10.5px] text-admin-mute">Ngành hàng</div>
+            <div className="text-admin-ink">{row.niche?.name ?? "Chưa gán"}</div>
+          </div>
+          <div>
+            <div className="text-[10.5px] text-admin-mute">Cập nhật</div>
+            <div className="text-admin-ink">{dateFmt.format(new Date(row.updatedAt))}</div>
+          </div>
+          {row._count ? (
+            <div>
+              <div className="text-[10.5px] text-admin-mute">Click / Trích xuất</div>
+              <div className="text-admin-ink">
+                {row._count.clickLogs ?? 0} / {row._count.extractions ?? 0}
+              </div>
+            </div>
+          ) : null}
+        </div>
+      </div>
+      <div>
+        <div className="mb-1 text-[10.5px] text-admin-mute">URL affiliate</div>
+        <div className="flex items-center gap-2">
+          <code className="line-clamp-1 flex-1 rounded bg-admin-subtle px-2 py-1 font-mono text-[11px] text-admin-ink">
+            {row.affiliateUrl}
+          </code>
+          <a
+            href={row.affiliateUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1 text-[11px] font-medium text-admin-accent hover:underline"
+          >
+            Mở <ExternalLink className="size-3" />
+          </a>
+        </div>
+      </div>
+    </div>
   );
 }
 

@@ -70,9 +70,9 @@ export default async function CampaignsPage({
 
   return (
     <ListPageShell
-      eyebrow="Doanh thu"
-      title="Affiliate campaigns"
-      subtitle="Mỗi campaign = 1 merchant từ Accesstrade. Campaign APPROVED là crawler tự pull. Niche admin gán tay vào sản phẩm sau."
+      eyebrow="Accesstrade"
+      title="Chiến dịch affiliate"
+      subtitle="Mỗi chiến dịch = 1 cửa hàng từ Accesstrade. Chiến dịch đã duyệt sẽ được crawler tự kéo về. Ngành hàng được gán tay cho sản phẩm sau khi đồng bộ."
       actions={<SyncFromAtButton />}
       overview={[
         {
@@ -125,8 +125,8 @@ export default async function CampaignsPage({
         all.length === 0 && !search && !network && !status ? (
           <AdminEmptyState
             icon={<Megaphone />}
-            title="Chưa có campaign nào"
-            description="Apply campaign trên https://pub2.accesstrade.vn → đợi duyệt → bấm Sync from Accesstrade ở trên để pull về DB."
+            title="Chưa có chiến dịch nào"
+            description="Đăng ký chiến dịch trên https://pub2.accesstrade.vn → đợi duyệt → bấm 'Đồng bộ từ Accesstrade' để lấy về."
           />
         ) : (
           <div>
