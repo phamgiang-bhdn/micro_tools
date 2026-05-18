@@ -11,7 +11,7 @@ import {
   ARTICLE_STATUS_VALUES,
   ARTICLE_TYPE_VALUES,
   CAMPAIGN_STATUS_VALUES,
-  CATEGORY_STATUS_VALUES,
+  NICHE_STATUS_VALUES,
   NETWORK_VALUES
 } from "./constants";
 
@@ -61,18 +61,18 @@ const couponBase = z.object({
     .max(100, "Giảm 1–100%")
     .nullable(),
   network: z.enum(NETWORK_VALUES).nullable().optional(),
-  categoryId: z.string().trim().min(1).nullable().optional(),
+  nicheId: z.string().trim().min(1).nullable().optional(),
   productId: z.string().trim().min(1).nullable().optional(),
   expiresAt: optionalISODate,
   isActive: z.boolean().default(true)
 });
 
 export const couponCreateSchema = couponBase.superRefine((data, ctx) => {
-  if (data.categoryId && data.productId) {
+  if (data.nicheId && data.productId) {
     ctx.addIssue({
       path: ["productId"],
       code: "custom",
-      message: "Chỉ chọn 1 trong: danh mục hoặc sản phẩm"
+      message: "Chỉ chọn 1 trong: niche hoặc sản phẩm"
     });
   }
 });
@@ -107,29 +107,29 @@ export const campaignUpdateSchema = campaignCreateSchema.partial().extend({
 });
 export type CampaignUpdateInput = z.infer<typeof campaignUpdateSchema>;
 
-// ===== Category =====
+// ===== Niche =====
 
-export const categoryCreateSchema = z.object({
+export const nicheCreateSchema = z.object({
   name: z.string().trim().min(2, "Tên ≥ 2 ký tự").max(120),
   slug,
   schemaConfig: jsonString("schemaConfig"),
   seoTitle: z.string().trim().max(180).nullable().optional(),
   seoDescription: z.string().trim().max(320).nullable().optional()
 });
-export type CategoryCreateInput = z.infer<typeof categoryCreateSchema>;
+export type NicheCreateInput = z.infer<typeof nicheCreateSchema>;
 
-export const categoryUpdateSchema = categoryCreateSchema.partial().extend({
+export const nicheUpdateSchema = nicheCreateSchema.partial().extend({
   id: z.string().min(1, "Thiếu id"),
-  status: z.enum(CATEGORY_STATUS_VALUES).optional()
+  status: z.enum(NICHE_STATUS_VALUES).optional()
 });
-export type CategoryUpdateInput = z.infer<typeof categoryUpdateSchema>;
+export type NicheUpdateInput = z.infer<typeof nicheUpdateSchema>;
 
 // ===== Product =====
 
 export const productCreateSchema = z.object({
   name: z.string().trim().min(2, "Tên ≥ 2 ký tự").max(220),
   affiliateUrl: z.string().trim().url("URL affiliate không hợp lệ"),
-  categoryId: z.string().min(1, "Chọn danh mục"),
+  nicheId: z.string().min(1, "Chọn niche"),
   network: z.enum(NETWORK_VALUES, { message: "Chọn network" }),
   isPublic: z.boolean().default(false),
   scrapedData: jsonString("scrapedData").optional()
@@ -147,16 +147,16 @@ export const articleGenerateSchema = z
   .object({
     type: z.enum(ARTICLE_TYPE_VALUES),
     topic: z.string().trim().min(5, "Chủ đề ≥ 5 ký tự").max(300),
-    categoryId: z.string().trim().min(1).optional(),
+    nicheId: z.string().trim().min(1).optional(),
     productRef: z.string().trim().min(1).optional(),
     pinnedProductIds: z.array(z.string().min(1)).default([])
   })
   .superRefine((data, ctx) => {
-    if (data.type === "BUYING_GUIDE" && !data.categoryId) {
+    if (data.type === "BUYING_GUIDE" && !data.nicheId) {
       ctx.addIssue({
-        path: ["categoryId"],
+        path: ["nicheId"],
         code: "custom",
-        message: "Hướng dẫn mua cần chọn danh mục"
+        message: "Hướng dẫn mua cần chọn niche"
       });
     }
     if (data.type === "REVIEW" && !data.productRef) {
@@ -177,7 +177,7 @@ export const articleUpdateSchema = z.object({
   body: z.string().trim().min(1, "Nội dung không được rỗng"),
   metaTitle: z.string().trim().max(180).nullable().optional(),
   metaDescription: z.string().trim().max(320).nullable().optional(),
-  categoryId: z.string().min(1).nullable().optional(),
+  nicheId: z.string().min(1).nullable().optional(),
   productIds: z.array(z.string().min(1)).default([])
 });
 export type ArticleUpdateInput = z.infer<typeof articleUpdateSchema>;

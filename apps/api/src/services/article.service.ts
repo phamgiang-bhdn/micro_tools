@@ -95,7 +95,7 @@ export type ArticleAiOutput = z.infer<typeof aiOutputSchema>;
 export interface GenerateArticleInput {
   type: ArticleType;
   topic: string;
-  categoryId?: string | null;
+  nicheId?: string | null;
   pinnedProductIds?: string[];
   productRef?: string | null;
 }
@@ -220,11 +220,11 @@ export class ArticleService {
       );
     }
 
-    const contextCategory = input.categoryId
-      ? await this.prisma.category.findUnique({ where: { id: input.categoryId } })
+    const contextNiche = input.nicheId
+      ? await this.prisma.niche.findUnique({ where: { id: input.nicheId } })
       : null;
-    if (!contextCategory && input.type === "BUYING_GUIDE") {
-      throw new HttpException("BUYING_GUIDE bài cần chọn danh mục", HttpStatus.BAD_REQUEST);
+    if (!contextNiche && input.type === "BUYING_GUIDE") {
+      throw new HttpException("BUYING_GUIDE bài cần chọn niche", HttpStatus.BAD_REQUEST);
     }
 
     const pinnedIds = input.pinnedProductIds ?? [];
@@ -235,11 +235,11 @@ export class ArticleService {
         })
       : [];
 
-    // Top candidates of the category (excluding already-pinned)
-    const candidatesFromCategory: CandidateRow[] = contextCategory
+    // Top candidates of the niche (excluding already-pinned)
+    const candidatesFromNiche: CandidateRow[] = contextNiche
       ? await this.prisma.product.findMany({
           where: {
-            categoryId: contextCategory.id,
+            nicheId: contextNiche.id,
             id: { notIn: pinnedIds.length ? pinnedIds : ["00000000-0000-0000-0000-000000000000"] }
           },
           select: candidateSelect,
@@ -250,13 +250,13 @@ export class ArticleService {
 
     // For REVIEW: resolve productRef → 1 specific product (always pinned)
     if (input.type === "REVIEW" && input.productRef) {
-      const resolvedRef = await this.resolveProductRef(input.productRef, contextCategory?.id ?? null);
+      const resolvedRef = await this.resolveProductRef(input.productRef, contextNiche?.id ?? null);
       if (resolvedRef && !pinned.find((p) => p.id === resolvedRef.id)) {
         pinned.unshift(resolvedRef);
       }
     }
 
-    const candidates = [...pinned, ...candidatesFromCategory];
+    const candidates = [...pinned, ...candidatesFromNiche];
     const refToId = new Map<string, string>();
     const candidateCards = candidates.map((p, i) => {
       const ref = `P${i + 1}`;
@@ -281,7 +281,7 @@ export class ArticleService {
     const userBlock = [
       `[currentDate]: ${currentDate} (writing for Vietnam market in ${month}/${year}, season: ${seasonHint})`,
       `[topic]: ${input.topic}`,
-      contextCategory ? `[category]: ${contextCategory.name} (slug: ${contextCategory.slug})` : null,
+      contextNiche ? `[niche]: ${contextNiche.name} (slug: ${contextNiche.slug})` : null,
       `[allowedDomains]: ${allowedDomains.join(", ")}`,
       pinnedRefs.length > 0 ? `[pinnedRefs] (BẮT BUỘC dùng tất cả trong block product_spotlight): ${pinnedRefs.join(", ")}` : null,
       `[candidates] (DÙNG ref P1, P2... trong productId/productIds/selectedRefs):\n${JSON.stringify(candidateCards, null, 2)}`,
@@ -298,10 +298,10 @@ export class ArticleService {
       .filter(Boolean)
       .join("\n\n");
 
-    // Replace {categoryName} placeholder if present in active prompt template.
+    // Replace {nicheName} placeholder if present in active prompt template.
     const renderedTemplate = promptTemplate.content.replace(
-      /\{categoryName\}/g,
-      contextCategory?.name ?? ""
+      /\{nicheName\}/g,
+      contextNiche?.name ?? ""
     );
 
     const fullPrompt = `${renderedTemplate}\n\n---\n\n${userBlock}`;
@@ -332,8 +332,8 @@ export class ArticleService {
         // Resolve discoveredProducts → real Product rows (PENDING_REVIEW)
         const discoveredRefToId = await this.ingestDiscovered(
           validated.data.discoveredProducts,
-          contextCategory?.id ?? null,
-          contextCategory?.slug ?? null,
+          contextNiche?.id ?? null,
+          contextNiche?.slug ?? null,
           allowedDomains
         );
 
@@ -430,7 +430,7 @@ export class ArticleService {
     };
   }
 
-  private async resolveProductRef(ref: string, categoryId: string | null): Promise<CandidateRow | null> {
+  private async resolveProductRef(ref: string, nicheId: string | null): Promise<CandidateRow | null> {
     const trimmed = ref.trim();
     if (!trimmed) return null;
     const isUrl = /^https?:\/\//i.test(trimmed);
@@ -442,7 +442,7 @@ export class ArticleService {
     }
     return this.prisma.product.findFirst({
       where: {
-        ...(categoryId ? { categoryId } : {}),
+        ...(nicheId ? { nicheId } : {}),
         OR: [{ slug: trimmed }, { name: { contains: trimmed, mode: "insensitive" } }]
       },
       select: candidateSelect
@@ -451,12 +451,12 @@ export class ArticleService {
 
   private async ingestDiscovered(
     discovered: ArticleAiOutput["discoveredProducts"],
-    categoryId: string | null,
-    categorySlug: string | null,
+    nicheId: string | null,
+    nicheSlug: string | null,
     allowedDomains: string[]
   ): Promise<Map<string, string>> {
     const out = new Map<string, string>();
-    if (!categoryId || !categorySlug || discovered.length === 0) return out;
+    if (!nicheId || !nicheSlug || discovered.length === 0) return out;
 
     for (const item of discovered) {
       if (!isSafeDiscoveredUrl(item.sourceUrl, allowedDomains, this.logger)) continue;
@@ -465,8 +465,8 @@ export class ArticleService {
         const productId = await this.discovery.ingest({
           name: item.name,
           sourceUrl: item.sourceUrl,
-          categoryId,
-          categorySlug,
+          nicheId,
+          nicheSlug,
           reason: item.reason
         });
         if (productId) out.set(item.ref, productId);

@@ -7,12 +7,12 @@ import {
   PageHeader,
   StatusPill
 } from "../../../../components/admin/ui";
-import { CATEGORY_STATUS_META } from "../../../../lib/admin/constants";
-import { CategoryEditForm } from "./edit-form";
+import { NICHE_STATUS_META } from "../../../../lib/admin/constants";
+import { NicheEditForm } from "./edit-form";
 
 export const dynamic = "force-dynamic";
 
-interface CategoryDetail {
+interface NicheDetail {
   id: string;
   slug: string;
   name: string;
@@ -23,52 +23,52 @@ interface CategoryDetail {
   _count: { products: number; articles: number };
 }
 
-async function fetchCategory(id: string): Promise<CategoryDetail | null> {
+async function fetchNiche(id: string): Promise<NicheDetail | null> {
   try {
-    return await adminGet<CategoryDetail>(`/admin/categories/${id}`);
+    return await adminGet<NicheDetail>(`/admin/niches/${id}`);
   } catch (err) {
     if (err instanceof Error && /404|not found/i.test(err.message)) return null;
     throw err;
   }
 }
 
-export default async function CategoryEditPage({
+export default async function NicheEditPage({
   params
 }: {
   params: Promise<{ id: string }>;
 }): Promise<React.ReactElement> {
   const { id } = await params;
-  const category = await fetchCategory(id);
-  if (!category) notFound();
+  const niche = await fetchNiche(id);
+  if (!niche) notFound();
 
-  const statusMeta = CATEGORY_STATUS_META[category.status];
+  const statusMeta = NICHE_STATUS_META[niche.status];
 
   return (
     <div className="space-y-6">
       <Link
-        href="/admin/categories"
+        href="/admin/niches"
         className="inline-flex items-center gap-1 text-xs text-admin-mute hover:text-admin-ink"
       >
-        <ArrowLeft className="size-3" /> Tất cả danh mục
+        <ArrowLeft className="size-3" /> Tất cả niche
       </Link>
       <PageHeader
-        eyebrow="Sửa danh mục"
-        title={category.name}
+        eyebrow="Sửa niche"
+        title={niche.name}
         subtitle={
           <span className="inline-flex flex-wrap items-center gap-2">
             <StatusPill tone={statusMeta.tone} dot>
               {statusMeta.label}
             </StatusPill>
             <span className="text-admin-mute">
-              {category._count.products} sản phẩm · {category._count.articles} bài viết
+              {niche._count.products} sản phẩm · {niche._count.articles} bài viết
             </span>
             <code className="rounded bg-admin-subtle px-1.5 py-0.5 font-mono text-[11px] text-admin-mute">
-              {category.slug}
+              {niche.slug}
             </code>
           </span>
         }
       />
-      <CategoryEditForm category={category} />
+      <NicheEditForm niche={niche} />
     </div>
   );
 }

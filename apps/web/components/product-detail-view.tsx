@@ -22,7 +22,7 @@ interface RelatedItem {
 
 interface ProductDetailViewProps {
   productRaw: ProductItem;
-  category: { name: string; slug: string };
+  niche: { name: string; slug: string };
   previewMode?: boolean;
   related?: RelatedItem[];
 }
@@ -33,16 +33,16 @@ interface ProductDetailViewProps {
  * - Savings amount + % được nhấn mạnh ngay trên price card.
  * - CTA "Mua ngay" sticky ở mobile để không bao giờ mất khỏi viewport.
  * - Trust strip (cập nhật giờ, redirect bảo mật, affiliate minh bạch) ngay dưới CTA.
- * - Related products để user không cần back lại category.
+ * - Related products để user không cần back lại niche.
  */
 export function ProductDetailView({
   productRaw,
-  category,
+  niche,
   previewMode = false,
   related = []
 }: ProductDetailViewProps): React.ReactElement {
   const product = normalizeProduct(productRaw);
-  const jsonLd = buildProductJsonLd(product, category.name);
+  const jsonLd = buildProductJsonLd(product, niche.name);
   const savings =
     product.originalPrice && product.price && product.originalPrice > product.price
       ? product.originalPrice - product.price
@@ -79,7 +79,7 @@ export function ProductDetailView({
       <Breadcrumb
         items={[
           { label: "Trang chủ", href: previewMode ? "/admin" : "/" },
-          { label: category.name, href: previewMode ? "/admin?tab=refinery" : `/categories/${category.slug}` },
+          { label: niche.name, href: previewMode ? "/admin?tab=refinery" : `/categories/${niche.slug}` },
           { label: product.name }
         ]}
       />
@@ -207,13 +207,15 @@ export function ProductDetailView({
 
       <DescriptionSection description={product.description} />
 
+      <SourceInfoStrip product={product} />
+
       <SpecTable raw={product.raw} />
 
       {related.length > 0 ? (
         <section className="space-y-3">
           <div className="flex items-end justify-between gap-3">
-            <h2 className="text-lg font-semibold text-ink">Sản phẩm liên quan trong {category.name}</h2>
-            <Link href={`/categories/${category.slug}`} className="text-sm font-medium text-brand-700 hover:underline">
+            <h2 className="text-lg font-semibold text-ink">Sản phẩm liên quan trong {niche.name}</h2>
+            <Link href={`/categories/${niche.slug}`} className="text-sm font-medium text-brand-700 hover:underline">
               Xem tất cả →
             </Link>
           </div>
@@ -221,7 +223,7 @@ export function ProductDetailView({
             {related.map((r) => (
               <Link
                 key={r.id}
-                href={`/categories/${category.slug}/${r.slug ?? r.id}`}
+                href={`/categories/${niche.slug}/${r.slug ?? r.id}`}
                 className="group overflow-hidden rounded-xl border border-line bg-card shadow-card transition hover:-translate-y-0.5 hover:border-brand-200 hover:shadow-card-md"
               >
                 <div className="relative aspect-square overflow-hidden bg-canvas">
@@ -312,6 +314,82 @@ function TrustStrip(): React.ReactElement {
   );
 }
 
+/**
+ * Hiển thị metadata nguồn (brand, sàn, SKU, ngày AT update) — fallback khi chưa có
+ * thông số kỹ thuật do AI extract. AT datafeed không trả spec; admin chạy Refinery để bổ sung.
+ */
+function SourceInfoStrip({
+  product
+}: {
+  product: ReturnType<typeof normalizeProduct>;
+}): React.ReactElement | null {
+  const raw = product.raw;
+  const metadata = (raw.metadata && typeof raw.metadata === "object" ? raw.metadata : {}) as Record<
+    string,
+    unknown
+  >;
+  const atRaw = (metadata.atRaw && typeof metadata.atRaw === "object" ? metadata.atRaw : {}) as Record<
+    string,
+    unknown
+  >;
+
+  const domain = pickStr(atRaw, ["domain"]) ?? pickStr(raw, ["domain"]);
+  const sku = pickStr(raw, ["sku"]) ?? pickStr(atRaw, ["sku"]);
+  const updateTime = pickStr(raw, ["updateTime"]) ?? pickStr(atRaw, ["update_time"]);
+
+  const entries: Array<{ label: string; value: string }> = [];
+  if (product.brand) entries.push({ label: "Thương hiệu", value: product.brand });
+  if (domain) entries.push({ label: "Sàn", value: humanizeDomain(domain) });
+  if (sku) entries.push({ label: "SKU", value: sku });
+  const formattedUpdate = formatAtUpdateTime(updateTime);
+  if (formattedUpdate) entries.push({ label: "Cập nhật", value: formattedUpdate });
+
+  if (entries.length === 0) return null;
+
+  return (
+    <section className="overflow-hidden rounded-2xl border border-line bg-card shadow-card">
+      <div className="border-b border-line bg-canvas/70 px-5 py-3">
+        <p className="text-sm font-semibold text-ink">Thông tin nguồn</p>
+      </div>
+      <dl className="grid grid-cols-1 gap-x-6 gap-y-2 px-5 py-4 sm:grid-cols-2">
+        {entries.map((kv) => (
+          <div key={kv.label} className="flex items-baseline gap-2 text-sm">
+            <dt className="font-medium text-ink-mute">{kv.label}:</dt>
+            <dd className="text-ink">{kv.value}</dd>
+          </div>
+        ))}
+      </dl>
+    </section>
+  );
+}
+
+function pickStr(source: Record<string, unknown>, keys: string[]): string | undefined {
+  for (const key of keys) {
+    const value = source[key];
+    if (typeof value === "string" && value.trim().length > 0) return value.trim();
+  }
+  return undefined;
+}
+
+function humanizeDomain(domain: string): string {
+  const lower = domain.toLowerCase();
+  if (lower.includes("lazada")) return "Lazada";
+  if (lower.includes("shopee")) return "Shopee";
+  if (lower.includes("tiktok")) return "TikTok Shop";
+  if (lower.includes("tiki")) return "Tiki";
+  if (lower.includes("sendo")) return "Sendo";
+  return domain;
+}
+
+/** AT trả update_time dạng "DD-MM-YYYYTHH:mm:ss" — format lại cho user. */
+function formatAtUpdateTime(value?: string): string | undefined {
+  if (!value) return undefined;
+  const match = value.match(/^(\d{2})-(\d{2})-(\d{4})T(\d{2}):(\d{2})/);
+  if (!match) return value;
+  const [, day, month, year, hh, mm] = match;
+  return `${day}/${month}/${year} ${hh}:${mm}`;
+}
+
 function DescriptionSection({ description }: { description?: string }): React.ReactElement | null {
   if (!description) return null;
   const blocks = parseDescriptionBlocks(description);
@@ -321,26 +399,41 @@ function DescriptionSection({ description }: { description?: string }): React.Re
       <div className="border-b border-line bg-canvas/70 px-5 py-3">
         <p className="text-sm font-semibold text-ink">Mô tả sản phẩm</p>
       </div>
-      <div className="space-y-3 px-5 py-4 [overflow-wrap:anywhere]">
+      <div className="max-w-3xl space-y-3 px-5 py-4 text-[15px] leading-relaxed [overflow-wrap:anywhere]">
         {blocks.map((block, idx) => {
           if (block.kind === "heading") {
             return (
-              <h3 key={idx} className="pt-1 text-sm font-semibold text-ink">
+              <h3 key={idx} className="mt-1 text-[15px] font-semibold text-ink">
                 {block.text}
               </h3>
             );
           }
+          if (block.kind === "keyValueGroup") {
+            return (
+              <dl key={idx} className="grid grid-cols-1 gap-x-4 gap-y-1.5 sm:grid-cols-[max-content_1fr]">
+                {block.entries.map((kv, i) => (
+                  <div key={i} className="contents">
+                    <dt className="text-sm font-semibold text-ink">{kv.label}</dt>
+                    <dd className="text-sm text-ink-soft">{kv.value}</dd>
+                  </div>
+                ))}
+              </dl>
+            );
+          }
           if (block.kind === "list") {
             return (
-              <ul key={idx} className="list-disc space-y-1.5 pl-5 text-sm leading-relaxed text-ink-soft">
+              <ul key={idx} className="space-y-1.5 pl-1 text-sm text-ink-soft">
                 {block.items.map((item, i) => (
-                  <li key={i}>{item}</li>
+                  <li key={i} className="flex items-start gap-2">
+                    <span aria-hidden className="mt-2 size-1.5 shrink-0 rounded-full bg-brand-500" />
+                    <span>{item}</span>
+                  </li>
                 ))}
               </ul>
             );
           }
           return (
-            <p key={idx} className="text-sm leading-relaxed text-ink-soft">
+            <p key={idx} className="text-sm text-ink-soft">
               {block.text}
             </p>
           );
@@ -353,18 +446,47 @@ function DescriptionSection({ description }: { description?: string }): React.Re
 type DescBlock =
   | { kind: "paragraph"; text: string }
   | { kind: "heading"; text: string }
-  | { kind: "list"; items: string[] };
+  | { kind: "list"; items: string[] }
+  | { kind: "keyValueGroup"; entries: Array<{ label: string; value: string }> };
+
+const HTML_ENTITIES: Record<string, string> = {
+  "&nbsp;": " ",
+  "&amp;": "&",
+  "&lt;": "<",
+  "&gt;": ">",
+  "&quot;": "\"",
+  "&#39;": "'"
+};
+
+/**
+ * AT description thường là plain text bị "dính" — thiếu space sau dấu chấm/phẩy,
+ * dư space trước dấu, đôi khi có vài tag HTML. Chuẩn hoá trước khi tách block.
+ */
+function cleanDescription(raw: string): string {
+  let out = raw.replace(/\r\n/g, "\n");
+  out = out.replace(/<br\s*\/?>/gi, "\n");
+  out = out.replace(/<\/p>/gi, "\n");
+  out = out.replace(/<li[^>]*>/gi, "\n- ");
+  out = out.replace(/<\/?[a-z][^>]*>/gi, "");
+  out = out.replace(/&[a-z#0-9]+;/gi, (m) => HTML_ENTITIES[m.toLowerCase()] ?? " ");
+  out = out.replace(/ /g, " ");
+  out = out.replace(/ +([,.;:!?])/g, "$1");
+  out = out.replace(/([\p{Ll}0-9])\.(\p{Lu})/gu, "$1. $2");
+  out = out.replace(/([\p{Ll}0-9]),(\p{Lu})/gu, "$1, $2");
+  return out;
+}
 
 function parseDescriptionBlocks(raw: string): DescBlock[] {
-  const normalized = raw.replace(/\r\n/g, "\n");
+  const cleaned = cleanDescription(raw);
   // AT descriptions thường dùng 2+ space giữa các câu/đoạn (không có \n) làm separator.
-  const chunks = normalized
+  const chunks = cleaned
     .split(/\n+|\s{2,}/g)
     .map((c) => c.trim())
     .filter((c) => c.length > 0);
 
   const blocks: DescBlock[] = [];
   let listBuffer: string[] = [];
+  let kvBuffer: Array<{ label: string; value: string }> = [];
 
   const flushList = (): void => {
     if (listBuffer.length > 0) {
@@ -372,26 +494,47 @@ function parseDescriptionBlocks(raw: string): DescBlock[] {
       listBuffer = [];
     }
   };
+  const flushKv = (): void => {
+    if (kvBuffer.length > 0) {
+      blocks.push({ kind: "keyValueGroup", entries: kvBuffer });
+      kvBuffer = [];
+    }
+  };
 
   for (let i = 0; i < chunks.length; i += 1) {
     const chunk = chunks[i];
+
     const bulletMatch = chunk.match(/^[-•·*]\s+(.+)$/);
     if (bulletMatch) {
+      flushKv();
       listBuffer.push(bulletMatch[1].trim());
       continue;
     }
     flushList();
+
     const isShortColonHeading = chunk.length <= 60 && /:$/.test(chunk);
     const next = chunks[i + 1];
     const isLeadIntoList =
       chunk.length <= 60 && next !== undefined && /^[-•·*]\s+/.test(next);
     if (isShortColonHeading || isLeadIntoList) {
+      flushKv();
       blocks.push({ kind: "heading", text: chunk.replace(/:$/, "") });
-    } else {
-      blocks.push({ kind: "paragraph", text: chunk });
+      continue;
     }
+
+    // Inline "Label: value" — gom thành key-value group cho dễ scan.
+    // Label ≤ 30 chars (chữ hoa đầu — tránh nhầm câu thường có ":"), không có dấu chấm/phẩy.
+    const kvMatch = chunk.match(/^([^:]{2,30}):\s+(.+)$/);
+    if (kvMatch && !/^\p{Ll}/u.test(kvMatch[1]) && !/[.,]/.test(kvMatch[1])) {
+      kvBuffer.push({ label: kvMatch[1].trim(), value: kvMatch[2].trim() });
+      continue;
+    }
+    flushKv();
+
+    blocks.push({ kind: "paragraph", text: chunk });
   }
   flushList();
+  flushKv();
   return blocks;
 }
 
@@ -491,7 +634,7 @@ function formatValue(value: unknown): string {
 
 function buildProductJsonLd(
   product: ReturnType<typeof normalizeProduct>,
-  categoryName: string
+  nicheName: string
 ): Record<string, unknown> {
   const offer: Record<string, unknown> = {
     "@type": "Offer",
@@ -506,7 +649,7 @@ function buildProductJsonLd(
     description: product.description,
     brand: product.brand ? { "@type": "Brand", name: product.brand } : undefined,
     image: product.image ? [product.image] : undefined,
-    category: categoryName,
+    category: nicheName,
     offers: offer,
     aggregateRating:
       product.rating !== undefined && product.reviewCount

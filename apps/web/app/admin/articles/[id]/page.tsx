@@ -2,7 +2,7 @@ import type React from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, AlertTriangle } from "lucide-react";
-import { fetchCategories, fetchCategoryBySlug } from "../../../../lib/api";
+import { fetchNiches, fetchNicheBySlug } from "../../../../lib/api";
 import type { ArticleAdminDetail } from "../../../../lib/types";
 import { PageHeader, StatusPill } from "../../../../components/admin/ui";
 import {
@@ -45,12 +45,12 @@ export default async function AdminArticleDetail({
     return <GeneratingScreen articleId={article.id} topic={article.title} />;
   }
 
-  const { categories } = await fetchCategories();
-  const categoryDetails = await Promise.all(categories.map((c) => fetchCategoryBySlug(c.slug)));
-  const productOptions = categoryDetails
+  const { niches } = await fetchNiches();
+  const nicheDetails = await Promise.all(niches.map((c) => fetchNicheBySlug(c.slug)));
+  const productOptions = nicheDetails
     .filter((c) => c !== null)
-    .flatMap((category) =>
-      category!.products.map((p) => ({ id: p.id, name: p.name, categoryName: category!.name }))
+    .flatMap((niche) =>
+      niche!.products.map((p) => ({ id: p.id, name: p.name, nicheName: niche!.name }))
     );
 
   const statusMeta = ARTICLE_STATUS_META[article.status];
@@ -144,12 +144,12 @@ export default async function AdminArticleDetail({
           body: article.body,
           metaTitle: article.metaTitle,
           metaDescription: article.metaDescription,
-          categoryId: article.categoryId,
+          nicheId: article.nicheId,
           productIds: article.productIds,
           hasBlocks: Array.isArray(article.blocks) && article.blocks.length > 0,
           coverImage: article.coverImage
         }}
-        categories={categories.map((c) => ({ id: c.id, name: c.name }))}
+        niches={niches.map((c) => ({ id: c.id, name: c.name }))}
         products={productOptions}
       />
     </div>

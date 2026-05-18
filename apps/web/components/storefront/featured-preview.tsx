@@ -10,7 +10,7 @@ interface Deal {
   originalPrice?: number;
   currency?: string;
   discountPercent?: number;
-  categorySlug: string;
+  nicheSlug: string;
   slug?: string | null;
 }
 
@@ -29,7 +29,7 @@ export function FeaturedPreview({ deals }: { deals: Deal[] }): React.ReactElemen
           return (
             <Link
               key={deal.id}
-              href={`/categories/${deal.categorySlug}/${key}`}
+              href={`/categories/${deal.nicheSlug}/${key}`}
               className={`group flex items-center gap-3 rounded-2xl border border-line bg-card p-3 shadow-card transition hover:-translate-y-0.5 hover:border-brand-200 hover:shadow-pop ${
                 idx === 0 ? "scale-105" : ""
               }`}

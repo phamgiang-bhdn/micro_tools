@@ -3,18 +3,18 @@ const { PrismaClient } = require("@prisma/client");
 const prisma = new PrismaClient();
 
 /**
- * Seed v2 — Category-only.
+ * Seed v2 — Niche-only.
  *
  * Sản phẩm hoàn toàn đến từ crawler Accesstrade (sprint at-source-of-truth).
  * Seed này chỉ tạo:
- *   1. 12 Category (niche) làm presentation layer — admin onboard campaign vào Category.
+ *   1. 12 Niche làm presentation layer — admin onboard campaign vào Niche.
  *   2. PromptTemplate hệ thống (default-parser cho extraction, article-buying-guide & article-review cho blog AI).
  *   3. Dọn legacy product IDs từ seed v1 (hardcoded a1000001-* / b2000001-*).
  *
  * KHÔNG seed Product / ClickLog / ConversionWebhook. Data đó phát sinh tự nhiên từ crawler + user click.
  */
 
-const CATEGORIES = [
+const NICHES = [
   {
     slug: "robot-hut-bui-lau-nha",
     name: "Robot hút bụi - lau nhà",
@@ -200,15 +200,15 @@ async function purgeLegacySeededProducts() {
   console.log(`[seed] Purged ${result.count} legacy seeded product(s).`);
 }
 
-async function cleanupRemovedCategories(keepSlugs) {
-  const stale = await prisma.category.findMany({
+async function cleanupRemovedNiches(keepSlugs) {
+  const stale = await prisma.niche.findMany({
     where: { slug: { notIn: keepSlugs } },
     select: { id: true, slug: true }
   });
   if (stale.length === 0) return;
   const staleIds = stale.map((c) => c.id);
   const staleProducts = await prisma.product.findMany({
-    where: { categoryId: { in: staleIds } },
+    where: { nicheId: { in: staleIds } },
     select: { id: true }
   });
   const staleProductIds = staleProducts.map((p) => p.id);
@@ -224,33 +224,33 @@ async function cleanupRemovedCategories(keepSlugs) {
       });
     }
   }
-  const result = await prisma.category.deleteMany({ where: { id: { in: staleIds } } });
+  const result = await prisma.niche.deleteMany({ where: { id: { in: staleIds } } });
   console.log(
-    `[seed] Removed ${result.count} stale category(s): ${stale.map((c) => c.slug).join(", ")}`
+    `[seed] Removed ${result.count} stale niche(s): ${stale.map((c) => c.slug).join(", ")}`
   );
 }
 
 async function main() {
   await purgeLegacySeededProducts();
-  await cleanupRemovedCategories(CATEGORIES.map((c) => c.slug));
+  await cleanupRemovedNiches(NICHES.map((c) => c.slug));
 
-  for (const categorySpec of CATEGORIES) {
-    await prisma.category.upsert({
-      where: { slug: categorySpec.slug },
+  for (const nicheSpec of NICHES) {
+    await prisma.niche.upsert({
+      where: { slug: nicheSpec.slug },
       update: {
-        name: categorySpec.name,
-        schemaConfig: categorySpec.schemaConfig,
+        name: nicheSpec.name,
+        schemaConfig: nicheSpec.schemaConfig,
         status: "ACTIVE"
       },
       create: {
-        slug: categorySpec.slug,
-        name: categorySpec.name,
+        slug: nicheSpec.slug,
+        name: nicheSpec.name,
         status: "ACTIVE",
-        schemaConfig: categorySpec.schemaConfig
+        schemaConfig: nicheSpec.schemaConfig
       }
     });
   }
-  console.log(`[seed] Upserted ${CATEGORIES.length} category(ies).`);
+  console.log(`[seed] Upserted ${NICHES.length} niche(s).`);
 
   await prisma.promptTemplate.upsert({
     where: { name: "default-parser" },

@@ -1,7 +1,7 @@
 import type React from "react";
 import type { Metadata } from "next";
 import Link from "next/link";
-import { fetchArticles, fetchCategories } from "../../lib/api";
+import { fetchArticles, fetchNiches } from "../../lib/api";
 import { EmptyState } from "../../components/ui/empty-state";
 import { PageHero, PageSection, SectionHeading } from "../../components/ui/section";
 import { FilterChip } from "../../components/ui/filter-chip";
@@ -21,13 +21,13 @@ interface BlogProps {
 }
 
 export default async function BlogIndexPage({ searchParams }: BlogProps): Promise<React.ReactElement> {
-  const { type, category: categorySlug } = await searchParams;
+  const { type, category: nicheSlug } = await searchParams;
   const typeFilter =
     type === "BUYING_GUIDE" || type === "REVIEW" ? (type as "BUYING_GUIDE" | "REVIEW") : undefined;
 
-  const [articles, { categories }] = await Promise.all([
-    fetchArticles({ type: typeFilter, categorySlug, limit: 50 }),
-    fetchCategories()
+  const [articles, { niches }] = await Promise.all([
+    fetchArticles({ type: typeFilter, nicheSlug, limit: 50 }),
+    fetchNiches()
   ]);
 
   const featured = articles[0];
@@ -58,7 +58,7 @@ export default async function BlogIndexPage({ searchParams }: BlogProps): Promis
       />
 
       <PageSection padding="default">
-        <FilterRow typeFilter={typeFilter} categorySlug={categorySlug} categories={categories} />
+        <FilterRow typeFilter={typeFilter} nicheSlug={nicheSlug} niches={niches} />
 
         {articles.length === 0 ? (
           <EmptyState
@@ -100,17 +100,17 @@ export default async function BlogIndexPage({ searchParams }: BlogProps): Promis
 
 interface FilterRowProps {
   typeFilter?: "BUYING_GUIDE" | "REVIEW";
-  categorySlug?: string;
-  categories: Array<{ id: string; slug: string; name: string }>;
+  nicheSlug?: string;
+  niches: Array<{ id: string; slug: string; name: string }>;
 }
 
-function FilterRow({ typeFilter, categorySlug, categories }: FilterRowProps): React.ReactElement {
-  const catSuffix = categorySlug ? `&category=${categorySlug}` : "";
+function FilterRow({ typeFilter, nicheSlug, niches }: FilterRowProps): React.ReactElement {
+  const catSuffix = nicheSlug ? `&category=${nicheSlug}` : "";
   const typeSuffix = typeFilter ? `&type=${typeFilter}` : "";
   return (
     <div className="mb-8 space-y-3">
       <nav aria-label="Lọc theo loại bài" className="flex flex-wrap items-center gap-2">
-        <FilterChip href="/blog" active={!typeFilter && !categorySlug} label="Tất cả" />
+        <FilterChip href="/blog" active={!typeFilter && !nicheSlug} label="Tất cả" />
         <FilterChip
           href={`/blog?type=BUYING_GUIDE${catSuffix}`}
           active={typeFilter === "BUYING_GUIDE"}
@@ -122,7 +122,7 @@ function FilterRow({ typeFilter, categorySlug, categories }: FilterRowProps): Re
           label="Review"
         />
       </nav>
-      {categories.length > 0 ? (
+      {niches.length > 0 ? (
         <nav
           aria-label="Lọc theo danh mục"
           className="flex flex-wrap items-center gap-2 border-t border-dashed border-line pt-3"
@@ -132,14 +132,14 @@ function FilterRow({ typeFilter, categorySlug, categories }: FilterRowProps): Re
           </span>
           <FilterChip
             href={typeFilter ? `/blog?type=${typeFilter}` : "/blog"}
-            active={!categorySlug}
+            active={!nicheSlug}
             label="Tất cả"
           />
-          {categories.map((c) => (
+          {niches.map((c) => (
             <FilterChip
               key={c.id}
               href={`/blog?category=${c.slug}${typeSuffix}`}
-              active={categorySlug === c.slug}
+              active={nicheSlug === c.slug}
               label={c.name}
             />
           ))}

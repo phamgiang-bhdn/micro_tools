@@ -10,15 +10,15 @@ A Vietnam-market affiliate micro-tool platform. Revenue model: every user click 
 
 ## Strategy: "one micro-tool = one niche"
 
-The product is *not* a general catalog. Each `Category` is a single deeply-comparable niche with its own `schemaConfig` of category-specific spec fields. Narrow focus is the conversion thesis.
+The product is *not* a general catalog. Each `Niche` is a single deeply-comparable group with its own `schemaConfig` of niche-specific spec fields. Narrow focus is the conversion thesis.
 
-When you're tempted to add cross-category generic features (a global search, a one-size-fits-all product card), check the per-category angle first — it's usually the wrong instinct here.
+When you're tempted to add cross-niche generic features (a global search, a one-size-fits-all product card), check the per-niche angle first — it's usually the wrong instinct here.
 
-> Naming note: the platform is *positioned* as a "micro-tool" platform (marketing copy / strategy framing), but in the codebase the entity is called `Category`. The name `Tool` is reserved for future interactive utilities (price calculators, comparators) that haven't shipped yet.
+> Naming note: the platform is *positioned* as a "micro-tool" platform (marketing copy / strategy framing), and in the codebase the entity that groups products is called `Niche` (renamed from `Category` in PR1). The public storefront URL keeps `/categories/[slug]` for SEO continuity. The name `Tool` is reserved for future interactive utilities (price calculators, comparators) that haven't shipped yet.
 
-## Category lineup (v2)
+## Niche lineup (v2)
 
-Categories are seeded in `apps/api/prisma/seed.js` — 12 niches covering the highest-volume affiliate verticals in VN:
+Niches are seeded in `apps/api/prisma/seed.js` — 12 niches covering the highest-volume affiliate verticals in VN:
 
 | Group | Slugs |
 |---|---|
@@ -27,7 +27,7 @@ Categories are seeded in `apps/api/prisma/seed.js` — 12 niches covering the hi
 | Consumer electronics | `tivi`, `laptop`, `tai-nghe-tws`, `dong-ho-thong-minh` |
 | Beauty | `my-pham-duong-da` |
 
-**Products are NOT seeded** — they flow into the DB exclusively via the Accesstrade crawler after admins onboard a campaign (assign campaign → niche, set `filterRules`). The seed only creates Category rows + system `PromptTemplate` rows.
+**Products are NOT seeded** — they flow into the DB exclusively via the Accesstrade crawler after admins onboard a campaign (assign campaign → niche, set `filterRules`). The seed only creates Niche rows + system `PromptTemplate` rows.
 
 When adding a new niche: a Vietnamese-no-dấu slug, a Vietnamese `name`, and a `schemaConfig` listing the 5–10 spec fields that *actually* differentiate buying decisions in that niche (AI extractor uses this to know what to pull out of merchant pages).
 
@@ -56,7 +56,7 @@ A pure product-comparison site can't out-rank Tiki/Shopee/Lazada on commercial q
 - **Tone & guardrails** — prompts forbid emoji, forbid "tốt nhất thế giới"-style hyperbole, enforce 800–1800 words, require explicit weaknesses. Admin's job is to spot hallucinated facts (wrong prices, made-up specs), tighten language, and approve.
 - **Product cross-links** — `Article.productIds[]` is hand-picked at generation time. Cuối article tự render `ProductCard` với CTA "Xem deal" → tái dùng tracking flow. This is how blog converts to clicks.
 
-## Data flow — Accesstrade là upstream, Category là view
+## Data flow — Accesstrade là upstream, Niche là view
 
 Sau sprint at-source-of-truth (2026-05), mental model dữ liệu chuẩn là:
 
@@ -65,21 +65,21 @@ Sau sprint at-source-of-truth (2026-05), mental model dữ liệu chuẩn là:
      ↓ sync (auto cron + admin manual button)
 [Campaign + Product raw]            ← mirror trong DB, 1-1 với AT (Campaign.atCampaignId)
      ↓ filter rules per-campaign + admin curate
-[Category view + Product public]    ← presentation: branding, SEO, niche grouping
+[Niche view + Product public]       ← presentation: branding, SEO, niche grouping
      ↓ HITL approve (ProductExtraction.PENDING_REVIEW → PUBLISHED)
 [Storefront]                        ← user thấy
 ```
 
 Hệ quả implementation:
-- **Crawler là per-campaign loop**: chỉ pull từ những `Campaign` có `status=APPROVED` + `categoryId` + `atCampaignId`. Onboard niche mới = approve campaign trong AT dashboard + 2 click trong `/admin/campaigns` (chọn campaign + assign category). KHÔNG cần đụng seed/code.
-- **`Category` 1:N `Campaign`**: 1 niche có thể gom nhiều campaign từ nhiều merchant — so sánh giá cross-merchant trong cùng niche.
-- **`Category.schemaConfig`** vẫn là spec dynamic per niche (HITL extractor map vào đó).
+- **Crawler là per-campaign loop**: chỉ pull từ những `Campaign` có `status=APPROVED` + ≥1 `CampaignNiche` assignment + `atCampaignId`. Onboard niche mới = approve campaign trong AT dashboard + 2 click trong `/admin/campaigns` (chọn campaign + assign niche). KHÔNG cần đụng seed/code.
+- **`Niche` N:N `Campaign`** (qua `CampaignNiche`): 1 niche có thể gom nhiều campaign từ nhiều merchant — so sánh giá cross-merchant trong cùng niche.
+- **`Niche.schemaConfig`** vẫn là spec dynamic per niche (HITL extractor map vào đó).
 - **Filter rules per merchant**: `Campaign.filterRules` (JSON) chứa `minDiscountPercent`, `domains[]`, `priceMin/Max` — KHÔNG còn env global.
 - **Revenue ground-truth**: webhook real-time + reconciler poll `/v1/order-list` mỗi 30 phút. Reconciler không thay webhook, là backup verify total khớp AT dashboard.
 - **Coupon là pipeline song song**: `CouponSyncService` pull `/v1/offers_informations/coupon` mỗi 6h → DB → admin duyệt (HITL gate riêng `isActive`) → `/khuyen-mai/<merchant>` public.
 - **Top products là snapshot cache**: pull `/v1/top_products` mỗi 3h sáng → render homepage section "🔥 Đang hot tuần này". Click thẳng AT `affLink` (rel=nofollow sponsored), KHÔNG qua ClickLog nội bộ.
 
-Cross-app invariants không đổi: trackingCode contract, admin shared-secret header, HITL gate cho mọi data ra storefront, schema per-category dynamic.
+Cross-app invariants không đổi: trackingCode contract, admin shared-secret header, HITL gate cho mọi data ra storefront, schema per-niche dynamic.
 
 ## Domain glossary
 

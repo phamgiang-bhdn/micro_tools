@@ -20,10 +20,10 @@ export interface NormalizedOffer {
   campaign?: string;
   merchantName?: string;
   /**
-   * Slug của Category mà offer sẽ được gán vào. Có thể rỗng khi client không xác định
-   * (vd `accesstrade.client` mode per-campaign — CrawlerService set từ `Campaign.categoryId` sau).
+   * Slug của Niche mà offer sẽ được gán vào. Có thể rỗng khi client không xác định
+   * (vd `accesstrade.client` mode per-campaign — CrawlerService set từ assignment sau).
    */
-  categorySlug: string;
+  nicheSlug: string;
   badge?: string;
   highlights?: string[];
   /** SKU/mã sản phẩm bên merchant (Accesstrade trả ở field `sku`). */

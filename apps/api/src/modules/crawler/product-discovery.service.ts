@@ -9,8 +9,8 @@ import { inferNetworkFromUrl } from "./network.util";
 export interface DiscoverIngestInput {
   name: string;
   sourceUrl: string;
-  categoryId: string;
-  categorySlug: string;
+  nicheId: string;
+  nicheSlug: string;
   reason?: string;
 }
 
@@ -41,10 +41,10 @@ export class ProductDiscoveryService {
       return existing.id;
     }
 
-    // Soft dedup: same category + similar name
+    // Soft dedup: same niche + similar name
     const fuzzy = await this.prisma.product.findFirst({
       where: {
-        categoryId: input.categoryId,
+        nicheId: input.nicheId,
         name: { equals: input.name, mode: "insensitive" }
       },
       select: { id: true }
@@ -57,7 +57,7 @@ export class ProductDiscoveryService {
     // Scrape source page → NormalizedOffer. Both calls swallowed; ingest never throws.
     let offer: Awaited<ReturnType<typeof this.webScrape.fetchByUrl>> = null;
     try {
-      offer = await this.webScrape.fetchByUrl(input.sourceUrl, input.categorySlug);
+      offer = await this.webScrape.fetchByUrl(input.sourceUrl, input.nicheSlug);
     } catch (e) {
       this.logger.warn(`webScrape fetchByUrl threw for ${input.sourceUrl}: ${(e as Error).message}`);
     }
@@ -88,7 +88,7 @@ export class ProductDiscoveryService {
 
     const slug = await uniqueSlugWithin(slugify(name), async (candidate) => {
       const hit = await this.prisma.product.findFirst({
-        where: { categoryId: input.categoryId, slug: candidate },
+        where: { nicheId: input.nicheId, slug: candidate },
         select: { id: true }
       });
       return Boolean(hit);
@@ -96,7 +96,7 @@ export class ProductDiscoveryService {
 
     const product = await this.prisma.product.create({
       data: {
-        categoryId: input.categoryId,
+        nicheId: input.nicheId,
         network: inferNetworkFromUrl(input.sourceUrl),
         name,
         slug,

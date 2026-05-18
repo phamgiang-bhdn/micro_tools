@@ -15,7 +15,7 @@ import {
   DEFAULT_PAGE_SIZE,
   NETWORK_OPTIONS
 } from "../../../lib/admin/constants";
-import { CouponsTable, type CouponRow, type CategoryLite } from "./coupons-table";
+import { CouponsTable, type CouponRow, type NicheLite } from "./coupons-table";
 import { SyncCouponsFromAtButton } from "./sync-coupons-from-at-button";
 
 export const dynamic = "force-dynamic";
@@ -41,9 +41,9 @@ export default async function CouponsPage({
     page = "1"
   } = await searchParams;
 
-  const [allCoupons, categories] = await Promise.all([
+  const [allCoupons, niches] = await Promise.all([
     adminGet<CouponRow[]>("/admin/coupons"),
-    adminGet<CategoryLite[]>("/admin/categories")
+    adminGet<NicheLite[]>("/admin/niches")
   ]);
 
   const filtered = allCoupons.filter((c) => {
@@ -57,7 +57,7 @@ export default async function CouponsPage({
         c.code.toLowerCase().includes(n) ||
         (c.description ?? "").toLowerCase().includes(n) ||
         (c.product?.name ?? "").toLowerCase().includes(n) ||
-        (c.category?.name ?? "").toLowerCase().includes(n) ||
+        (c.niche?.name ?? "").toLowerCase().includes(n) ||
         (c.merchantDisplay ?? "").toLowerCase().includes(n);
       if (!hit) return false;
     }
@@ -102,7 +102,7 @@ export default async function CouponsPage({
     <ListPageShell
       eyebrow="Khuyến mãi"
       title="Mã giảm giá"
-      subtitle="Coupon có thể gắn theo network, danh mục hoặc sản phẩm cụ thể. Mã không nhập sẽ áp toàn site."
+      subtitle="Coupon có thể gắn theo network, niche hoặc sản phẩm cụ thể. Mã không nhập sẽ áp toàn site."
       overview={[
         {
           label: "Tổng mã",
@@ -162,7 +162,7 @@ export default async function CouponsPage({
         <div>
           <CouponsTable
             rows={items}
-            categories={categories}
+            niches={niches}
             filteredCount={filtered.length}
             totalCount={allCoupons.length}
           />

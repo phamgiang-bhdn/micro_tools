@@ -15,13 +15,13 @@ import {
   DEFAULT_PAGE_SIZE,
   NETWORK_OPTIONS
 } from "../../../lib/admin/constants";
-import { ProductsTable, type CategoryLite, type ProductRow } from "./products-table";
+import { ProductsTable, type NicheLite, type ProductRow } from "./products-table";
 
 export const dynamic = "force-dynamic";
 
 interface ProductsPageProps {
   searchParams: Promise<{
-    categoryId?: string;
+    nicheId?: string;
     network?: string;
     isPublic?: string;
     search?: string;
@@ -34,15 +34,15 @@ export default async function ProductsPage({
 }: ProductsPageProps): Promise<React.ReactElement> {
   const filters = await searchParams;
   const qs = new URLSearchParams();
-  if (filters.categoryId) qs.set(ADMIN_PARAMS.category, filters.categoryId);
+  if (filters.nicheId) qs.set(ADMIN_PARAMS.niche, filters.nicheId);
   if (filters.network) qs.set(ADMIN_PARAMS.network, filters.network);
   if (filters.isPublic) qs.set(ADMIN_PARAMS.isPublic, filters.isPublic);
   if (filters.search) qs.set(ADMIN_PARAMS.search, filters.search);
   qs.set("limit", "500");
 
-  const [products, categories] = await Promise.all([
+  const [products, niches] = await Promise.all([
     adminGet<ProductRow[]>(`/admin/products?${qs.toString()}`),
-    adminGet<CategoryLite[]>("/admin/categories")
+    adminGet<NicheLite[]>("/admin/niches")
   ]);
 
   const pageNum = Math.max(1, Number.parseInt(filters.page ?? "1", 10) || 1);
@@ -50,7 +50,7 @@ export default async function ProductsPage({
 
   const buildHref = (p: number): string => {
     const params = new URLSearchParams();
-    if (filters.categoryId) params.set(ADMIN_PARAMS.category, filters.categoryId);
+    if (filters.nicheId) params.set(ADMIN_PARAMS.niche, filters.nicheId);
     if (filters.network) params.set(ADMIN_PARAMS.network, filters.network);
     if (filters.isPublic) params.set(ADMIN_PARAMS.isPublic, filters.isPublic);
     if (filters.search) params.set(ADMIN_PARAMS.search, filters.search);
@@ -60,14 +60,14 @@ export default async function ProductsPage({
   };
 
   const hasFilter = Boolean(
-    filters.search || filters.categoryId || filters.network || filters.isPublic
+    filters.search || filters.nicheId || filters.network || filters.isPublic
   );
 
   const publicCount = products.filter((p) => p.isPublic).length;
   const hidden = products.length - publicCount;
   const networkCount = new Set(products.map((p) => p.network)).size;
 
-  const categoryOptions = categories.map((c) => ({ value: c.id, label: c.name }));
+  const nicheOptions = niches.map((c) => ({ value: c.id, label: c.name }));
 
   return (
     <ListPageShell
@@ -107,10 +107,10 @@ export default async function ProductsPage({
             placeholder="Tên sản phẩm..."
           />
           <NativeFilterSelect
-            label="Danh mục"
-            name={ADMIN_PARAMS.category}
-            defaultValue={filters.categoryId ?? ""}
-            options={categoryOptions}
+            label="Niche"
+            name={ADMIN_PARAMS.niche}
+            defaultValue={filters.nicheId ?? ""}
+            options={nicheOptions}
           />
           <NativeFilterSelect
             label="Network"
@@ -133,7 +133,7 @@ export default async function ProductsPage({
         <div>
           <ProductsTable
             rows={items}
-            categories={categories}
+            niches={niches}
             totalCount={products.length}
             hasFilter={hasFilter}
           />

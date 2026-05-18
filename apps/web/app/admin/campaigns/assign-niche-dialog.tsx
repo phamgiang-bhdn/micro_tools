@@ -50,7 +50,7 @@ export interface AssignmentRow {
   id: string;
   priority: number;
   filterRules: unknown;
-  category: { id: string; name: string; slug: string };
+  niche: { id: string; name: string; slug: string };
 }
 
 // ───── Form schemas ─────
@@ -58,10 +58,10 @@ export interface AssignmentRow {
 export const addAssignmentFormSchema = z
   .object({
     mode: z.enum(["existing", "new"]),
-    categoryId: z.string().uuid().nullable().optional(),
-    newCategoryName: z.string().nullable().optional(),
-    newCategorySlug: z.string().nullable().optional(),
-    newCategorySchemaConfig: z.string().nullable().optional(),
+    nicheId: z.string().uuid().nullable().optional(),
+    newNicheName: z.string().nullable().optional(),
+    newNicheSlug: z.string().nullable().optional(),
+    newNicheSchemaConfig: z.string().nullable().optional(),
     priority: z.number().int().min(0).max(10000).default(100),
     minDiscountPercent: z.number().int().min(0).max(100).nullable().optional(),
     maxDiscountPercent: z.number().int().min(0).max(100).nullable().optional(),
@@ -77,30 +77,30 @@ export const addAssignmentFormSchema = z
   })
   .superRefine((data, ctx) => {
     if (data.mode === "existing") {
-      if (!data.categoryId) {
-        ctx.addIssue({ code: "custom", path: ["categoryId"], message: "Chọn category" });
+      if (!data.nicheId) {
+        ctx.addIssue({ code: "custom", path: ["nicheId"], message: "Chọn niche" });
       }
       return;
     }
-    if (!data.newCategoryName || data.newCategoryName.trim().length < 2) {
+    if (!data.newNicheName || data.newNicheName.trim().length < 2) {
       ctx.addIssue({
         code: "custom",
-        path: ["newCategoryName"],
-        message: "Tên category tối thiểu 2 ký tự"
+        path: ["newNicheName"],
+        message: "Tên niche tối thiểu 2 ký tự"
       });
     }
-    if (!data.newCategorySlug) {
-      ctx.addIssue({ code: "custom", path: ["newCategorySlug"], message: "Slug bắt buộc" });
-    } else if (!SLUG_RE.test(data.newCategorySlug)) {
+    if (!data.newNicheSlug) {
+      ctx.addIssue({ code: "custom", path: ["newNicheSlug"], message: "Slug bắt buộc" });
+    } else if (!SLUG_RE.test(data.newNicheSlug)) {
       ctx.addIssue({
         code: "custom",
-        path: ["newCategorySlug"],
+        path: ["newNicheSlug"],
         message: "Slug chỉ chứa a-z, 0-9, dấu gạch"
       });
     }
-    if (data.newCategorySchemaConfig) {
+    if (data.newNicheSchemaConfig) {
       try {
-        const parsed: unknown = JSON.parse(data.newCategorySchemaConfig);
+        const parsed: unknown = JSON.parse(data.newNicheSchemaConfig);
         if (
           !parsed ||
           typeof parsed !== "object" ||
@@ -109,14 +109,14 @@ export const addAssignmentFormSchema = z
         ) {
           ctx.addIssue({
             code: "custom",
-            path: ["newCategorySchemaConfig"],
+            path: ["newNicheSchemaConfig"],
             message: "schemaConfig cần ít nhất 1 field"
           });
         }
       } catch {
         ctx.addIssue({
           code: "custom",
-          path: ["newCategorySchemaConfig"],
+          path: ["newNicheSchemaConfig"],
           message: "JSON không hợp lệ"
         });
       }
@@ -215,8 +215,8 @@ function formValuesToFilterRules(values: {
 }
 
 const MODE_OPTIONS = [
-  { value: "existing", label: "Chọn category có sẵn" },
-  { value: "new", label: "Tạo category mới" }
+  { value: "existing", label: "Chọn niche có sẵn" },
+  { value: "new", label: "Tạo niche mới" }
 ];
 
 // ───── ManageAssignmentsDialog ─────
@@ -236,7 +236,7 @@ export interface ManageAssignmentsDialogProps {
     atCampaignId: string | null;
     assignments: AssignmentRow[];
   };
-  categories: Array<{ id: string; name: string; slug: string }>;
+  niches: Array<{ id: string; name: string; slug: string }>;
 }
 
 export function ManageAssignmentsDialog({
@@ -244,7 +244,7 @@ export function ManageAssignmentsDialog({
   onOpenChange,
   onChanged,
   campaign,
-  categories
+  niches
 }: ManageAssignmentsDialogProps): React.ReactElement {
   const [local, setLocal] = React.useState<AssignmentRow[]>(campaign.assignments);
   const [editing, setEditing] = React.useState<AssignmentRow | null>(null);
@@ -254,9 +254,9 @@ export function ManageAssignmentsDialog({
     setLocal(campaign.assignments);
   }, [campaign.assignments]);
 
-  const categoryOptions = React.useMemo(
-    () => categories.map((c) => ({ value: c.id, label: `${c.name} (${c.slug})` })),
-    [categories]
+  const nicheOptions = React.useMemo(
+    () => niches.map((c) => ({ value: c.id, label: `${c.name} (${c.slug})` })),
+    [niches]
   );
 
   async function handleDelete(assignmentId: string): Promise<void> {
@@ -282,7 +282,7 @@ export function ManageAssignmentsDialog({
           title={`Quản lý niche cho "${campaign.name}"`}
           description={
             campaign.atCampaignId
-              ? `atCampaignId: ${campaign.atCampaignId}. Mỗi cặp campaign↔category có filterRules + priority riêng. Crawler route offer theo first-match-wins (priority asc).`
+              ? `atCampaignId: ${campaign.atCampaignId}. Mỗi cặp campaign↔niche có filterRules + priority riêng. Crawler route offer theo first-match-wins (priority asc).`
               : "Campaign chưa có atCampaignId — cần Sync từ Accesstrade trước."
           }
           footer={
@@ -322,10 +322,10 @@ export function ManageAssignmentsDialog({
                         </span>
                         <div className="min-w-0 flex-1">
                           <div className="truncate text-[13.5px] font-medium text-admin-ink">
-                            {a.category.name}
+                            {a.niche.name}
                           </div>
                           <div className="truncate font-mono text-[11.5px] text-admin-mute">
-                            {a.category.slug}
+                            {a.niche.slug}
                           </div>
                         </div>
                         <span className="hidden text-[11.5px] text-admin-mute md:inline">
@@ -360,7 +360,7 @@ export function ManageAssignmentsDialog({
               <AddAssignmentForm
                 key={local.length /* reset form after add */}
                 campaignId={campaign.id}
-                categoryOptions={categoryOptions}
+                nicheOptions={nicheOptions}
                 disabled={!campaign.atCampaignId}
                 onAdded={() => onChanged?.()}
               />
@@ -390,24 +390,24 @@ export function ManageAssignmentsDialog({
 
 interface AddFormProps {
   campaignId: string;
-  categoryOptions: Array<{ value: string; label: string }>;
+  nicheOptions: Array<{ value: string; label: string }>;
   disabled: boolean;
   onAdded?: () => void;
 }
 
 function AddAssignmentForm({
   campaignId,
-  categoryOptions,
+  nicheOptions,
   disabled,
   onAdded
 }: AddFormProps): React.ReactElement {
   const defaults = React.useMemo<AddAssignmentFormValues>(
     () => ({
       mode: "existing",
-      categoryId: null,
-      newCategoryName: "",
-      newCategorySlug: "",
-      newCategorySchemaConfig: DEFAULT_SCHEMA_CONFIG,
+      nicheId: null,
+      newNicheName: "",
+      newNicheSlug: "",
+      newNicheSchemaConfig: DEFAULT_SCHEMA_CONFIG,
       priority: 100,
       minDiscountPercent: null,
       maxDiscountPercent: null,
@@ -432,17 +432,17 @@ function AddAssignmentForm({
       const filterRules = formValuesToFilterRules(values);
       const body: AssignmentInput = { filterRules, priority: values.priority };
       if (values.mode === "new") {
-        const schemaConfig = JSON.parse(values.newCategorySchemaConfig ?? "{}") as Record<
+        const schemaConfig = JSON.parse(values.newNicheSchemaConfig ?? "{}") as Record<
           string,
           unknown
         >;
-        body.newCategory = {
-          name: (values.newCategoryName ?? "").trim(),
-          slug: (values.newCategorySlug ?? "").trim(),
+        body.newNiche = {
+          name: (values.newNicheName ?? "").trim(),
+          slug: (values.newNicheSlug ?? "").trim(),
           schemaConfig
         };
       } else {
-        body.categoryId = values.categoryId ?? undefined;
+        body.nicheId = values.nicheId ?? undefined;
       }
       await createCampaignAssignment(campaignId, body);
     },
@@ -479,7 +479,7 @@ function AddAssignmentForm({
           />
         </div>
 
-        <ModeBranchFields categoryOptions={categoryOptions} />
+        <ModeBranchFields nicheOptions={nicheOptions} />
 
         <fieldset className="space-y-3">
           <legend className="admin-section-title pb-1">Filter rules</legend>
@@ -571,29 +571,29 @@ function AddAssignmentForm({
 }
 
 function ModeBranchFields({
-  categoryOptions
+  nicheOptions
 }: {
-  categoryOptions: Array<{ value: string; label: string }>;
+  nicheOptions: Array<{ value: string; label: string }>;
 }): React.ReactElement {
   const { control, setValue, getValues } = useFormContext<AddAssignmentFormValues>();
   const mode = useWatch({ control, name: "mode" });
-  const newName = useWatch({ control, name: "newCategoryName" });
-  const newSlug = useWatch({ control, name: "newCategorySlug" });
+  const newName = useWatch({ control, name: "newNicheName" });
+  const newSlug = useWatch({ control, name: "newNicheSlug" });
 
   // Auto-derive slug từ tên khi user chưa chỉnh slug — UX nhỏ nhưng đỡ gõ.
   React.useEffect(() => {
     if (mode === "new" && newName && !newSlug) {
-      setValue("newCategorySlug", slugifyVi(newName), { shouldValidate: false });
+      setValue("newNicheSlug", slugifyVi(newName), { shouldValidate: false });
     }
   }, [mode, newName, newSlug, setValue, getValues]);
 
   if (mode === "existing") {
     return (
       <ControlledSelectField<AddAssignmentFormValues>
-        name="categoryId"
-        label="Category đích"
-        placeholder="— Chọn category —"
-        options={categoryOptions}
+        name="nicheId"
+        label="Niche đích"
+        placeholder="— Chọn niche —"
+        options={nicheOptions}
         required
         fullRow
       />
@@ -602,20 +602,20 @@ function ModeBranchFields({
   return (
     <div className="admin-form-grid">
       <ControlledTextField<AddAssignmentFormValues>
-        name="newCategoryName"
-        label="Tên category mới"
+        name="newNicheName"
+        label="Tên niche mới"
         placeholder="Robot hút bụi lau nhà"
         required
       />
       <ControlledTextField<AddAssignmentFormValues>
-        name="newCategorySlug"
+        name="newNicheSlug"
         label="Slug"
         mono
         placeholder="robot-hut-bui-lau-nha"
         required
       />
       <ControlledTextareaField<AddAssignmentFormValues>
-        name="newCategorySchemaConfig"
+        name="newNicheSchemaConfig"
         label="schemaConfig (JSON)"
         mono
         rows={6}
@@ -655,8 +655,8 @@ function EditAssignmentDialog({
     <FormDialog<EditAssignmentFormValues>
       open={open}
       onOpenChange={onOpenChange}
-      title={`Sửa assignment: ${assignment.category.name}`}
-      description="Cập nhật priority + filterRules. Category không đổi (xoá rồi thêm lại nếu muốn)."
+      title={`Sửa assignment: ${assignment.niche.name}`}
+      description="Cập nhật priority + filterRules. Niche không đổi (xoá rồi thêm lại nếu muốn)."
       size="xl"
       schema={editAssignmentFormSchema}
       defaultValues={defaults}

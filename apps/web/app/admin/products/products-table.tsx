@@ -46,13 +46,13 @@ export interface ProductRow {
   affiliateUrl: string;
   updatedAt: string;
   createdAt?: string;
-  category: { id: string; slug: string; name: string };
+  niche: { id: string; slug: string; name: string };
   scrapedData?: Record<string, unknown> | null;
   campaign?: { id: string; name: string; atCampaignId: string | null } | null;
   _count?: { clickLogs?: number; extractions?: number };
 }
 
-export interface CategoryLite {
+export interface NicheLite {
   id: string;
   slug: string;
   name: string;
@@ -60,7 +60,7 @@ export interface CategoryLite {
 
 interface ProductsTableProps {
   rows: ProductRow[];
-  categories: CategoryLite[];
+  niches: NicheLite[];
   totalCount: number;
   hasFilter: boolean;
 }
@@ -68,7 +68,7 @@ interface ProductsTableProps {
 const EMPTY_CREATE: ProductCreateInput = {
   name: "",
   affiliateUrl: "",
-  categoryId: "",
+  nicheId: "",
   network: "ACCESSTRADE",
   isPublic: false,
   scrapedData: undefined
@@ -145,7 +145,7 @@ function readScraped(raw: Record<string, unknown> | null | undefined): ScrapedVi
 
 export function ProductsTable({
   rows,
-  categories,
+  niches,
   totalCount,
   hasFilter
 }: ProductsTableProps): React.ReactElement {
@@ -157,16 +157,16 @@ export function ProductsTable({
   const [bulkAction, setBulkAction] = React.useState<string>("");
   const [bulkPending, setBulkPending] = React.useState(false);
 
-  const categoryOptions = React.useMemo(
-    () => categories.map((c) => ({ value: c.id, label: c.name })),
-    [categories]
+  const nicheOptions = React.useMemo(
+    () => niches.map((c) => ({ value: c.id, label: c.name })),
+    [niches]
   );
 
   const handleCreate = async (data: ProductCreateInput) => {
     const fd = new FormData();
     fd.set("name", data.name);
     fd.set("affiliateUrl", data.affiliateUrl);
-    fd.set("categoryId", data.categoryId);
+    fd.set("nicheId", data.nicheId);
     fd.set("network", data.network);
     if (data.isPublic) fd.set("isPublic", "on");
     if (data.scrapedData) fd.set("scrapedData", data.scrapedData);
@@ -181,7 +181,7 @@ export function ProductsTable({
     fd.set("id", editing.id);
     if (data.name) fd.set("name", data.name);
     if (data.affiliateUrl) fd.set("affiliateUrl", data.affiliateUrl);
-    if (data.categoryId) fd.set("categoryId", data.categoryId);
+    if (data.nicheId) fd.set("nicheId", data.nicheId);
     if (data.network) fd.set("network", data.network);
     if (data.isPublic !== undefined) fd.set("isPublic", data.isPublic ? "true" : "false");
     await updateProductAction(fd);
@@ -328,13 +328,13 @@ export function ProductsTable({
       }
     },
     {
-      key: "category",
-      header: "Danh mục",
+      key: "niche",
+      header: "Niche",
       hideOnMobile: true,
       cell: (p) => (
         <div className="leading-tight">
-          <div className="text-[12.5px] text-admin-ink">{p.category.name}</div>
-          <div className="font-mono text-[10.5px] text-admin-mute">{p.category.slug}</div>
+          <div className="text-[12.5px] text-admin-ink">{p.niche.name}</div>
+          <div className="font-mono text-[10.5px] text-admin-mute">{p.niche.slug}</div>
         </div>
       )
     },
@@ -397,7 +397,7 @@ export function ProductsTable({
                     icon: <ExternalLink />,
                     onSelect: () => {
                       window.open(
-                        `/categories/${p.category.slug}/${p.slug}`,
+                        `/categories/${p.niche.slug}/${p.slug}`,
                         "_blank",
                         "noopener,noreferrer"
                       );
@@ -462,7 +462,7 @@ export function ProductsTable({
         onSubmit={handleCreate}
         submitLabel="Tạo sản phẩm"
       >
-        <ProductFields categoryOptions={categoryOptions} />
+        <ProductFields nicheOptions={nicheOptions} />
       </FormDialog>
 
       <FormDialog<ProductUpdateInput>
@@ -476,7 +476,7 @@ export function ProductsTable({
         onSubmit={handleUpdate}
         submitLabel="Lưu"
       >
-        <ProductFields categoryOptions={categoryOptions} editing />
+        <ProductFields nicheOptions={nicheOptions} editing />
         <Link
           href={editing ? `/admin/products/${editing.id}` : "#"}
           className="sm:col-span-2 inline-flex items-center gap-1.5 text-xs font-medium text-admin-accent hover:underline"
@@ -522,7 +522,7 @@ export function ProductsTable({
                   </StatusPill>
                 )}
                 <NetworkBadge network={viewing.network} />
-                <span className="text-xs text-admin-mute">{viewing.category.name}</span>
+                <span className="text-xs text-admin-mute">{viewing.niche.name}</span>
               </div>
               <div>
                 <div className="mb-0.5 text-xs font-medium text-admin-mute">Affiliate URL</div>
@@ -596,10 +596,10 @@ export function ProductsTable({
 }
 
 function ProductFields({
-  categoryOptions,
+  nicheOptions,
   editing
 }: {
-  categoryOptions: Array<{ value: string; label: string }>;
+  nicheOptions: Array<{ value: string; label: string }>;
   editing?: boolean;
 }): React.ReactElement {
   return (
@@ -620,9 +620,9 @@ function ProductFields({
         hint={editing ? "Đổi URL sẽ phá tracking cũ — chỉ đổi khi merchant đổi link." : undefined}
       />
       <ControlledSelectField<ProductCreateInput>
-        name="categoryId"
-        label="Danh mục"
-        options={categoryOptions}
+        name="nicheId"
+        label="Niche"
+        options={nicheOptions}
         required
       />
       <ControlledSelectField<ProductCreateInput>
@@ -646,7 +646,7 @@ function toFormValues(row: ProductRow): ProductUpdateInput {
     id: row.id,
     name: row.name,
     affiliateUrl: row.affiliateUrl,
-    categoryId: row.category.id,
+    nicheId: row.niche.id,
     network: row.network as AffiliateNetwork,
     isPublic: row.isPublic
   };

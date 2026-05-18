@@ -3,8 +3,8 @@ import { ProductCard } from "../product-card";
 import type { ProductView } from "../../lib/types";
 
 interface ProductGridProps {
-  /** Sản phẩm. Mỗi item phải kèm `categorySlug` để build URL. */
-  products: Array<ProductView & { slug?: string | null; categorySlug: string }>;
+  /** Sản phẩm. Mỗi item phải kèm `nicheSlug` để build URL. */
+  products: Array<ProductView & { slug?: string | null; nicheSlug: string }>;
   /** Bật animation fade-up stagger. */
   animate?: boolean;
 }
@@ -22,7 +22,7 @@ export function ProductGrid({ products, animate = true }: ProductGridProps): Rea
           className={animate ? "animate-fade-up" : undefined}
           style={animate ? { animationDelay: `${Math.min(idx * 30, 300)}ms` } : undefined}
         >
-          <ProductCard product={product} categorySlug={product.categorySlug} />
+          <ProductCard product={product} nicheSlug={product.nicheSlug} />
         </div>
       ))}
     </div>

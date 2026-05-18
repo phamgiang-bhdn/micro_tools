@@ -59,7 +59,7 @@ export interface CouponRow {
   isActive: boolean;
   createdAt: string;
   product: { id: string; name: string } | null;
-  category: { id: string; name: string } | null;
+  niche: { id: string; name: string } | null;
   merchantSlug: string | null;
   merchantDisplay: string | null;
   merchantLogo: string | null;
@@ -70,14 +70,14 @@ export interface CouponRow {
   imageUrl: string | null;
 }
 
-export interface CategoryLite {
+export interface NicheLite {
   id: string;
   name: string;
 }
 
 interface CouponsTableProps {
   rows: CouponRow[];
-  categories: CategoryLite[];
+  niches: NicheLite[];
   /** Tổng đếm trước khi paginate (caption). */
   filteredCount: number;
   totalCount: number;
@@ -88,7 +88,7 @@ const EMPTY_CREATE: CouponCreateInput = {
   description: null,
   discountPercent: null,
   network: null,
-  categoryId: null,
+  nicheId: null,
   productId: null,
   expiresAt: null,
   isActive: true
@@ -100,7 +100,7 @@ const EMPTY_CREATE: CouponCreateInput = {
  */
 export function CouponsTable({
   rows,
-  categories,
+  niches,
   filteredCount,
   totalCount
 }: CouponsTableProps): React.ReactElement {
@@ -139,9 +139,9 @@ export function CouponsTable({
     rowLabel: (c) => `coupon ${c.code}`
   });
 
-  const categoryOptions = React.useMemo(
-    () => categories.map((c) => ({ value: c.id, label: c.name })),
-    [categories]
+  const nicheOptions = React.useMemo(
+    () => niches.map((c) => ({ value: c.id, label: c.name })),
+    [niches]
   );
 
   // Server action wrappers — typed → FormData (giữ server action ko đổi).
@@ -264,9 +264,9 @@ export function CouponsTable({
             <>
               Sản phẩm: <span className="text-admin-ink">{c.product.name}</span>
             </>
-          ) : c.category ? (
+          ) : c.niche ? (
             <>
-              Danh mục: <span className="text-admin-ink">{c.category.name}</span>
+              Niche: <span className="text-admin-ink">{c.niche.name}</span>
             </>
           ) : c.network ? (
             <NetworkBadge network={c.network} />
@@ -400,7 +400,7 @@ export function CouponsTable({
         open={createOpen}
         onOpenChange={setCreateOpen}
         title="Tạo mã giảm giá"
-        description="Mã có thể gắn theo network, danh mục, sản phẩm cụ thể — hoặc để trống nếu áp cho toàn site."
+        description="Mã có thể gắn theo network, niche, sản phẩm cụ thể — hoặc để trống nếu áp cho toàn site."
         size="lg"
         schema={couponCreateSchema}
         defaultValues={EMPTY_CREATE}
@@ -408,7 +408,7 @@ export function CouponsTable({
         onSubmit={handleCreate}
         submitLabel="Tạo mã"
       >
-        <CouponFields categoryOptions={categoryOptions} />
+        <CouponFields nicheOptions={nicheOptions} />
       </FormDialog>
 
       {/* EDIT */}
@@ -423,7 +423,7 @@ export function CouponsTable({
         onSubmit={handleUpdate}
         submitLabel="Lưu"
       >
-        <CouponFields categoryOptions={categoryOptions} editing />
+        <CouponFields nicheOptions={nicheOptions} editing />
       </FormDialog>
 
       {/* VIEW content (pre-sanitized by api/common/sanitize-html.util.ts) */}
@@ -464,10 +464,10 @@ export function CouponsTable({
 }
 
 function CouponFields({
-  categoryOptions,
+  nicheOptions,
   editing
 }: {
-  categoryOptions: Array<{ value: string; label: string }>;
+  nicheOptions: Array<{ value: string; label: string }>;
   editing?: boolean;
 }): React.ReactElement {
   return (
@@ -498,9 +498,9 @@ function CouponFields({
         placeholder="— Tất cả network —"
       />
       <ControlledSelectField<CouponCreateInput>
-        name="categoryId"
-        label="Áp cho danh mục"
-        options={categoryOptions}
+        name="nicheId"
+        label="Áp cho niche"
+        options={nicheOptions}
         allowEmpty
         emptyLabel="— Toàn site —"
         placeholder="— Toàn site —"
@@ -530,7 +530,7 @@ function toCouponFormData(data: CouponCreateInput): FormData {
   if (data.description) fd.set("description", data.description);
   if (data.discountPercent != null) fd.set("discountPercent", String(data.discountPercent));
   if (data.network) fd.set("network", data.network);
-  if (data.categoryId) fd.set("categoryId", data.categoryId);
+  if (data.nicheId) fd.set("nicheId", data.nicheId);
   if (data.productId) fd.set("productId", data.productId);
   if (data.expiresAt) fd.set("expiresAt", data.expiresAt);
   fd.set("isActive", data.isActive ? "true" : "false");
@@ -543,7 +543,7 @@ function toFormValues(row: CouponRow): CouponCreateInput {
     description: row.description,
     discountPercent: row.discountPercent,
     network: (row.network ?? null) as CouponCreateInput["network"],
-    categoryId: row.category?.id ?? null,
+    nicheId: row.niche?.id ?? null,
     productId: row.product?.id ?? null,
     expiresAt: row.expiresAt ? row.expiresAt.slice(0, 10) : null,
     isActive: row.isActive

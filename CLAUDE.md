@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Business context
 
-dealvault is an affiliate micro-tool platform for the Vietnam market — revenue comes from tracked clicks that convert via affiliate networks. The strategy is "one micro-tool = one niche, deeply comparable" rather than a general catalog. The category lineup is seeded in [`apps/api/prisma/seed.js`](apps/api/prisma/seed.js) (currently 12 niches across smart home, large appliances, consumer electronics, and skincare). **Products are not seeded** — they flow exclusively from the Accesstrade crawler after admins onboard campaigns to a niche.
+dealvault is an affiliate micro-tool platform for the Vietnam market — revenue comes from tracked clicks that convert via affiliate networks. The strategy is "one micro-tool = one niche, deeply comparable" rather than a general catalog. The niche lineup is seeded in [`apps/api/prisma/seed.js`](apps/api/prisma/seed.js) (currently 12 niches across smart home, large appliances, consumer electronics, and skincare). **Products are not seeded** — they flow exclusively from the Accesstrade crawler after admins onboard campaigns to a niche.
 
 **Read [`docs/CONTEXT.md`](docs/CONTEXT.md) before working on:** anything user-facing on the storefront, the `/admin` panel (Refinery / Prompt Studio / Money Trail / War Room), the AI extraction pipeline, SEO surface, or anything involving the affiliate webhook contract. For infra/build/devops tasks, this file alone is enough.
 
@@ -54,15 +54,15 @@ These bind the two apps together — changing one side requires understanding th
 
 Nothing reaches the public storefront in either pipeline until a human reviews. See `docs/CONTEXT.md` for *why* this is non-negotiable.
 
-**Schema is per-category dynamic.** `Category.schemaConfig` (Json) defines what fields each category extracts. The api's AI extractor must match it; the web side reads via `apps/web/lib/format.ts → normalizeProduct()`. Don't bypass `normalizeProduct` on the web side, and don't hard-code field names on the api side.
+**Schema is per-niche dynamic.** `Niche.schemaConfig` (Json) defines what fields each niche extracts. The api's AI extractor must match it; the web side reads via `apps/web/lib/format.ts → normalizeProduct()`. Don't bypass `normalizeProduct` on the web side, and don't hard-code field names on the api side.
 
-**Note on naming.** The platform is positioned as "micro-tool platform" in product strategy (marketing copy in `docs/CONTEXT.md`), but the entity that groups products in the schema is `Category` (slug + name + dynamic schemaConfig). The name `Tool` is intentionally reserved for future interactive tools (calculators, comparators) — do not reuse it for the product grouping concept.
+**Note on naming.** The platform is positioned as "micro-tool platform" in product strategy (marketing copy in `docs/CONTEXT.md`); the entity that groups products in the schema is `Niche` (slug + name + dynamic schemaConfig — renamed from `Category` in PR1). The public storefront URL keeps `/categories/[slug]` for SEO continuity, but the underlying entity is `Niche`. The name `Tool` is intentionally reserved for future interactive tools (calculators, comparators) — do not reuse it for the product grouping concept.
 
 ## Conventions
 
 - TypeScript strict; no `any`.
 - After editing `apps/api/prisma/schema.prisma`, run `npm run db:generate` before relying on the new types.
-- Seed file is `apps/api/prisma/seed.js` (JS, not TS) — Category-only (12 niches) + system `PromptTemplate` rows. Does **not** seed Product / ClickLog / ConversionWebhook; those come from crawler + real user clicks. Re-running the seed purges legacy hardcoded product IDs (`a1000001-*`, `b2000001-*`) but leaves crawler-imported products intact.
+- Seed file is `apps/api/prisma/seed.js` (JS, not TS) — Niche-only (12 niches) + system `PromptTemplate` rows. Does **not** seed Product / ClickLog / ConversionWebhook; those come from crawler + real user clicks. Re-running the seed purges legacy hardcoded product IDs (`a1000001-*`, `b2000001-*`) but leaves crawler-imported products intact.
 
 ## Env files
 

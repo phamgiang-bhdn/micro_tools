@@ -35,7 +35,7 @@ interface PageProps {
   }>;
 }
 
-interface CategorySummary {
+interface NicheSummary {
   id: string;
   name: string;
   slug: string;
@@ -61,9 +61,9 @@ export default async function CampaignsPage({
   // Backend dùng cùng key, không cần map.
   const path = `/admin/campaigns${apiQs.toString() ? `?${apiQs.toString()}` : ""}`;
 
-  const [all, categories] = await Promise.all([
+  const [all, niches] = await Promise.all([
     adminGet<CampaignRow[]>(path),
-    adminGet<CategorySummary[]>("/admin/categories")
+    adminGet<NicheSummary[]>("/admin/niches")
   ]);
 
   const pageNum = Math.max(1, Number.parseInt(page, 10) || 1);
@@ -90,7 +90,7 @@ export default async function CampaignsPage({
     <ListPageShell
       eyebrow="Doanh thu"
       title="Affiliate campaigns"
-      subtitle="Mỗi campaign = 1 merchant từ Accesstrade. Sync → assign vào Category → crawler tự pull theo filter rules per-campaign."
+      subtitle="Mỗi campaign = 1 merchant từ Accesstrade. Sync → assign vào Niche → crawler tự pull theo filter rules per-campaign."
       actions={<SyncFromAtButton />}
       overview={[
         {
@@ -165,7 +165,7 @@ export default async function CampaignsPage({
               rows={items}
               filteredCount={all.length}
               totalCount={all.length}
-              categories={categories}
+              niches={niches}
             />
             <Pagination
               page={safePage}

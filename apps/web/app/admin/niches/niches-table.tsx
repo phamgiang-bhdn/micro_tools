@@ -20,22 +20,22 @@ import {
 } from "../../../components/admin/ui";
 import { BulkBar, selectionColumnRenderers, buildBulkConfirmMessage, type BulkAction } from "../../../components/admin/bulk-bar";
 import { useRowSelection } from "../../../components/admin/use-row-selection";
-import { CATEGORY_STATUS_META, CATEGORY_STATUS_OPTIONS } from "../../../lib/admin/constants";
+import { NICHE_STATUS_META, NICHE_STATUS_OPTIONS } from "../../../lib/admin/constants";
 import {
-  categoryCreateSchema,
-  categoryUpdateSchema,
-  type CategoryCreateInput,
-  type CategoryUpdateInput
+  nicheCreateSchema,
+  nicheUpdateSchema,
+  type NicheCreateInput,
+  type NicheUpdateInput
 } from "../../../lib/admin/schemas";
 import {
-  createCategoryAction,
-  updateCategoryAction,
-  deleteCategoryAction,
-  bulkCategoryAction
+  createNicheAction,
+  updateNicheAction,
+  deleteNicheAction,
+  bulkNicheAction
 } from "../actions";
 import { withToast } from "../../../lib/admin/notify";
 
-export interface CategoryRow {
+export interface NicheRow {
   id: string;
   slug: string;
   name: string;
@@ -48,8 +48,8 @@ export interface CategoryRow {
   _count: { products: number; articles: number; campaigns?: number };
 }
 
-interface CategoriesTableProps {
-  rows: CategoryRow[];
+interface NichesTableProps {
+  rows: NicheRow[];
   filteredCount: number;
   totalCount: number;
 }
@@ -60,7 +60,7 @@ const DEFAULT_SCHEMA_JSON = `{
   "noiseLevel": "number"
 }`;
 
-const EMPTY_CREATE: CategoryCreateInput = {
+const EMPTY_CREATE: NicheCreateInput = {
   name: "",
   slug: "",
   schemaConfig: DEFAULT_SCHEMA_JSON,
@@ -69,12 +69,12 @@ const EMPTY_CREATE: CategoryCreateInput = {
 };
 
 const BULK_ACTIONS: BulkAction[] = [
-  { value: "activate", label: "Bật hiển thị", confirm: "Bật public các danh mục đã chọn?" },
-  { value: "deactivate", label: "Ẩn", confirm: "Ẩn các danh mục đã chọn?" },
+  { value: "activate", label: "Bật hiển thị", confirm: "Bật public các niche đã chọn?" },
+  { value: "deactivate", label: "Ẩn", confirm: "Ẩn các niche đã chọn?" },
   {
     value: "delete",
     label: "Xoá",
-    confirm: "Xoá danh mục? Không hoàn tác. Sẽ fail nếu còn sản phẩm.",
+    confirm: "Xoá niche? Không hoàn tác. Sẽ fail nếu còn sản phẩm.",
     tone: "danger"
   }
 ];
@@ -87,31 +87,31 @@ const dateFmt = new Intl.DateTimeFormat("vi-VN", {
   minute: "2-digit"
 });
 
-export function CategoriesTable({
+export function NichesTable({
   rows,
   filteredCount,
   totalCount
-}: CategoriesTableProps): React.ReactElement {
+}: NichesTableProps): React.ReactElement {
   const router = useRouter();
   const [createOpen, setCreateOpen] = React.useState(false);
-  const [editing, setEditing] = React.useState<CategoryRow | null>(null);
-  const [viewing, setViewing] = React.useState<CategoryRow | null>(null);
+  const [editing, setEditing] = React.useState<NicheRow | null>(null);
+  const [viewing, setViewing] = React.useState<NicheRow | null>(null);
   const { selected, toggleOne, toggleAll, clear, allSelected } = useRowSelection(rows);
   const [bulkAction, setBulkAction] = React.useState<string>("");
   const [bulkPending, setBulkPending] = React.useState(false);
 
-  const handleCreate = async (data: CategoryCreateInput) => {
+  const handleCreate = async (data: NicheCreateInput) => {
     const fd = new FormData();
     fd.set("name", data.name);
     fd.set("slug", data.slug);
     fd.set("schemaConfig", data.schemaConfig);
-    await createCategoryAction(fd);
+    await createNicheAction(fd);
     router.refresh();
     return { ok: true };
   };
 
-  const handleUpdate = async (data: CategoryUpdateInput) => {
-    if (!editing) return { ok: false, error: "Mất context danh mục đang sửa" };
+  const handleUpdate = async (data: NicheUpdateInput) => {
+    if (!editing) return { ok: false, error: "Mất context niche đang sửa" };
     const fd = new FormData();
     fd.set("id", editing.id);
     if (data.name) fd.set("name", data.name);
@@ -120,7 +120,7 @@ export function CategoriesTable({
     if (data.status) fd.set("status", data.status);
     if (data.seoTitle !== undefined) fd.set("seoTitle", data.seoTitle ?? "");
     if (data.seoDescription !== undefined) fd.set("seoDescription", data.seoDescription ?? "");
-    await updateCategoryAction(fd);
+    await updateNicheAction(fd);
     router.refresh();
     return { ok: true };
   };
@@ -128,7 +128,7 @@ export function CategoriesTable({
   const handleDelete = async (id: string) => {
     const fd = new FormData();
     fd.set("id", id);
-    await deleteCategoryAction(fd);
+    await deleteNicheAction(fd);
     router.refresh();
   };
 
@@ -141,9 +141,9 @@ export function CategoriesTable({
     fd.set("action", bulkAction);
     for (const id of selected) fd.append("ids", id);
     setBulkPending(true);
-    const result = await withToast(() => bulkCategoryAction(fd), {
-      loading: `Đang xử lý ${selected.size} danh mục…`,
-      success: `Đã ${cfg?.label.toLowerCase() ?? "xử lý"} ${selected.size} danh mục`,
+    const result = await withToast(() => bulkNicheAction(fd), {
+      loading: `Đang xử lý ${selected.size} niche…`,
+      success: `Đã ${cfg?.label.toLowerCase() ?? "xử lý"} ${selected.size} niche`,
       error: (e) => (e instanceof Error ? e.message : "Thao tác hàng loạt thất bại")
     });
     setBulkPending(false);
@@ -154,15 +154,15 @@ export function CategoriesTable({
     }
   };
 
-  const sel = selectionColumnRenderers<CategoryRow>({
+  const sel = selectionColumnRenderers<NicheRow>({
     allSelected,
     toggleAll,
     isSelected: (id) => selected.has(id),
     toggleOne,
-    rowLabel: (c) => `danh mục ${c.name}`
+    rowLabel: (c) => `niche ${c.name}`
   });
 
-  const columns: ColumnDef<CategoryRow>[] = [
+  const columns: ColumnDef<NicheRow>[] = [
     {
       key: "select",
       header: sel.header,
@@ -234,7 +234,7 @@ export function CategoriesTable({
           <RowActions
             onEdit={() => setEditing(c)}
             onDelete={lock ? undefined : () => handleDelete(c.id)}
-            deleteConfirm={`Xoá danh mục "${c.name}"? Hành động không thể hoàn tác.`}
+            deleteConfirm={`Xoá niche "${c.name}"? Hành động không thể hoàn tác.`}
             deleteDisabled={lock}
             deleteDisabledReason={`Có ${c._count.products} sản phẩm — xoá sản phẩm trước`}
             more={[
@@ -247,7 +247,7 @@ export function CategoriesTable({
                 label: "Mở trang chi tiết",
                 icon: <ExternalLink />,
                 onSelect: () => {
-                  window.location.href = `/admin/categories/${c.id}`;
+                  window.location.href = `/admin/niches/${c.id}`;
                 }
               }
             ]}
@@ -270,7 +270,7 @@ export function CategoriesTable({
           pending={bulkPending}
           rightSlot={
             <AdminButton size="sm" iconLeft={<Plus />} onClick={() => setCreateOpen(true)}>
-              Tạo danh mục
+              Tạo niche
             </AdminButton>
           }
         />
@@ -278,15 +278,15 @@ export function CategoriesTable({
           columns={columns}
           rows={rows}
           rowKey={(c) => c.id}
-          emptyState="Chưa có danh mục nào. Bấm 'Tạo danh mục' để thêm."
+          emptyState="Chưa có niche nào. Bấm 'Tạo niche' để thêm."
         />
       </div>
 
       {/* CREATE */}
-      <FormDialog<CategoryCreateInput>
+      <FormDialog<NicheCreateInput>
         open={createOpen}
         onOpenChange={setCreateOpen}
-        title="Tạo danh mục mới"
+        title="Tạo niche mới"
         description={
           <span>
             <code className="rounded bg-admin-subtle px-1 py-0.5 text-xs">schemaConfig</code> định
@@ -294,30 +294,30 @@ export function CategoriesTable({
           </span>
         }
         size="xl"
-        schema={categoryCreateSchema}
+        schema={nicheCreateSchema}
         defaultValues={EMPTY_CREATE}
         resetOnOpen
         onSubmit={handleCreate}
-        submitLabel="Tạo danh mục"
+        submitLabel="Tạo niche"
       >
-        <CategoryFields />
+        <NicheFields />
       </FormDialog>
 
       {/* EDIT */}
-      <FormDialog<CategoryUpdateInput>
+      <FormDialog<NicheUpdateInput>
         open={editing !== null}
         onOpenChange={(o) => !o && setEditing(null)}
-        title={editing ? `Sửa danh mục "${editing.name}"` : "Sửa danh mục"}
+        title={editing ? `Sửa niche "${editing.name}"` : "Sửa niche"}
         size="xl"
-        schema={categoryUpdateSchema}
+        schema={nicheUpdateSchema}
         defaultValues={editing ? toFormValues(editing) : { id: "", ...EMPTY_CREATE }}
         resetOnOpen
         onSubmit={handleUpdate}
         submitLabel="Lưu"
       >
-        <CategoryFields editing />
+        <NicheFields editing />
         <Link
-          href={editing ? `/admin/categories/${editing.id}` : "#"}
+          href={editing ? `/admin/niches/${editing.id}` : "#"}
           className="sm:col-span-2 inline-flex items-center gap-1.5 text-xs font-medium text-admin-accent hover:underline"
         >
           <ExternalLink className="size-3" /> Mở trang chi tiết để xem sản phẩm + SEO nâng cao
@@ -328,7 +328,7 @@ export function CategoriesTable({
       <Dialog open={viewing !== null} onOpenChange={(o) => !o && setViewing(null)}>
         <DialogContent
           size="xl"
-          title={viewing?.name ?? "Danh mục"}
+          title={viewing?.name ?? "Niche"}
           description={viewing ? <span className="font-mono">{viewing.slug}</span> : undefined}
           footer={
             <DialogFooter>
@@ -353,8 +353,8 @@ export function CategoriesTable({
           {viewing ? (
             <div className="space-y-4 text-sm">
               <div className="flex flex-wrap items-center gap-2">
-                <StatusPill tone={CATEGORY_STATUS_META[viewing.status].tone} dot>
-                  {CATEGORY_STATUS_META[viewing.status].label}
+                <StatusPill tone={NICHE_STATUS_META[viewing.status].tone} dot>
+                  {NICHE_STATUS_META[viewing.status].label}
                 </StatusPill>
                 <span className="text-xs text-admin-mute">
                   {viewing._count.products} sản phẩm · {viewing._count.articles} bài viết
@@ -412,16 +412,16 @@ function FieldRow({
   );
 }
 
-function CategoryFields({ editing }: { editing?: boolean }): React.ReactElement {
+function NicheFields({ editing }: { editing?: boolean }): React.ReactElement {
   return (
     <>
-      <ControlledTextField<CategoryCreateInput>
+      <ControlledTextField<NicheCreateInput>
         name="name"
         label="Tên hiển thị"
         required
         placeholder="Robot hút bụi lau nhà"
       />
-      <ControlledTextField<CategoryCreateInput>
+      <ControlledTextField<NicheCreateInput>
         name="slug"
         label="Slug (kebab-case)"
         required
@@ -431,20 +431,20 @@ function CategoryFields({ editing }: { editing?: boolean }): React.ReactElement 
         hint={editing ? "Đổi slug ở trang chi tiết để tránh phá SEO." : undefined}
       />
       {editing ? (
-        <ControlledSelectField<CategoryUpdateInput>
+        <ControlledSelectField<NicheUpdateInput>
           name="status"
           label="Trạng thái"
-          options={CATEGORY_STATUS_OPTIONS}
+          options={NICHE_STATUS_OPTIONS}
         />
       ) : null}
       {!editing ? (
         <>
-          <ControlledTextField<CategoryCreateInput>
+          <ControlledTextField<NicheCreateInput>
             name="seoTitle"
             label="SEO title"
             placeholder="Robot hút bụi lau nhà tốt nhất 2026"
           />
-          <ControlledTextareaField<CategoryCreateInput>
+          <ControlledTextareaField<NicheCreateInput>
             name="seoDescription"
             label="SEO description"
             placeholder="Tổng hợp robot hút bụi lau nhà tốt nhất..."
@@ -453,7 +453,7 @@ function CategoryFields({ editing }: { editing?: boolean }): React.ReactElement 
           />
         </>
       ) : null}
-      <ControlledTextareaField<CategoryCreateInput>
+      <ControlledTextareaField<NicheCreateInput>
         name="schemaConfig"
         label="schemaConfig (JSON)"
         mono
@@ -465,9 +465,7 @@ function CategoryFields({ editing }: { editing?: boolean }): React.ReactElement 
   );
 }
 
-function toFormValues(row: CategoryRow): CategoryUpdateInput {
-  // Lưu ý: bỏ qua seoTitle/seoDescription — list endpoint không trả về, nếu set
-  // null từ dialog sẽ ghi đè bản DB. Admin sửa SEO ở trang chi tiết qua ⋯.
+function toFormValues(row: NicheRow): NicheUpdateInput {
   return {
     id: row.id,
     name: row.name,

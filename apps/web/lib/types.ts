@@ -1,4 +1,4 @@
-export interface CategoryItem {
+export interface NicheItem {
   id: string;
   slug: string;
   name: string;
@@ -11,7 +11,7 @@ export interface CategoryItem {
 
 export interface ProductItem {
   id: string;
-  categoryId: string;
+  nicheId: string;
   network: string;
   name: string;
   slug?: string | null;
@@ -24,7 +24,7 @@ export interface ProductItem {
   } | null;
 }
 
-export interface CategoryDetail extends CategoryItem {
+export interface NicheDetail extends NicheItem {
   products: ProductItem[];
 }
 
@@ -34,7 +34,7 @@ export interface CategoryDetail extends CategoryItem {
  */
 export interface ProductView {
   id: string;
-  categoryId: string;
+  nicheId: string;
   network: string;
   name: string;
   slug?: string;
@@ -42,6 +42,7 @@ export interface ProductView {
   store?: string;
   image?: string;
   description?: string;
+  /** AT raw category string, free text. KHÔNG phải Niche. */
   category?: string;
   price?: number;
   originalPrice?: number;
@@ -65,7 +66,7 @@ export interface ArticleSummary {
   excerpt: string | null;
   type: ArticleType;
   publishedAt: string | null;
-  category: { slug: string; name: string } | null;
+  niche: { slug: string; name: string } | null;
   coverImage: string | null;
 }
 
@@ -116,7 +117,7 @@ export interface ArticleAdminDetail {
   coverImage: string | null;
   type: ArticleType;
   status: ArticleStatus;
-  categoryId: string | null;
+  nicheId: string | null;
   productIds: string[];
   pinnedProductIds: string[];
   metaTitle: string | null;
@@ -130,6 +131,6 @@ export interface ArticleAdminDetail {
   publishedAt: string | null;
   createdAt: string;
   updatedAt: string;
-  category: { id: string; slug: string; name: string } | null;
+  niche: { id: string; slug: string; name: string } | null;
   products: Array<{ id: string; name: string; slug: string | null; network: string; isPublic: boolean }>;
 }

@@ -7,7 +7,7 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-enum CategoryStatus {
+enum NicheStatus {
   ACTIVE
   INACTIVE
 }
@@ -94,7 +94,7 @@ model Campaign {
   atLastSyncedAt      DateTime?
   createdAt       DateTime            @default(now())
   updatedAt       DateTime            @updatedAt
-  assignments     CampaignCategory[]
+  assignments     CampaignNiche[]
   products        Product[]
   conversions     ConversionWebhook[]
   coupons         Coupon[]
@@ -105,13 +105,13 @@ model Campaign {
   @@index([atCampaignId])
 }
 
-/// N:N join giữa Campaign (upstream AT merchant) và Category (presentation niche).
+/// N:N join giữa Campaign (upstream AT merchant) và Niche (presentation/SEO layer).
 /// Mỗi cặp có filterRules + priority riêng. First-match-wins ở crawler: sort theo priority asc,
-/// offer pass filterRules đầu tiên → gắn vào Category của cặp đó.
-model CampaignCategory {
+/// offer pass filterRules đầu tiên → gắn vào Niche của cặp đó.
+model CampaignNiche {
   id           String   @id @default(uuid()) @db.Uuid
   campaignId   String   @db.Uuid
-  categoryId   String   @db.Uuid
+  nicheId      String   @db.Uuid
   /// Per-pair filter rules (zod `filterRulesSchema` ở dto/filter-rules.dto.ts).
   filterRules  Json     @db.JsonB
   /// Lower number = match trước. Default 100. Khi 1 offer match nhiều assignment của cùng campaign → assignment priority thấp nhất thắng.
@@ -119,11 +119,11 @@ model CampaignCategory {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
   campaign     Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
-  category     Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  niche        Niche    @relation(fields: [nicheId], references: [id], onDelete: Cascade)
 
-  @@unique([campaignId, categoryId])
+  @@unique([campaignId, nicheId])
   @@index([campaignId, priority])
-  @@index([categoryId])
+  @@index([nicheId])
 }
 
 model Coupon {
@@ -134,7 +134,7 @@ model Coupon {
   discountAmount  Decimal?        @db.Decimal(10, 2)
   network         AffiliateNetwork?
   productId       String?         @db.Uuid
-  categoryId      String?         @db.Uuid
+  nicheId         String?         @db.Uuid
   campaignId      String?         @db.Uuid
   affiliateUrl    String?
   startsAt        DateTime?
@@ -159,36 +159,36 @@ model Coupon {
   createdAt       DateTime        @default(now())
   updatedAt       DateTime        @updatedAt
   product         Product?        @relation(fields: [productId], references: [id], onDelete: SetNull)
-  category        Category?       @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  niche           Niche?          @relation(fields: [nicheId], references: [id], onDelete: SetNull)
   campaign        Campaign?       @relation(fields: [campaignId], references: [id], onDelete: SetNull)
 
   @@index([isActive, expiresAt])
-  @@index([categoryId, isActive])
+  @@index([nicheId, isActive])
   @@index([productId, isActive])
   @@index([merchantSlug, isActive])
   @@index([atLastSyncedAt])
   @@index([campaignId])
 }
 
-model Category {
-  id              String         @id @default(uuid()) @db.Uuid
-  slug            String         @unique
+model Niche {
+  id              String      @id @default(uuid()) @db.Uuid
+  slug            String      @unique
   name            String
-  status          CategoryStatus @default(ACTIVE)
+  status          NicheStatus @default(ACTIVE)
   schemaConfig    Json
   seoTitle        String?
   seoDescription  String?
-  createdAt       DateTime       @default(now())
-  updatedAt       DateTime       @updatedAt
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
   products        Product[]
   articles        Article[]
   coupons         Coupon[]
-  campaignAssignments CampaignCategory[]
+  campaignAssignments CampaignNiche[]
 }
 
 model Product {
   id           String     @id @default(uuid()) @db.Uuid
-  categoryId   String     @db.Uuid
+  nicheId      String     @db.Uuid
   network      AffiliateNetwork @default(ACCESSTRADE)
   campaignId   String?    @db.Uuid
   name         String
@@ -198,14 +198,14 @@ model Product {
   isPublic     Boolean    @default(true)
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
-  category     Category   @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  niche        Niche      @relation(fields: [nicheId], references: [id], onDelete: Cascade)
   campaign     Campaign?  @relation(fields: [campaignId], references: [id], onDelete: SetNull)
   clickLogs    ClickLog[]
   extractions  ProductExtraction[]
   coupons      Coupon[]
 
-  @@unique([categoryId, slug])
-  @@index([categoryId])
+  @@unique([nicheId, slug])
+  @@index([nicheId])
   @@index([campaignId])
 }
 
@@ -326,7 +326,7 @@ model Article {
   coverImage      String?
   type            ArticleType
   status          ArticleStatus @default(DRAFT)
-  categoryId      String?       @db.Uuid
+  nicheId         String?       @db.Uuid
   productIds      String[]      @db.Uuid
   pinnedProductIds String[]     @db.Uuid
   metaTitle       String?
@@ -340,10 +340,10 @@ model Article {
   publishedAt     DateTime?
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
-  category        Category?     @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  niche           Niche?        @relation(fields: [nicheId], references: [id], onDelete: SetNull)
 
   @@index([status, publishedAt])
-  @@index([categoryId, status])
+  @@index([nicheId, status])
   @@index([type, status])
   @@index([scheduledAt])
 }

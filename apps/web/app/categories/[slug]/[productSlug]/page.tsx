@@ -1,7 +1,7 @@
 import type React from "react";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { fetchCategoryBySlug } from "../../../../lib/api";
+import { fetchNicheBySlug } from "../../../../lib/api";
 import { formatMoney, normalizeProduct } from "../../../../lib/format";
 import { slugify } from "../../../../lib/slug";
 import { ProductDetailView } from "../../../../components/product-detail-view";
@@ -25,15 +25,15 @@ function findProduct(products: ProductItem[], key: string): ProductItem | undefi
 
 export async function generateMetadata({ params }: ProductPageProps): Promise<Metadata> {
   const { slug, productSlug } = await params;
-  const category = await fetchCategoryBySlug(slug);
-  const product = category ? findProduct(category.products, productSlug) : undefined;
-  if (!category || !product) {
+  const niche = await fetchNicheBySlug(slug);
+  const product = niche ? findProduct(niche.products, productSlug) : undefined;
+  if (!niche || !product) {
     return { title: "Không tìm thấy", robots: { index: false } };
   }
   const view = normalizeProduct(product);
   const priceText = view.price ? ` — ${formatMoney(view.price, view.currency)}` : "";
-  const title = `${product.name}${priceText} | ${category.name}`;
-  const description = view.description ?? `Xem giá và mua ${product.name} thuộc ${category.name}.`;
+  const title = `${product.name}${priceText} | ${niche.name}`;
+  const description = view.description ?? `Xem giá và mua ${product.name} thuộc ${niche.name}.`;
   return {
     title,
     description,
@@ -49,15 +49,15 @@ export async function generateMetadata({ params }: ProductPageProps): Promise<Me
 
 export default async function ProductDetailPage({ params }: ProductPageProps): Promise<React.ReactElement> {
   const { slug, productSlug } = await params;
-  const category = await fetchCategoryBySlug(slug);
-  const productRaw = category ? findProduct(category.products, productSlug) : undefined;
+  const niche = await fetchNicheBySlug(slug);
+  const productRaw = niche ? findProduct(niche.products, productSlug) : undefined;
 
-  if (!category || !productRaw) {
+  if (!niche || !productRaw) {
     notFound();
   }
 
-  // Sản phẩm liên quan cùng category (top 6 theo discount), loại bỏ chính nó
-  const related = category.products
+  // Sản phẩm liên quan cùng niche (top 6 theo discount), loại bỏ chính nó
+  const related = niche.products
     .filter((p) => p.id !== productRaw.id)
     .map((p) => ({ raw: p, view: normalizeProduct(p) }))
     .sort((a, b) => (b.view.discountPercent ?? 0) - (a.view.discountPercent ?? 0))
@@ -67,7 +67,7 @@ export default async function ProductDetailPage({ params }: ProductPageProps): P
     <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-10">
       <ProductDetailView
         productRaw={productRaw}
-        category={{ name: category.name, slug: category.slug }}
+        niche={{ name: niche.name, slug: niche.slug }}
         related={related.map(({ raw, view }) => ({
           id: raw.id,
           slug: raw.slug ?? null,

@@ -92,7 +92,7 @@ Pull danh sách offer/sản phẩm để upsert vào `Product`. Đây là endpoi
 **Quy ước chuẩn hoá** (sau STORY-03):
 - `discountPercent`: ưu tiên `discount_rate`; fallback tính từ `(price - sale) / price` (`sale = sale_price ?? discount ?? price`).
 - `currency`: hardcode `"VND"` (Accesstrade VN chỉ trả VND).
-- `categorySlug`: KHÔNG còn `inferCategorySlug` ở client; CrawlerService set từ `Campaign.categoryId` (deterministic). Web-scrape (paste URL tay) vẫn dùng `inferCategorySlug` qua `WebScrapeClient`.
+- `nicheSlug`: KHÔNG còn `inferNicheSlug` ở client; CrawlerService set từ `CampaignNiche` assignment (deterministic). Web-scrape (paste URL tay) vẫn dùng `inferNicheSlug` qua `WebScrapeClient`.
 
 **Gotcha quan trọng**:
 - Endpoint trả **mọi campaign đã duyệt** của publisher (khi không truyền `campaign`). Per-merchant mode: pull `?campaign=<merchantSlug>` 1 lần/merchant rồi route client-side về Campaign bằng `offer.campaign === campaign.name`.

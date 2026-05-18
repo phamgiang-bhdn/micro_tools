@@ -19,7 +19,7 @@ interface AnalyticsOverview {
   conversionRate: number;
   revenue: string;
   topProducts: Array<{ productId: string; name: string; network: string | null; clicks: number }>;
-  productCountByCategory: Array<{ categoryId: string; name: string; slug: string; count: number }>;
+  productCountByNiche: Array<{ nicheId: string; name: string; slug: string; count: number }>;
   networkBreakdown: Array<{ network: string; revenue: string; count: number }>;
 }
 
@@ -150,15 +150,15 @@ export default async function AnalyticsPage({ searchParams }: AnalyticsPageProps
         </SectionCard>
 
         <div className="lg:col-span-2">
-          <SectionCard title="Số sản phẩm public theo danh mục">
-            {data.productCountByCategory.length === 0 ? (
+          <SectionCard title="Số sản phẩm public theo niche">
+            {data.productCountByNiche.length === 0 ? (
               <AdminEmptyState title="Chưa có sản phẩm public" />
             ) : (
               <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                {data.productCountByCategory.map((c) => (
+                {data.productCountByNiche.map((c) => (
                   <Link
-                    key={c.categoryId}
-                    href={`/admin/products?categoryId=${c.categoryId}`}
+                    key={c.nicheId}
+                    href={`/admin/products?nicheId=${c.nicheId}`}
                     className="flex items-center justify-between rounded-lg border border-admin-line bg-admin-surface p-3 transition hover:border-admin-accent hover:bg-admin-accent-soft"
                   >
                     <span className="line-clamp-1 font-medium text-admin-ink">{c.name}</span>

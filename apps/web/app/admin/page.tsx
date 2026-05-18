@@ -337,7 +337,7 @@ function WarRoom({
         <SectionCard title="Tác vụ nhanh" eyebrow="Lối tắt">
           <div className="space-y-2 text-sm">
             <ShortcutLink href="/admin?tab=refinery" label="Mở Duyệt sản phẩm" icon="📋" />
-            <ShortcutLink href="/admin/categories" label="Quản lý danh mục" icon="🗂" />
+            <ShortcutLink href="/admin/niches" label="Quản lý Niche" icon="🗂" />
             <ShortcutLink href="/admin/products" label="Quản lý sản phẩm" icon="📦" />
             <ShortcutLink href="/admin/articles" label="Quản lý bài viết" icon="📰" />
             <ShortcutLink href="/admin/coupons" label="Mã giảm giá" icon="🎟" />
@@ -370,8 +370,8 @@ function CrawlerConsole(): React.ReactElement {
         <form action={ingestUrlAction} className="space-y-3">
           <TextField label="URL sản phẩm" name="url" required placeholder="https://shopee.vn/..." />
           <TextField
-            label="Slug danh mục"
-            name="categorySlug"
+            label="Slug niche"
+            name="nicheSlug"
             required
             mono
             placeholder="robot-hut-bui-lau-nha"

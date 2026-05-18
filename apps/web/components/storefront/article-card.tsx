@@ -14,8 +14,8 @@ function ArticleMeta({ article }: { article: ArticleSummary }): React.ReactEleme
   const dateStr = article.publishedAt ? dateFmt.format(new Date(article.publishedAt)) : "";
   return (
     <div className="flex flex-wrap items-center gap-2 text-[11px] font-medium uppercase tracking-wider text-ink-mute">
-      {article.category ? <span>{article.category.name}</span> : null}
-      {article.category && dateStr ? <span aria-hidden>·</span> : null}
+      {article.niche ? <span>{article.niche.name}</span> : null}
+      {article.niche && dateStr ? <span aria-hidden>·</span> : null}
       {dateStr ? <span>{dateStr}</span> : null}
     </div>
   );

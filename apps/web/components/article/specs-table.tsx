@@ -3,7 +3,7 @@ import type { ProductItem } from "../../lib/types";
 
 interface Props {
   product: ProductItem;
-  /** Schema config của category (Category.schemaConfig) — quyết định field nào hiển thị. */
+  /** Schema config của niche (Niche.schemaConfig) — quyết định field nào hiển thị. */
   schemaConfig?: Record<string, unknown>;
 }
 

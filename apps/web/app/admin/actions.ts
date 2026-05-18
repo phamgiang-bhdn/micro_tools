@@ -74,7 +74,7 @@ export async function savePromptAction(formData: FormData): Promise<void> {
 export async function generateArticleAction(formData: FormData): Promise<void> {
   const type = String(formData.get("type") ?? "BUYING_GUIDE");
   const topic = String(formData.get("topic") ?? "").trim();
-  const categoryId = String(formData.get("categoryId") ?? "") || undefined;
+  const nicheId = String(formData.get("nicheId") ?? "") || undefined;
   const pinnedProductIdsRaw = formData.getAll("pinnedProductIds");
   const pinnedProductIds = pinnedProductIdsRaw.map((v) => String(v)).filter(Boolean);
   const productRef = String(formData.get("productRef") ?? "").trim() || undefined;
@@ -82,8 +82,8 @@ export async function generateArticleAction(formData: FormData): Promise<void> {
   if (!topic || topic.length < 5) {
     throw new Error("Vui lòng nhập chủ đề (≥ 5 ký tự).");
   }
-  if (type === "BUYING_GUIDE" && !categoryId) {
-    throw new Error("Cẩm nang chọn mua cần chọn 1 danh mục.");
+  if (type === "BUYING_GUIDE" && !nicheId) {
+    throw new Error("Cẩm nang chọn mua cần chọn 1 niche.");
   }
   if (type === "REVIEW" && !productRef) {
     throw new Error("Review cần nhập tên / slug / URL sản phẩm.");
@@ -92,7 +92,7 @@ export async function generateArticleAction(formData: FormData): Promise<void> {
   const created = (await adminFetch<{ id: string }>("/admin/articles/generate", "POST", {
     type,
     topic,
-    categoryId,
+    nicheId,
     pinnedProductIds,
     productRef
   }));
@@ -114,8 +114,8 @@ export async function updateArticleAction(formData: FormData): Promise<void> {
     metaDescription: String(formData.get("metaDescription") ?? ""),
     productIds: productIdsRaw.map((v) => String(v)).filter(Boolean)
   };
-  const categoryIdRaw = String(formData.get("categoryId") ?? "");
-  if (categoryIdRaw) body.categoryId = categoryIdRaw;
+  const nicheIdRaw = String(formData.get("nicheId") ?? "");
+  if (nicheIdRaw) body.nicheId = nicheIdRaw;
 
   await adminFetch(`/admin/articles/${id}`, "PUT", body);
   revalidatePath(`/admin/articles/${id}`);
@@ -148,7 +148,7 @@ export interface CrawlerAssignmentBreakdown {
   campaignId: string;
   campaignName: string;
   merchantSlug: string;
-  categorySlug: string;
+  nicheSlug: string;
   fetched: number;
   routed: number;
   failedFilter: number;
@@ -203,16 +203,16 @@ export async function getCrawlerProgressAction(): Promise<CrawlerProgress> {
 
 export async function ingestUrlAction(formData: FormData): Promise<void> {
   const url = String(formData.get("url") ?? "").trim();
-  const categorySlug = String(formData.get("categorySlug") ?? "").trim();
+  const nicheSlug = String(formData.get("nicheSlug") ?? "").trim();
   const affiliateUrl = String(formData.get("affiliateUrl") ?? "").trim() || undefined;
-  if (!url || !categorySlug) throw new Error("Vui lòng nhập URL và slug danh mục.");
-  await post("/admin/crawler/ingest", { url, categorySlug, affiliateUrl });
+  if (!url || !nicheSlug) throw new Error("Vui lòng nhập URL và slug niche.");
+  await post("/admin/crawler/ingest", { url, nicheSlug, affiliateUrl });
   revalidatePath("/admin");
 }
 
 // ───────── Categories ─────────
 
-export async function createCategoryAction(formData: FormData): Promise<void> {
+export async function createNicheAction(formData: FormData): Promise<void> {
   const name = String(formData.get("name") ?? "").trim();
   const slug = String(formData.get("slug") ?? "").trim();
   const schemaConfigRaw = String(formData.get("schemaConfig") ?? "{}").trim();
@@ -223,13 +223,13 @@ export async function createCategoryAction(formData: FormData): Promise<void> {
   } catch {
     throw new Error("schemaConfig phải là JSON hợp lệ.");
   }
-  await post("/admin/categories", { name, slug, schemaConfig });
-  revalidatePath("/admin/categories");
+  await post("/admin/niches", { name, slug, schemaConfig });
+  revalidatePath("/admin/niches");
 }
 
-export async function updateCategoryAction(formData: FormData): Promise<void> {
+export async function updateNicheAction(formData: FormData): Promise<void> {
   const id = String(formData.get("id") ?? "");
-  if (!id) throw new Error("Thiếu id danh mục.");
+  if (!id) throw new Error("Thiếu id niche.");
   const body: Record<string, unknown> = {};
   if (formData.has("name")) body.name = String(formData.get("name") ?? "").trim();
   if (formData.has("slug")) body.slug = String(formData.get("slug") ?? "").trim();
@@ -248,15 +248,15 @@ export async function updateCategoryAction(formData: FormData): Promise<void> {
       throw new Error("schemaConfig phải là JSON hợp lệ.");
     }
   }
-  await adminFetch(`/admin/categories/${id}`, "PUT", body);
-  revalidatePath("/admin/categories");
+  await adminFetch(`/admin/niches/${id}`, "PUT", body);
+  revalidatePath("/admin/niches");
 }
 
-export async function deleteCategoryAction(formData: FormData): Promise<void> {
+export async function deleteNicheAction(formData: FormData): Promise<void> {
   const id = String(formData.get("id") ?? "");
-  if (!id) throw new Error("Thiếu id danh mục.");
-  await adminFetch(`/admin/categories/${id}`, "DELETE");
-  revalidatePath("/admin/categories");
+  if (!id) throw new Error("Thiếu id niche.");
+  await adminFetch(`/admin/niches/${id}`, "DELETE");
+  revalidatePath("/admin/niches");
 }
 
 // ───────── Products (admin manual) ─────────
@@ -264,14 +264,14 @@ export async function deleteCategoryAction(formData: FormData): Promise<void> {
 export async function createProductAction(formData: FormData): Promise<void> {
   const name = String(formData.get("name") ?? "").trim();
   const affiliateUrl = String(formData.get("affiliateUrl") ?? "").trim();
-  const categoryId = String(formData.get("categoryId") ?? "").trim();
+  const nicheId = String(formData.get("nicheId") ?? "").trim();
   const network = String(formData.get("network") ?? "").trim();
   const isPublic = String(formData.get("isPublic") ?? "") === "on";
   const scrapedDataRaw = String(formData.get("scrapedData") ?? "").trim();
-  if (!name || !affiliateUrl || !categoryId || !network) {
-    throw new Error("Tên, URL affiliate, danh mục và network bắt buộc.");
+  if (!name || !affiliateUrl || !nicheId || !network) {
+    throw new Error("Tên, URL affiliate, niche và network bắt buộc.");
   }
-  const body: Record<string, unknown> = { name, affiliateUrl, categoryId, network, isPublic };
+  const body: Record<string, unknown> = { name, affiliateUrl, nicheId, network, isPublic };
   if (scrapedDataRaw) {
     try {
       body.scrapedData = JSON.parse(scrapedDataRaw);
@@ -292,11 +292,11 @@ export async function updateProductAction(formData: FormData): Promise<void> {
   const affiliateUrl = String(formData.get("affiliateUrl") ?? "").trim();
   const isPublicRaw = formData.get("isPublic");
   const scrapedDataRaw = String(formData.get("scrapedData") ?? "").trim();
-  const categoryId = String(formData.get("categoryId") ?? "").trim();
+  const nicheId = String(formData.get("nicheId") ?? "").trim();
   const network = String(formData.get("network") ?? "").trim();
   if (name) body.name = name;
   if (affiliateUrl) body.affiliateUrl = affiliateUrl;
-  if (categoryId) body.categoryId = categoryId;
+  if (nicheId) body.nicheId = nicheId;
   if (network) body.network = network;
   if (isPublicRaw !== null) body.isPublic = isPublicRaw === "on" || isPublicRaw === "true";
   if (scrapedDataRaw) {
@@ -335,7 +335,7 @@ export async function createCouponAction(formData: FormData): Promise<void> {
   const discountPercentRaw = String(formData.get("discountPercent") ?? "").trim();
   const discountPercent = discountPercentRaw ? Number(discountPercentRaw) : null;
   const network = String(formData.get("network") ?? "").trim() || null;
-  const categoryId = String(formData.get("categoryId") ?? "").trim() || null;
+  const nicheId = String(formData.get("nicheId") ?? "").trim() || null;
   const productId = String(formData.get("productId") ?? "").trim() || null;
   const expiresAtRaw = String(formData.get("expiresAt") ?? "").trim();
   const expiresAt = expiresAtRaw ? new Date(expiresAtRaw).toISOString() : null;
@@ -344,7 +344,7 @@ export async function createCouponAction(formData: FormData): Promise<void> {
     description,
     discountPercent,
     network,
-    categoryId,
+    nicheId,
     productId,
     expiresAt,
     isActive: true
@@ -360,7 +360,7 @@ export async function updateCouponAction(formData: FormData): Promise<void> {
   const description = String(formData.get("description") ?? "").trim();
   const discountPercentRaw = String(formData.get("discountPercent") ?? "").trim();
   const network = String(formData.get("network") ?? "").trim();
-  const categoryId = String(formData.get("categoryId") ?? "").trim();
+  const nicheId = String(formData.get("nicheId") ?? "").trim();
   const expiresAtRaw = String(formData.get("expiresAt") ?? "").trim();
   const isActiveRaw = formData.get("isActive");
 
@@ -370,7 +370,7 @@ export async function updateCouponAction(formData: FormData): Promise<void> {
     body.discountPercent = discountPercentRaw ? Number(discountPercentRaw) : null;
   }
   if (formData.has("network")) body.network = network || null;
-  if (formData.has("categoryId")) body.categoryId = categoryId || null;
+  if (formData.has("nicheId")) body.nicheId = nicheId || null;
   if (formData.has("expiresAt")) {
     body.expiresAt = expiresAtRaw ? new Date(expiresAtRaw).toISOString() : null;
   }
@@ -515,8 +515,8 @@ export async function syncCampaignsFromAccesstrade(): Promise<CampaignSyncResult
 }
 
 export interface AssignmentInput {
-  categoryId?: string;
-  newCategory?: { name: string; slug: string; schemaConfig: Record<string, unknown> };
+  nicheId?: string;
+  newNiche?: { name: string; slug: string; schemaConfig: Record<string, unknown> };
   filterRules: Record<string, unknown>;
   priority?: number;
 }
@@ -536,7 +536,7 @@ export async function createCampaignAssignment(
     body as unknown as Record<string, unknown>
   );
   revalidatePath("/admin/campaigns");
-  revalidatePath("/admin/categories");
+  revalidatePath("/admin/niches");
 }
 
 export async function updateCampaignAssignment(
@@ -598,14 +598,14 @@ export async function syncCouponsFromAccesstrade(): Promise<CouponSyncResult> {
 
 // ───────── Bulk admin actions (Categories / Products / Campaigns / Coupons) ─────────
 
-export async function bulkCategoryAction(formData: FormData): Promise<void> {
+export async function bulkNicheAction(formData: FormData): Promise<void> {
   const action = String(formData.get("action") ?? "");
   const ids = formData.getAll("ids").map((v) => String(v)).filter(Boolean);
   if (!action || ids.length === 0) {
-    throw new Error("Chọn ít nhất 1 danh mục và 1 hành động.");
+    throw new Error("Chọn ít nhất 1 niche và 1 hành động.");
   }
-  await post("/admin/categories/bulk", { ids, action });
-  revalidatePath("/admin/categories");
+  await post("/admin/niches/bulk", { ids, action });
+  revalidatePath("/admin/niches");
 }
 
 export async function bulkProductAction(formData: FormData): Promise<void> {
@@ -631,10 +631,10 @@ export async function bulkCampaignAction(formData: FormData): Promise<BulkCampai
     throw new Error("Chọn ít nhất 1 campaign và 1 hành động.");
   }
   const body: Record<string, unknown> = { ids, action };
-  if (action === "assign-category") {
-    const categoryId = String(formData.get("categoryId") ?? "").trim();
-    if (!categoryId) throw new Error("Chọn category trước khi gán.");
-    body.categoryId = categoryId;
+  if (action === "assign-niche") {
+    const nicheId = String(formData.get("nicheId") ?? "").trim();
+    if (!nicheId) throw new Error("Chọn niche trước khi gán.");
+    body.nicheId = nicheId;
   }
   const result = await adminFetch<BulkCampaignResult>("/admin/campaigns/bulk", "POST", body);
   revalidatePath("/admin/campaigns");

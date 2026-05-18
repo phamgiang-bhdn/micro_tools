@@ -37,10 +37,10 @@ interface ProductDetail {
   isPublic: boolean;
   affiliateUrl: string;
   scrapedData: Record<string, unknown>;
-  category: { id: string; slug: string; name: string };
+  niche: { id: string; slug: string; name: string };
 }
 
-interface CategoryLite {
+interface NicheLite {
   id: string;
   slug: string;
   name: string;
@@ -48,7 +48,7 @@ interface CategoryLite {
 
 interface EditFormProps {
   product: ProductDetail;
-  categories: CategoryLite[];
+  niches: NicheLite[];
 }
 
 // ───── Structured fields ─────
@@ -117,9 +117,9 @@ interface GroupDef {
   fields: ReadonlyArray<FieldDef>;
 }
 
-export function ProductEditForm({ product, categories }: EditFormProps): React.ReactElement {
+export function ProductEditForm({ product, niches }: EditFormProps): React.ReactElement {
   const router = useRouter();
-  const categoryOptions = categories.map((c) => ({ value: c.id, label: c.name }));
+  const nicheOptions = niches.map((c) => ({ value: c.id, label: c.name }));
 
   // Structured state: parsed scrapedData object. Submit sẽ JSON.stringify cái này.
   const [scraped, setScraped] = React.useState<Record<string, unknown>>(
@@ -136,7 +136,7 @@ export function ProductEditForm({ product, categories }: EditFormProps): React.R
     id: product.id,
     name: product.name,
     affiliateUrl: product.affiliateUrl,
-    categoryId: product.category.id,
+    nicheId: product.niche.id,
     network: product.network,
     isPublic: product.isPublic,
     scrapedData: jsonText
@@ -159,7 +159,7 @@ export function ProductEditForm({ product, categories }: EditFormProps): React.R
       fd.set("id", product.id);
       if (data.name) fd.set("name", data.name);
       if (data.affiliateUrl) fd.set("affiliateUrl", data.affiliateUrl);
-      if (data.categoryId) fd.set("categoryId", data.categoryId);
+      if (data.nicheId) fd.set("nicheId", data.nicheId);
       if (data.network) fd.set("network", data.network);
       if (data.isPublic !== undefined) fd.set("isPublic", data.isPublic ? "true" : "false");
       fd.set("scrapedData", JSON.stringify(toSend));
@@ -249,9 +249,9 @@ export function ProductEditForm({ product, categories }: EditFormProps): React.R
                     hint="Đổi URL sẽ phá tracking cũ — chỉ đổi khi merchant đổi link."
                   />
                   <ControlledSelectField<ProductUpdateInput>
-                    name="categoryId"
-                    label="Danh mục"
-                    options={categoryOptions}
+                    name="nicheId"
+                    label="Niche"
+                    options={nicheOptions}
                     required
                   />
                   <ControlledSelectField<ProductUpdateInput>
@@ -421,7 +421,7 @@ function SingleField({
 
 /**
  * Hiển thị mọi key trong scrapedData KHÔNG nằm trong FIELD_GROUPS (vd `metadata.atRaw`, `highlights[]`,
- * custom fields theo schemaConfig của Category). Read-only — chỉnh ở tab JSON nếu cần.
+ * custom fields theo schemaConfig của Niche). Read-only — chỉnh ở tab JSON nếu cần.
  */
 function ExtraFieldsCard({
   scraped

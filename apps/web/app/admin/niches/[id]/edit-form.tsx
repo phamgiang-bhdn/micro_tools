@@ -16,14 +16,14 @@ import {
   TabsContent,
   useAdminForm
 } from "../../../../components/admin/ui";
-import { CATEGORY_STATUS_OPTIONS } from "../../../../lib/admin/constants";
+import { NICHE_STATUS_OPTIONS } from "../../../../lib/admin/constants";
 import {
-  categoryUpdateSchema,
-  type CategoryUpdateInput
+  nicheUpdateSchema,
+  type NicheUpdateInput
 } from "../../../../lib/admin/schemas";
-import { updateCategoryAction } from "../../actions";
+import { updateNicheAction } from "../../actions";
 
-interface CategoryDetail {
+interface NicheDetail {
   id: string;
   slug: string;
   name: string;
@@ -34,28 +34,28 @@ interface CategoryDetail {
 }
 
 interface EditFormProps {
-  category: CategoryDetail;
+  niche: NicheDetail;
 }
 
-export function CategoryEditForm({ category }: EditFormProps): React.ReactElement {
+export function NicheEditForm({ niche }: EditFormProps): React.ReactElement {
   const router = useRouter();
 
-  const defaults: CategoryUpdateInput = {
-    id: category.id,
-    name: category.name,
-    slug: category.slug,
-    status: category.status,
-    schemaConfig: JSON.stringify(category.schemaConfig ?? {}, null, 2),
-    seoTitle: category.seoTitle,
-    seoDescription: category.seoDescription
+  const defaults: NicheUpdateInput = {
+    id: niche.id,
+    name: niche.name,
+    slug: niche.slug,
+    status: niche.status,
+    schemaConfig: JSON.stringify(niche.schemaConfig ?? {}, null, 2),
+    seoTitle: niche.seoTitle,
+    seoDescription: niche.seoDescription
   };
 
-  const { form, submit, error, isSubmitting } = useAdminForm<CategoryUpdateInput>({
-    schema: categoryUpdateSchema,
+  const { form, submit, error, isSubmitting } = useAdminForm<NicheUpdateInput>({
+    schema: nicheUpdateSchema,
     defaultValues: defaults,
     onSubmit: async (data) => {
       const fd = new FormData();
-      fd.set("id", category.id);
+      fd.set("id", niche.id);
       if (data.name) fd.set("name", data.name);
       if (data.slug) fd.set("slug", data.slug);
       if (data.status) fd.set("status", data.status);
@@ -63,7 +63,7 @@ export function CategoryEditForm({ category }: EditFormProps): React.ReactElemen
       if (data.seoTitle !== undefined) fd.set("seoTitle", data.seoTitle ?? "");
       if (data.seoDescription !== undefined)
         fd.set("seoDescription", data.seoDescription ?? "");
-      await updateCategoryAction(fd);
+      await updateNicheAction(fd);
       router.refresh();
       return { ok: true };
     }
@@ -72,7 +72,7 @@ export function CategoryEditForm({ category }: EditFormProps): React.ReactElemen
   return (
     <>
       {error ? (
-        <div className="flex items-start gap-2 rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm text-rose-800">
+        <div className="flex items-start gap-2 rounded-lg border border-admin-danger-soft bg-admin-danger-soft/40 p-3 text-sm text-admin-danger">
           <AlertTriangle className="mt-0.5 size-4 shrink-0" />
           <span>{error}</span>
         </div>
@@ -88,23 +88,23 @@ export function CategoryEditForm({ category }: EditFormProps): React.ReactElemen
 
             <TabsContent value="basic">
               <SectionCard title="Thông tin cơ bản">
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <ControlledTextField<CategoryUpdateInput>
+                <div className="admin-form-grid">
+                  <ControlledTextField<NicheUpdateInput>
                     name="name"
                     label="Tên hiển thị"
                     required
                   />
-                  <ControlledTextField<CategoryUpdateInput>
+                  <ControlledTextField<NicheUpdateInput>
                     name="slug"
                     label="Slug"
                     mono
                     required
                     hint="Đổi slug → 308 redirect cho URL cũ. Cẩn thận với SEO."
                   />
-                  <ControlledSelectField<CategoryUpdateInput>
+                  <ControlledSelectField<NicheUpdateInput>
                     name="status"
                     label="Trạng thái"
-                    options={CATEGORY_STATUS_OPTIONS}
+                    options={NICHE_STATUS_OPTIONS}
                   />
                 </div>
               </SectionCard>
@@ -116,14 +116,14 @@ export function CategoryEditForm({ category }: EditFormProps): React.ReactElemen
                 description="Hiển thị trên Google search + OG card khi share. Để trống = dùng giá trị mặc định."
               >
                 <div className="grid gap-3">
-                  <ControlledTextField<CategoryUpdateInput>
+                  <ControlledTextField<NicheUpdateInput>
                     name="seoTitle"
                     label="SEO title"
                     placeholder="Top robot hút bụi lau nhà 2026 — so sánh chi tiết"
                     maxLength={180}
                     hint="≤ 180 ký tự. Google cắt ~60 ký tự."
                   />
-                  <ControlledTextareaField<CategoryUpdateInput>
+                  <ControlledTextareaField<NicheUpdateInput>
                     name="seoDescription"
                     label="SEO description"
                     placeholder="Cẩm nang chọn robot 2026 — phân tích, so sánh, deal tốt nhất..."
@@ -140,7 +140,7 @@ export function CategoryEditForm({ category }: EditFormProps): React.ReactElemen
                 title="schemaConfig (JSON)"
                 description="Định nghĩa các field AI sẽ bóc tách cho sản phẩm trong niche này. Sửa chỉ ảnh hưởng sản phẩm mới — sản phẩm cũ giữ scrapedData hiện tại."
               >
-                <ControlledTextareaField<CategoryUpdateInput>
+                <ControlledTextareaField<NicheUpdateInput>
                   name="schemaConfig"
                   label=""
                   mono

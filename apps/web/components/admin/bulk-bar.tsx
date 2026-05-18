@@ -21,7 +21,7 @@ interface BulkBarProps {
   pending: boolean;
   /** Slot bên phải — thường là nút "Tạo mới" hoặc tương tự. */
   rightSlot?: React.ReactNode;
-  /** Slot phụ giữa select + nút (vd: secondary select cho action `assign-category`). */
+  /** Slot phụ giữa select + nút (vd: secondary select cho action `assign-niche`). */
   extraSlot?: React.ReactNode;
 }
 

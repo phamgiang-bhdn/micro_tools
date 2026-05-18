@@ -54,7 +54,7 @@ import {
   publishArticleAction
 } from "../actions";
 
-export interface CategoryWithProducts {
+export interface NicheWithProducts {
   id: string;
   slug: string;
   name: string;
@@ -63,7 +63,7 @@ export interface CategoryWithProducts {
 
 interface ArticlesTableProps {
   rows: ArticleAdminSummary[];
-  categories: CategoryWithProducts[];
+  niches: NicheWithProducts[];
 }
 
 const dateFmt = new Intl.DateTimeFormat("vi-VN", {
@@ -88,14 +88,14 @@ const BULK_ACTIONS: BulkAction[] = [
 const EMPTY_GENERATE: ArticleGenerateInput = {
   type: "BUYING_GUIDE",
   topic: "",
-  categoryId: undefined,
+  nicheId: undefined,
   productRef: undefined,
   pinnedProductIds: []
 };
 
 export function ArticlesTable({
   rows,
-  categories
+  niches
 }: ArticlesTableProps): React.ReactElement {
   const router = useRouter();
   const [createOpen, setCreateOpen] = React.useState(false);
@@ -141,7 +141,7 @@ export function ArticlesTable({
     const fd = new FormData();
     fd.set("type", data.type);
     fd.set("topic", data.topic);
-    if (data.categoryId) fd.set("categoryId", data.categoryId);
+    if (data.nicheId) fd.set("nicheId", data.nicheId);
     if (data.productRef) fd.set("productRef", data.productRef);
     for (const id of data.pinnedProductIds) fd.append("pinnedProductIds", id);
     // generateArticleAction redirects → trang sẽ tự navigate. Dialog không cần đóng tay.
@@ -186,10 +186,10 @@ export function ArticlesTable({
       cell: (a) => <span className="text-xs text-admin-mute">{ARTICLE_TYPE_META[a.type].label}</span>
     },
     {
-      key: "category",
-      header: "Danh mục",
+      key: "niche",
+      header: "Niche",
       hideOnMobile: true,
-      cell: (a) => <span className="text-xs text-admin-mute">{a.category?.name ?? "—"}</span>
+      cell: (a) => <span className="text-xs text-admin-mute">{a.niche?.name ?? "—"}</span>
     },
     {
       key: "status",
@@ -246,7 +246,7 @@ export function ArticlesTable({
         <GenerateDialog
           open={createOpen}
           onOpenChange={setCreateOpen}
-          categories={categories}
+          niches={niches}
           onSubmit={handleGenerate}
         />
       </>
@@ -281,7 +281,7 @@ export function ArticlesTable({
       <GenerateDialog
         open={createOpen}
         onOpenChange={setCreateOpen}
-        categories={categories}
+        niches={niches}
         onSubmit={handleGenerate}
       />
     </>
@@ -343,19 +343,19 @@ function buildMoreActions(
 interface GenerateDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  categories: CategoryWithProducts[];
+  niches: NicheWithProducts[];
   onSubmit: (data: ArticleGenerateInput) => Promise<{ ok: boolean }>;
 }
 
 function GenerateDialog({
   open,
   onOpenChange,
-  categories,
+  niches,
   onSubmit
 }: GenerateDialogProps): React.ReactElement {
-  const categoryOptions = React.useMemo(
-    () => categories.map((c) => ({ value: c.id, label: c.name })),
-    [categories]
+  const nicheOptions = React.useMemo(
+    () => niches.map((c) => ({ value: c.id, label: c.name })),
+    [niches]
   );
 
   return (
@@ -387,22 +387,22 @@ function GenerateDialog({
         placeholder="Robot hút bụi cho căn hộ có thú cưng"
         hint="Mô tả góc nhìn của bài để AI viết đúng tone."
       />
-      <CategoryProductFields categories={categories} categoryOptions={categoryOptions} />
+      <NicheProductFields niches={niches} nicheOptions={nicheOptions} />
       <Tooltip content="Pin tối đa 5 sản phẩm để AI ưu tiên đưa vào shortlist (chỉ với Cẩm nang).">
         <p className="sm:col-span-2 text-[11px] text-admin-mute">
-          💡 Nếu chọn danh mục cho Cẩm nang, bạn có thể pin sản phẩm cụ thể ở trang chi tiết sau khi sinh.
+          💡 Nếu chọn niche cho Cẩm nang, bạn có thể pin sản phẩm cụ thể ở trang chi tiết sau khi sinh.
         </p>
       </Tooltip>
     </FormDialog>
   );
 }
 
-function CategoryProductFields({
-  categories,
-  categoryOptions
+function NicheProductFields({
+  niches,
+  nicheOptions
 }: {
-  categories: CategoryWithProducts[];
-  categoryOptions: Array<{ value: string; label: string }>;
+  niches: NicheWithProducts[];
+  nicheOptions: Array<{ value: string; label: string }>;
 }): React.ReactElement {
   // useFormContext sẵn có vì wrapper FormProvider trong FormDialog.
   const { watch } = useFormContext<ArticleGenerateInput>();
@@ -410,9 +410,9 @@ function CategoryProductFields({
   return (
     <>
       <ControlledSelectField<ArticleGenerateInput>
-        name="categoryId"
-        label={`Danh mục ${type === "BUYING_GUIDE" ? "(bắt buộc)" : "(tuỳ chọn)"}`}
-        options={categoryOptions}
+        name="nicheId"
+        label={`Niche ${type === "BUYING_GUIDE" ? "(bắt buộc)" : "(tuỳ chọn)"}`}
+        options={nicheOptions}
         allowEmpty
         emptyLabel="— Không gắn —"
         fullRow={type === "REVIEW"}

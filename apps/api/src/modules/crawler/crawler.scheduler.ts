@@ -7,8 +7,8 @@ import { CrawlerService } from "./crawler.service";
  * Cron tick mặc định mỗi 6 tiếng. Đổi qua env CRAWLER_CRON (cron expression).
  * Tắt qua CRAWLER_ENABLED=false.
  *
- * Sau campaign↔category N:N refactor: cycle chạy per-campaign — chỉ Campaign status=APPROVED + atCampaignId + ≥1
- * assignment (CampaignCategory) mới được pull. Onboard niche mới = sync /v1/campaigns → admin assign 1+ category
+ * Sau campaign↔niche N:N refactor: cycle chạy per-campaign — chỉ Campaign status=APPROVED + atCampaignId + ≥1
+ * assignment (CampaignNiche) mới được pull. Onboard niche mới = sync /v1/campaigns → admin assign 1+ niche
  * trong /admin/campaigns (mỗi cặp có filterRules + priority riêng, first-match-wins).
  */
 @Injectable()

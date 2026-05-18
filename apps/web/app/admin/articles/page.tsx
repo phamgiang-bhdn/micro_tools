@@ -5,14 +5,14 @@ import {
   FilterPills,
   ListPageShell
 } from "../../../components/admin/ui";
-import { fetchCategories, fetchCategoryBySlug } from "../../../lib/api";
+import { fetchNiches, fetchNicheBySlug } from "../../../lib/api";
 import {
   ARTICLE_STATUS_OPTIONS,
   ARTICLE_TYPE_OPTIONS,
   ADMIN_PARAMS
 } from "../../../lib/admin/constants";
 import type { ArticleAdminSummary } from "../../../lib/types";
-import { ArticlesTable, type CategoryWithProducts } from "./articles-table";
+import { ArticlesTable, type NicheWithProducts } from "./articles-table";
 
 export const dynamic = "force-dynamic";
 
@@ -29,12 +29,12 @@ export default async function AdminArticlesPage({
   if (type) params.set(ADMIN_PARAMS.type, type);
   const qs = params.toString();
 
-  const [articles, { categories: catList }] = await Promise.all([
+  const [articles, { niches: nicheList }] = await Promise.all([
     adminGet<ArticleAdminSummary[]>(`/admin/articles${qs ? `?${qs}` : ""}`),
-    fetchCategories()
+    fetchNiches()
   ]);
-  const catDetails = await Promise.all(catList.map((c) => fetchCategoryBySlug(c.slug)));
-  const categories: CategoryWithProducts[] = catDetails
+  const nicheDetails = await Promise.all(nicheList.map((c) => fetchNicheBySlug(c.slug)));
+  const niches: NicheWithProducts[] = nicheDetails
     .filter((c): c is NonNullable<typeof c> => c !== null)
     .map((c) => ({
       id: c.id,
@@ -105,7 +105,7 @@ export default async function AdminArticlesPage({
           <FilterPills pills={typePills} />
         </div>
       }
-      table={<ArticlesTable rows={articles} categories={categories} />}
+      table={<ArticlesTable rows={articles} niches={niches} />}
     />
   );
 }

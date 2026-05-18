@@ -52,7 +52,7 @@ import {
   runCampaignCrawlerAction,
   bulkCampaignAction
 } from "../actions";
-import { ManageAssignmentsDialog, type AssignmentRow } from "./assign-category-dialog";
+import { ManageAssignmentsDialog, type AssignmentRow } from "./assign-niche-dialog";
 
 export interface CampaignRow {
   id: string;
@@ -82,7 +82,7 @@ export interface CampaignRow {
   _count: { products: number; conversions: number };
 }
 
-interface CategorySummary {
+interface NicheSummary {
   id: string;
   name: string;
   slug: string;
@@ -92,7 +92,7 @@ interface CampaignsTableProps {
   rows: CampaignRow[];
   filteredCount: number;
   totalCount: number;
-  categories: CategorySummary[];
+  niches: NicheSummary[];
 }
 
 const EMPTY_CREATE: CampaignCreateInput = {
@@ -110,7 +110,7 @@ const BULK_ACTIONS: BulkAction[] = [
   { value: "status:PAUSED", label: "→ PAUSED", confirm: "Tạm dừng các campaign?" },
   { value: "status:REJECTED", label: "→ REJECTED", confirm: "Đánh dấu REJECTED?" },
   { value: "status:INACTIVE", label: "→ INACTIVE", confirm: "Vô hiệu hoá?" },
-  { value: "assign-category", label: "Gán Category…", confirm: "" }
+  { value: "assign-niche", label: "Gán Niche…", confirm: "" }
 ];
 
 const dateFmt = new Intl.DateTimeFormat("vi-VN", {
@@ -125,7 +125,7 @@ export function CampaignsTable({
   rows,
   filteredCount,
   totalCount,
-  categories
+  niches
 }: CampaignsTableProps): React.ReactElement {
   const router = useRouter();
   const [createOpen, setCreateOpen] = React.useState(false);
@@ -134,7 +134,7 @@ export function CampaignsTable({
   const [viewing, setViewing] = React.useState<CampaignRow | null>(null);
   const { selected, toggleOne, toggleAll, clear, allSelected } = useRowSelection(rows);
   const [bulkAction, setBulkAction] = React.useState<string>("");
-  const [bulkCategoryId, setBulkCategoryId] = React.useState<string>("");
+  const [bulkNicheId, setBulkNicheId] = React.useState<string>("");
   const [bulkPending, setBulkPending] = React.useState(false);
 
   const handleCreate = async (data: CampaignCreateInput) => {
@@ -193,8 +193,8 @@ export function CampaignsTable({
 
   const handleBulk = async () => {
     if (!bulkAction || selected.size === 0) return;
-    if (bulkAction === "assign-category" && !bulkCategoryId) {
-      window.alert("Chọn category trước khi gán.");
+    if (bulkAction === "assign-niche" && !bulkNicheId) {
+      window.alert("Chọn niche trước khi gán.");
       return;
     }
     const cfg = BULK_ACTIONS.find((b) => b.value === bulkAction);
@@ -202,18 +202,18 @@ export function CampaignsTable({
     if (msg && !window.confirm(msg)) return;
     const fd = new FormData();
     fd.set("action", bulkAction);
-    if (bulkAction === "assign-category") fd.set("categoryId", bulkCategoryId);
+    if (bulkAction === "assign-niche") fd.set("nicheId", bulkNicheId);
     for (const id of selected) fd.append("ids", id);
     setBulkPending(true);
     try {
       const result = await bulkCampaignAction(fd);
       clear();
       setBulkAction("");
-      setBulkCategoryId("");
+      setBulkNicheId("");
       router.refresh();
-      if (result && bulkAction === "assign-category" && (result.skipped ?? 0) > 0) {
+      if (result && bulkAction === "assign-niche" && (result.skipped ?? 0) > 0) {
         window.alert(
-          `Gán ${result.count} campaign. ${result.skipped} campaign đã có assignment với category này — skipped.`
+          `Gán ${result.count} campaign. ${result.skipped} campaign đã có assignment với niche này — skipped.`
         );
       }
     } finally {
@@ -285,7 +285,7 @@ export function CampaignsTable({
       )
     },
     {
-      key: "category",
+      key: "niche",
       header: "Niche",
       hideOnMobile: true,
       cell: (c) => {
@@ -297,15 +297,15 @@ export function CampaignsTable({
         return (
           <div
             className="text-sm"
-            title={c.assignments.map((a) => `[p${a.priority}] ${a.category.name}`).join(", ")}
+            title={c.assignments.map((a) => `[p${a.priority}] ${a.niche.name}`).join(", ")}
           >
             <div className="text-admin-ink">
-              {first.category.name}
+              {first.niche.name}
               {restCount > 0 ? (
                 <span className="ml-1 text-admin-mute">+{restCount}</span>
               ) : null}
             </div>
-            <div className="font-mono text-[11px] text-admin-mute">{first.category.slug}</div>
+            <div className="font-mono text-[11px] text-admin-mute">{first.niche.slug}</div>
           </div>
         );
       }
@@ -401,19 +401,19 @@ export function CampaignsTable({
           action={bulkAction}
           setAction={(v) => {
             setBulkAction(v);
-            if (v !== "assign-category") setBulkCategoryId("");
+            if (v !== "assign-niche") setBulkNicheId("");
           }}
           onApply={handleBulk}
           pending={bulkPending}
           extraSlot={
-            bulkAction === "assign-category" ? (
+            bulkAction === "assign-niche" ? (
               <select
-                value={bulkCategoryId}
-                onChange={(e) => setBulkCategoryId(e.target.value)}
+                value={bulkNicheId}
+                onChange={(e) => setBulkNicheId(e.target.value)}
                 className="h-8 rounded-md border border-admin-line bg-admin-surface px-2 pr-7 text-xs text-admin-ink"
               >
-                <option value="">— Chọn category —</option>
-                {categories.map((c) => (
+                <option value="">— Chọn niche —</option>
+                {niches.map((c) => (
                   <option key={c.id} value={c.id}>
                     {c.name}
                   </option>
@@ -481,7 +481,7 @@ export function CampaignsTable({
             atCampaignId: assigning.atCampaignId,
             assignments: assigning.assignments
           }}
-          categories={categories}
+          niches={niches}
         />
       ) : null}
 
@@ -621,9 +621,9 @@ export function CampaignsTable({
                             <span className="mr-2 inline-flex h-5 min-w-[1.5rem] items-center justify-center rounded-full bg-admin-surface px-1.5 font-mono text-[10px] text-admin-mute">
                               p{a.priority}
                             </span>
-                            {a.category.name}
+                            {a.niche.name}
                             <span className="ml-1 font-mono text-[11px] text-admin-mute">
-                              ({a.category.slug})
+                              ({a.niche.slug})
                             </span>
                           </div>
                           <span className="text-[11px] text-admin-mute">
@@ -712,7 +712,7 @@ function CampaignFields({ editing }: { editing?: boolean }): React.ReactElement 
       <ControlledTextField<CampaignCreateInput>
         name="commissionNote"
         label="Ghi chú hoa hồng"
-        placeholder="2–8% theo category, cookie 1d"
+        placeholder="2–8% theo niche, cookie 1d"
       />
       {editing ? (
         <>

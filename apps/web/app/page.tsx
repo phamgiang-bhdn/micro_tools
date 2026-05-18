@@ -1,6 +1,6 @@
 import type React from "react";
 import Link from "next/link";
-import { fetchAllProductsFlat, fetchCategories, fetchTopProducts } from "../lib/api";
+import { fetchAllProductsFlat, fetchNiches, fetchTopProducts } from "../lib/api";
 import { EmptyState } from "../components/ui/empty-state";
 import { Button } from "../components/ui/button";
 import { Icon } from "../components/ui/icon";
@@ -24,17 +24,17 @@ const CODE_KBD = "rounded bg-white px-1.5 py-0.5 font-mono text-[12px] text-ink 
 
 export default async function HomePage({ searchParams }: HomeProps): Promise<React.ReactElement> {
   const { category: activeSlug, sort = "top", q = "" } = await searchParams;
-  const [{ categories, loadError }, topProducts] = await Promise.all([
-    fetchCategories(),
+  const [{ niches, loadError }, topProducts] = await Promise.all([
+    fetchNiches(),
     fetchTopProducts(12)
   ]);
-  const allProducts = loadError ? [] : await fetchAllProductsFlat(categories);
+  const allProducts = loadError ? [] : await fetchAllProductsFlat(niches);
 
   const query = q.trim().toLowerCase();
-  let filtered = activeSlug ? allProducts.filter((p) => p.categorySlug === activeSlug) : allProducts;
+  let filtered = activeSlug ? allProducts.filter((p) => p.nicheSlug === activeSlug) : allProducts;
   if (query.length > 0) {
     filtered = filtered.filter((p) =>
-      [p.name, p.brand, p.store, p.categoryName]
+      [p.name, p.brand, p.store, p.nicheName]
         .filter((s): s is string => Boolean(s))
         .some((field) => field.toLowerCase().includes(query))
     );
@@ -50,10 +50,10 @@ export default async function HomePage({ searchParams }: HomeProps): Promise<Rea
     return sum;
   }, 0);
 
-  const activeCategory = activeSlug ? categories.find((c) => c.slug === activeSlug) : undefined;
-  const listingTitle = activeCategory?.name ?? (query ? "Kết quả tìm kiếm" : "Deal hôm nay");
-  const listingDescription = activeCategory
-    ? `${sorted.length} sản phẩm thuộc ${activeCategory.name}, sắp theo mức giảm cao nhất.`
+  const activeNiche = activeSlug ? niches.find((c) => c.slug === activeSlug) : undefined;
+  const listingTitle = activeNiche?.name ?? (query ? "Kết quả tìm kiếm" : "Deal hôm nay");
+  const listingDescription = activeNiche
+    ? `${sorted.length} sản phẩm thuộc ${activeNiche.name}, sắp theo mức giảm cao nhất.`
     : query
       ? `${sorted.length} sản phẩm khớp từ khoá của bạn.`
       : `Tổng hợp ${sorted.length} deal đang sống, ưu tiên mức giảm cao.`;
@@ -91,7 +91,7 @@ export default async function HomePage({ searchParams }: HomeProps): Promise<Rea
         stats={
           <StatGrid cols={4}>
             <Stat label="Deal đang sống" value={formatNumber(allProducts.length)} />
-            <Stat label="Danh mục" value={String(categories.length)} />
+            <Stat label="Danh mục" value={String(niches.length)} />
             <Stat
               label="Giảm sâu nhất"
               value={biggestDiscount ? `-${biggestDiscount}%` : "—"}
@@ -145,7 +145,7 @@ export default async function HomePage({ searchParams }: HomeProps): Promise<Rea
           />
         ) : null}
 
-        {categories.length > 0 ? (
+        {niches.length > 0 ? (
           <div
             id="listing"
             className="sticky top-16 z-30 -mx-4 mb-6 border-b border-line bg-canvas/85 px-4 py-3 backdrop-blur-md sm:-mx-6 sm:px-6"
@@ -160,13 +160,13 @@ export default async function HomePage({ searchParams }: HomeProps): Promise<Rea
                 label="Tất cả"
                 count={allProducts.length}
               />
-              {categories.map((category) => (
+              {niches.map((niche) => (
                 <FilterChip
-                  key={category.id}
-                  href={buildHref({ category: category.slug, sort, q })}
-                  active={activeSlug === category.slug}
-                  label={category.name}
-                  count={category._count?.products ?? 0}
+                  key={niche.id}
+                  href={buildHref({ category: niche.slug, sort, q })}
+                  active={activeSlug === niche.slug}
+                  label={niche.name}
+                  count={niche._count?.products ?? 0}
                 />
               ))}
             </FilterChipRow>

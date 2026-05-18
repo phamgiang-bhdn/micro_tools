@@ -20,13 +20,13 @@ interface ExtractionResponse {
   aiOutput: Record<string, unknown> | null;
   product: {
     id: string;
-    categoryId: string;
+    nicheId: string;
     network: string;
     name: string;
     slug: string | null;
     affiliateUrl: string;
     scrapedData: Record<string, unknown>;
-    category: { name: string; slug: string };
+    niche: { name: string; slug: string };
   };
 }
 
@@ -65,7 +65,7 @@ export default async function ExtractionPreviewPage({
 
   const productRaw: ProductItem = {
     id: extraction.product.id,
-    categoryId: extraction.product.categoryId,
+    nicheId: extraction.product.nicheId,
     network: extraction.product.network,
     name: extraction.product.name,
     slug: extraction.product.slug,
@@ -77,7 +77,7 @@ export default async function ExtractionPreviewPage({
     <div className="mx-auto max-w-5xl">
       <ProductDetailView
         productRaw={productRaw}
-        category={extraction.product.category}
+        niche={extraction.product.niche}
         previewMode
       />
     </div>

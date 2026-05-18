@@ -22,10 +22,10 @@ interface ProductDetail {
   isPublic: boolean;
   affiliateUrl: string;
   scrapedData: Record<string, unknown>;
-  category: { id: string; slug: string; name: string };
+  niche: { id: string; slug: string; name: string };
 }
 
-interface CategoryLite {
+interface NicheLite {
   id: string;
   slug: string;
   name: string;
@@ -46,9 +46,9 @@ export default async function ProductEditPage({
   params: Promise<{ id: string }>;
 }): Promise<React.ReactElement> {
   const { id } = await params;
-  const [product, categories] = await Promise.all([
+  const [product, niches] = await Promise.all([
     safeAdminGet<ProductDetail>(`/admin/products/${id}`),
-    adminGet<CategoryLite[]>("/admin/categories")
+    adminGet<NicheLite[]>("/admin/niches")
   ]);
   if (!product) notFound();
 
@@ -75,13 +75,13 @@ export default async function ProductEditPage({
                 Đang ẩn
               </StatusPill>
             )}
-            <span className="text-admin-mute">Danh mục: {product.category.name}</span>
+            <span className="text-admin-mute">Niche: {product.niche.name}</span>
           </span>
         }
         actions={
           product.isPublic && product.slug ? (
             <AdminLinkButton
-              href={`/categories/${product.category.slug}/${product.slug}`}
+              href={`/categories/${product.niche.slug}/${product.slug}`}
               target="_blank"
               rel="noopener noreferrer"
               variant="outline"
@@ -93,7 +93,7 @@ export default async function ProductEditPage({
           ) : null
         }
       />
-      <ProductEditForm product={product} categories={categories} />
+      <ProductEditForm product={product} niches={niches} />
     </div>
   );
 }

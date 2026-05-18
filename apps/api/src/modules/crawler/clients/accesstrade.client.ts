@@ -428,7 +428,7 @@ export class AccesstradeClient implements AffiliateClient {
       discountPercent,
       campaign: p.campaign,
       merchantName: p.merchant,
-      categorySlug: "",
+      nicheSlug: "",
       sku: p.sku,
       sourceProductId: p.product_id,
       atCategorySlug: p.cate,

@@ -1,16 +1,16 @@
 import { Controller, Get, HttpException, HttpStatus, Logger, Param } from "@nestjs/common";
 import { PrismaService } from "../../prisma/prisma.service";
 
-@Controller("categories")
-export class CategoriesController {
-  private readonly logger = new Logger(CategoriesController.name);
+@Controller("niches")
+export class NichesController {
+  private readonly logger = new Logger(NichesController.name);
 
   constructor(private readonly prisma: PrismaService) {}
 
   @Get()
-  async getCategories() {
+  async getNiches() {
     try {
-      return await this.prisma.category.findMany({
+      return await this.prisma.niche.findMany({
         where: { status: "ACTIVE" },
         include: {
           _count: {
@@ -20,15 +20,15 @@ export class CategoriesController {
         orderBy: { createdAt: "desc" }
       });
     } catch (error: unknown) {
-      this.logger.error("Failed to fetch categories", error instanceof Error ? error.stack : String(error));
-      throw new HttpException("Failed to fetch categories", HttpStatus.INTERNAL_SERVER_ERROR);
+      this.logger.error("Failed to fetch niches", error instanceof Error ? error.stack : String(error));
+      throw new HttpException("Failed to fetch niches", HttpStatus.INTERNAL_SERVER_ERROR);
     }
   }
 
   @Get(":slug")
-  async getCategoryBySlug(@Param("slug") slug: string) {
+  async getNicheBySlug(@Param("slug") slug: string) {
     try {
-      const category = await this.prisma.category.findUnique({
+      const niche = await this.prisma.niche.findUnique({
         where: { slug },
         include: {
           products: {
@@ -43,17 +43,17 @@ export class CategoriesController {
         }
       });
 
-      if (!category) {
-        throw new HttpException("Category not found", HttpStatus.NOT_FOUND);
+      if (!niche) {
+        throw new HttpException("Niche not found", HttpStatus.NOT_FOUND);
       }
 
-      return category;
+      return niche;
     } catch (error: unknown) {
       if (error instanceof HttpException) {
         throw error;
       }
-      this.logger.error(`Failed to fetch category by slug=${slug}`, error instanceof Error ? error.stack : String(error));
-      throw new HttpException("Failed to fetch category", HttpStatus.INTERNAL_SERVER_ERROR);
+      this.logger.error(`Failed to fetch niche by slug=${slug}`, error instanceof Error ? error.stack : String(error));
+      throw new HttpException("Failed to fetch niche", HttpStatus.INTERNAL_SERVER_ERROR);
     }
   }
 }

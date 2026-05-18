@@ -1,4 +1,4 @@
-import { ArticleDetail, ArticleSummary, CategoryDetail, CategoryItem, ProductView } from "./types";
+import { ArticleDetail, ArticleSummary, NicheDetail, NicheItem, ProductView } from "./types";
 import { normalizeProduct } from "./format";
 
 const API_BASE_URL = process.env.API_BASE_URL ?? "http://localhost:4000/api/v1";
@@ -16,47 +16,47 @@ async function safeFetch<T>(path: string): Promise<T> {
   return (await response.json()) as T;
 }
 
-export type FetchCategoriesResult = {
-  categories: CategoryItem[];
+export type FetchNichesResult = {
+  niches: NicheItem[];
   loadError: string | null;
 };
 
-export async function fetchCategories(): Promise<FetchCategoriesResult> {
+export async function fetchNiches(): Promise<FetchNichesResult> {
   try {
-    const categories = await safeFetch<CategoryItem[]>("/categories");
-    return { categories, loadError: null };
+    const niches = await safeFetch<NicheItem[]>("/niches");
+    return { niches, loadError: null };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    console.error("Failed to fetch categories:", error);
-    return { categories: [], loadError: message };
+    console.error("Failed to fetch niches:", error);
+    return { niches: [], loadError: message };
   }
 }
 
-export async function fetchCategoryBySlug(slug: string): Promise<CategoryDetail | null> {
+export async function fetchNicheBySlug(slug: string): Promise<NicheDetail | null> {
   try {
-    return await safeFetch<CategoryDetail>(`/categories/${slug}`);
+    return await safeFetch<NicheDetail>(`/niches/${slug}`);
   } catch (error) {
-    console.error(`Failed to fetch category slug=${slug}:`, error);
+    console.error(`Failed to fetch niche slug=${slug}:`, error);
     return null;
   }
 }
 
 export type FlatProduct = ProductView & {
   slug?: string | null;
-  categorySlug: string;
-  categoryName: string;
+  nicheSlug: string;
+  nicheName: string;
 };
 
 export interface FetchArticlesOptions {
   type?: "BUYING_GUIDE" | "REVIEW";
-  categorySlug?: string;
+  nicheSlug?: string;
   limit?: number;
 }
 
 export async function fetchArticles(options: FetchArticlesOptions = {}): Promise<ArticleSummary[]> {
   const params = new URLSearchParams();
   if (options.type) params.set("type", options.type);
-  if (options.categorySlug) params.set("categorySlug", options.categorySlug);
+  if (options.nicheSlug) params.set("nicheSlug", options.nicheSlug);
   if (options.limit) params.set("limit", String(options.limit));
   const qs = params.toString();
   try {
@@ -133,17 +133,17 @@ export async function fetchTopProducts(limit = 12): Promise<TopProductSnapshotIt
   }
 }
 
-export async function fetchAllProductsFlat(categories: CategoryItem[]): Promise<FlatProduct[]> {
-  if (categories.length === 0) return [];
-  const details = await Promise.all(categories.map((category) => fetchCategoryBySlug(category.slug)));
+export async function fetchAllProductsFlat(niches: NicheItem[]): Promise<FlatProduct[]> {
+  if (niches.length === 0) return [];
+  const details = await Promise.all(niches.map((niche) => fetchNicheBySlug(niche.slug)));
   return details
-    .filter((category): category is CategoryDetail => category !== null)
-    .flatMap((category) =>
-      category.products.map((product) => ({
+    .filter((niche): niche is NicheDetail => niche !== null)
+    .flatMap((niche) =>
+      niche.products.map((product) => ({
         ...normalizeProduct(product),
         slug: product.slug ?? undefined,
-        categorySlug: category.slug,
-        categoryName: category.name
+        nicheSlug: niche.slug,
+        nicheName: niche.name
       }))
     );
 }

@@ -12,7 +12,7 @@ import {
   Put,
   Query
 } from "@nestjs/common";
-import { AffiliateNetwork, ArticleStatus, ArticleType, CampaignStatus, CategoryStatus, ParseStatus, Prisma } from "@prisma/client";
+import { AffiliateNetwork, ArticleStatus, ArticleType, CampaignStatus, NicheStatus, ParseStatus, Prisma } from "@prisma/client";
 import { z } from "zod";
 import { AiService } from "../../services/ai.service";
 import { ArticleService } from "../../services/article.service";
@@ -40,12 +40,12 @@ const promptSaveSchema = z.object({
 const generateArticleSchema = z.object({
   type: z.nativeEnum(ArticleType),
   topic: z.string().min(5).max(300),
-  categoryId: z.string().uuid().nullable().optional(),
+  nicheId: z.string().uuid().nullable().optional(),
   pinnedProductIds: z.array(z.string().uuid()).max(10).optional(),
   productRef: z.string().min(1).max(500).nullable().optional()
 });
 
-const createCategorySchema = z.object({
+const createNicheSchema = z.object({
   name: z.string().min(2).max(120),
   slug: z
     .string()
@@ -55,7 +55,7 @@ const createCategorySchema = z.object({
   schemaConfig: z.record(z.unknown())
 });
 
-const updateCategorySchema = z.object({
+const updateNicheSchema = z.object({
   name: z.string().min(2).max(120).optional(),
   slug: z
     .string()
@@ -63,7 +63,7 @@ const updateCategorySchema = z.object({
     .max(80)
     .regex(/^[a-z0-9-]+$/)
     .optional(),
-  status: z.nativeEnum(CategoryStatus).optional(),
+  status: z.nativeEnum(NicheStatus).optional(),
   schemaConfig: z.record(z.unknown()).optional(),
   seoTitle: z.string().max(120).nullable().optional(),
   seoDescription: z.string().max(300).nullable().optional()
@@ -76,7 +76,7 @@ const createCouponSchema = z.object({
   discountAmount: z.number().nonnegative().optional().nullable(),
   network: z.nativeEnum(AffiliateNetwork).optional().nullable(),
   productId: z.string().uuid().optional().nullable(),
-  categoryId: z.string().uuid().optional().nullable(),
+  nicheId: z.string().uuid().optional().nullable(),
   affiliateUrl: z.string().url().optional().nullable(),
   startsAt: z.string().datetime().optional().nullable(),
   expiresAt: z.string().datetime().optional().nullable(),
@@ -88,7 +88,7 @@ const updateCouponSchema = createCouponSchema.partial();
 const updateProductSchema = z.object({
   name: z.string().min(2).max(300).optional(),
   affiliateUrl: z.string().url().optional(),
-  categoryId: z.string().uuid().optional(),
+  nicheId: z.string().uuid().optional(),
   network: z.nativeEnum(AffiliateNetwork).optional(),
   campaignId: z.string().uuid().nullable().optional(),
   isPublic: z.boolean().optional(),
@@ -98,7 +98,7 @@ const updateProductSchema = z.object({
 const createProductSchema = z.object({
   name: z.string().min(2).max(300),
   affiliateUrl: z.string().url(),
-  categoryId: z.string().uuid(),
+  nicheId: z.string().uuid(),
   network: z.nativeEnum(AffiliateNetwork),
   isPublic: z.boolean().optional(),
   scrapedData: z.record(z.unknown()).optional()
@@ -122,8 +122,8 @@ const createCampaignSchema = z.object({
 
 const createAssignmentSchema = z
   .object({
-    categoryId: z.string().uuid().optional(),
-    newCategory: z
+    nicheId: z.string().uuid().optional(),
+    newNiche: z
       .object({
         name: z.string().min(1).max(120),
         slug: z
@@ -137,8 +137,8 @@ const createAssignmentSchema = z
     filterRules: filterRulesSchema,
     priority: z.number().int().min(0).max(10000).optional()
   })
-  .refine((d) => Boolean(d.categoryId) !== Boolean(d.newCategory), {
-    message: "Phải có đúng 1 trong: categoryId hoặc newCategory"
+  .refine((d) => Boolean(d.nicheId) !== Boolean(d.newNiche), {
+    message: "Phải có đúng 1 trong: nicheId hoặc newNiche"
   });
 
 const updateAssignmentSchema = z
@@ -160,7 +160,7 @@ const updateCampaignSchema = createCampaignSchema.partial().extend({
     .optional()
 });
 
-const bulkCategorySchema = z.object({
+const bulkNicheSchema = z.object({
   ids: z.array(z.string().uuid()).min(1),
   action: z.enum(["activate", "deactivate", "delete"])
 });
@@ -178,13 +178,13 @@ const bulkCampaignSchema = z
       z.literal("status:PAUSED"),
       z.literal("status:REJECTED"),
       z.literal("status:INACTIVE"),
-      z.literal("assign-category")
+      z.literal("assign-niche")
     ]),
-    categoryId: z.string().uuid().optional()
+    nicheId: z.string().uuid().optional()
   })
   .refine(
-    (d) => d.action !== "assign-category" || Boolean(d.categoryId),
-    { message: "categoryId là bắt buộc cho action assign-category" }
+    (d) => d.action !== "assign-niche" || Boolean(d.nicheId),
+    { message: "nicheId là bắt buộc cho action assign-niche" }
   );
 
 const bulkCouponSchema = z.object({
@@ -204,7 +204,7 @@ const updateArticleSchema = z.object({
   body: z.string().min(50).optional(),
   metaTitle: z.string().max(120).nullable().optional(),
   metaDescription: z.string().max(300).nullable().optional(),
-  categoryId: z.string().uuid().nullable().optional(),
+  nicheId: z.string().uuid().nullable().optional(),
   productIds: z.array(z.string().uuid()).max(20).optional(),
   type: z.nativeEnum(ArticleType).optional()
 });
@@ -327,7 +327,7 @@ export class AdminController {
       where: { id },
       include: {
         product: {
-          include: { category: { select: { name: true, slug: true } } }
+          include: { niche: { select: { name: true, slug: true } } }
         }
       }
     });
@@ -399,13 +399,13 @@ export class AdminController {
     this.authorize(role, apiKey, ["reviewer", "admin"]);
     const extraction = await this.prisma.productExtraction.findUnique({
       where: { id },
-      include: { product: { include: { category: true } } }
+      include: { product: { include: { niche: true } } }
     });
     if (!extraction) {
       throw new HttpException("Extraction not found", HttpStatus.NOT_FOUND);
     }
 
-    const schema = extraction.product.category.schemaConfig as Record<string, unknown>;
+    const schema = extraction.product.niche.schemaConfig as Record<string, unknown>;
     const aiOutput = await this.aiService.parseBySchema<Record<string, unknown>>(extraction.rawContent, schema);
 
     await this.prisma.productExtraction.update({
@@ -604,7 +604,7 @@ export class AdminController {
         status: true,
         updatedAt: true,
         publishedAt: true,
-        category: { select: { slug: true, name: true } }
+        niche: { select: { slug: true, name: true } }
       }
     });
   }
@@ -618,7 +618,7 @@ export class AdminController {
     this.authorize(role, apiKey, ["viewer", "reviewer", "admin"]);
     const article = await this.prisma.article.findUnique({
       where: { id },
-      include: { category: { select: { id: true, slug: true, name: true } } }
+      include: { niche: { select: { id: true, slug: true, name: true } } }
     });
     if (!article) throw new HttpException("Article not found", HttpStatus.NOT_FOUND);
 
@@ -644,8 +644,8 @@ export class AdminController {
     if (!parsed.success) {
       throw new HttpException(parsed.error.flatten(), HttpStatus.BAD_REQUEST);
     }
-    if (parsed.data.type === ArticleType.BUYING_GUIDE && !parsed.data.categoryId) {
-      throw new HttpException("BUYING_GUIDE bài cần chọn danh mục", HttpStatus.BAD_REQUEST);
+    if (parsed.data.type === ArticleType.BUYING_GUIDE && !parsed.data.nicheId) {
+      throw new HttpException("BUYING_GUIDE bài cần chọn niche", HttpStatus.BAD_REQUEST);
     }
     if (parsed.data.type === ArticleType.REVIEW && !parsed.data.productRef) {
       throw new HttpException("REVIEW cần nhập tên / slug / URL sản phẩm", HttpStatus.BAD_REQUEST);
@@ -659,7 +659,7 @@ export class AdminController {
         body: "(đang sinh nội dung...)",
         type: parsed.data.type,
         status: "GENERATING",
-        categoryId: parsed.data.categoryId ?? null,
+        nicheId: parsed.data.nicheId ?? null,
         productIds: [],
         pinnedProductIds: parsed.data.pinnedProductIds ?? []
       }
@@ -683,7 +683,7 @@ export class AdminController {
       const draft = await this.articleService.generateDraft({
         type: input.type,
         topic: input.topic,
-        categoryId: input.categoryId ?? null,
+        nicheId: input.nicheId ?? null,
         pinnedProductIds: input.pinnedProductIds ?? [],
         productRef: input.productRef ?? null
       });
@@ -739,8 +739,8 @@ export class AdminController {
     if (parsed.data.metaDescription !== undefined) data.metaDescription = parsed.data.metaDescription;
     if (parsed.data.type !== undefined) data.type = parsed.data.type;
     if (parsed.data.productIds !== undefined) data.productIds = { set: parsed.data.productIds };
-    if (parsed.data.categoryId !== undefined) {
-      data.category = parsed.data.categoryId ? { connect: { id: parsed.data.categoryId } } : { disconnect: true };
+    if (parsed.data.nicheId !== undefined) {
+      data.niche = parsed.data.nicheId ? { connect: { id: parsed.data.nicheId } } : { disconnect: true };
     }
     if (parsed.data.slug !== undefined) {
       data.slug = await this.articleService.ensureUniqueSlug(parsed.data.slug, id);
@@ -780,7 +780,7 @@ export class AdminController {
         coverImage: src.coverImage,
         type: src.type,
         status: "DRAFT",
-        categoryId: src.categoryId,
+        nicheId: src.nicheId,
         productIds: src.productIds,
         pinnedProductIds: src.pinnedProductIds,
         metaTitle: src.metaTitle,
@@ -876,7 +876,7 @@ export class AdminController {
       take: Math.min(Math.max(Number(limit ?? 200), 1), 500),
       include: {
         product: { select: { id: true, name: true } },
-        category: { select: { id: true, name: true } }
+        niche: { select: { id: true, name: true } }
       }
     });
   }
@@ -943,7 +943,7 @@ export class AdminController {
           parsed.data.discountAmount != null ? new Prisma.Decimal(parsed.data.discountAmount) : null,
         network: parsed.data.network ?? null,
         productId: parsed.data.productId ?? null,
-        categoryId: parsed.data.categoryId ?? null,
+        nicheId: parsed.data.nicheId ?? null,
         affiliateUrl: parsed.data.affiliateUrl ?? null,
         startsAt: parsed.data.startsAt ? new Date(parsed.data.startsAt) : null,
         expiresAt: parsed.data.expiresAt ? new Date(parsed.data.expiresAt) : null,
@@ -978,9 +978,9 @@ export class AdminController {
         ? { connect: { id: parsed.data.productId } }
         : { disconnect: true };
     }
-    if (parsed.data.categoryId !== undefined) {
-      data.category = parsed.data.categoryId
-        ? { connect: { id: parsed.data.categoryId } }
+    if (parsed.data.nicheId !== undefined) {
+      data.niche = parsed.data.nicheId
+        ? { connect: { id: parsed.data.nicheId } }
         : { disconnect: true };
     }
     if (parsed.data.affiliateUrl !== undefined) data.affiliateUrl = parsed.data.affiliateUrl;
@@ -1049,7 +1049,7 @@ export class AdminController {
       conversions,
       revenueAgg,
       topProducts,
-      topCategories,
+      topNiches,
       networkBreakdown
     ] = await Promise.all([
       this.prisma.clickLog.count({ where: { createdAt: { gte: start, lte: end } } }),
@@ -1066,7 +1066,7 @@ export class AdminController {
         take: 10
       }),
       this.prisma.product.groupBy({
-        by: ["categoryId"],
+        by: ["nicheId"],
         _count: { _all: true },
         where: { isPublic: true }
       }),
@@ -1088,15 +1088,15 @@ export class AdminController {
         : [];
     const nameById = new Map(productNames.map((p) => [p.id, p]));
 
-    const categoryIds = topCategories.map((c) => c.categoryId);
-    const categoryNames =
-      categoryIds.length > 0
-        ? await this.prisma.category.findMany({
-            where: { id: { in: categoryIds } },
+    const nicheIds = topNiches.map((c) => c.nicheId);
+    const nicheNames =
+      nicheIds.length > 0
+        ? await this.prisma.niche.findMany({
+            where: { id: { in: nicheIds } },
             select: { id: true, name: true, slug: true }
           })
         : [];
-    const catById = new Map(categoryNames.map((c) => [c.id, c]));
+    const nicheById = new Map(nicheNames.map((c) => [c.id, c]));
 
     return {
       window: { from: start.toISOString(), to: end.toISOString() },
@@ -1110,10 +1110,10 @@ export class AdminController {
         network: nameById.get(p.productId)?.network ?? null,
         clicks: p._count._all
       })),
-      productCountByCategory: topCategories.map((c) => ({
-        categoryId: c.categoryId,
-        name: catById.get(c.categoryId)?.name ?? "(deleted)",
-        slug: catById.get(c.categoryId)?.slug ?? "",
+      productCountByNiche: topNiches.map((c) => ({
+        nicheId: c.nicheId,
+        name: nicheById.get(c.nicheId)?.name ?? "(deleted)",
+        slug: nicheById.get(c.nicheId)?.slug ?? "",
         count: c._count._all
       })),
       networkBreakdown: networkBreakdown.map((n) => ({
@@ -1139,48 +1139,48 @@ export class AdminController {
     });
   }
 
-  // ───── Categories ─────
+  // ───── Niches ─────
 
-  @Get("categories")
-  async listCategories(@Headers("x-admin-role") role?: string, @Headers("x-admin-key") apiKey?: string) {
+  @Get("niches")
+  async listNiches(@Headers("x-admin-role") role?: string, @Headers("x-admin-key") apiKey?: string) {
     this.authorize(role, apiKey, ["viewer", "reviewer", "admin"]);
-    return this.prisma.category.findMany({
+    return this.prisma.niche.findMany({
       orderBy: { createdAt: "desc" },
       include: { _count: { select: { products: true, articles: true, campaignAssignments: true } } }
     });
   }
 
-  @Get("categories/:id")
-  async getCategory(
+  @Get("niches/:id")
+  async getNiche(
     @Param("id") id: string,
     @Headers("x-admin-role") role?: string,
     @Headers("x-admin-key") apiKey?: string
   ) {
     this.authorize(role, apiKey, ["viewer", "reviewer", "admin"]);
-    const category = await this.prisma.category.findUnique({
+    const niche = await this.prisma.niche.findUnique({
       where: { id },
       include: { _count: { select: { products: true, articles: true, campaignAssignments: true } } }
     });
-    if (!category) throw new HttpException("Category not found", HttpStatus.NOT_FOUND);
-    return category;
+    if (!niche) throw new HttpException("Niche not found", HttpStatus.NOT_FOUND);
+    return niche;
   }
 
-  @Post("categories")
-  async createCategory(
+  @Post("niches")
+  async createNiche(
     @Body() payload: unknown,
     @Headers("x-admin-role") role?: string,
     @Headers("x-admin-key") apiKey?: string
   ) {
     this.authorize(role, apiKey, ["admin"]);
-    const parsed = createCategorySchema.safeParse(payload);
+    const parsed = createNicheSchema.safeParse(payload);
     if (!parsed.success) {
       throw new HttpException(parsed.error.flatten(), HttpStatus.BAD_REQUEST);
     }
-    const existing = await this.prisma.category.findUnique({ where: { slug: parsed.data.slug } });
+    const existing = await this.prisma.niche.findUnique({ where: { slug: parsed.data.slug } });
     if (existing) {
       throw new HttpException("Slug đã tồn tại", HttpStatus.CONFLICT);
     }
-    return this.prisma.category.create({
+    return this.prisma.niche.create({
       data: {
         name: parsed.data.name,
         slug: parsed.data.slug,
@@ -1189,22 +1189,22 @@ export class AdminController {
     });
   }
 
-  @Put("categories/:id")
-  async updateCategory(
+  @Put("niches/:id")
+  async updateNiche(
     @Param("id") id: string,
     @Body() payload: unknown,
     @Headers("x-admin-role") role?: string,
     @Headers("x-admin-key") apiKey?: string
   ) {
     this.authorize(role, apiKey, ["admin"]);
-    const parsed = updateCategorySchema.safeParse(payload);
+    const parsed = updateNicheSchema.safeParse(payload);
     if (!parsed.success) {
       throw new HttpException(parsed.error.flatten(), HttpStatus.BAD_REQUEST);
     }
-    const data: Prisma.CategoryUpdateInput = {};
+    const data: Prisma.NicheUpdateInput = {};
     if (parsed.data.name !== undefined) data.name = parsed.data.name;
     if (parsed.data.slug !== undefined) {
-      const conflict = await this.prisma.category.findFirst({
+      const conflict = await this.prisma.niche.findFirst({
         where: { slug: parsed.data.slug, NOT: { id } },
         select: { id: true }
       });
@@ -1217,54 +1217,54 @@ export class AdminController {
     }
     if (parsed.data.seoTitle !== undefined) data.seoTitle = parsed.data.seoTitle;
     if (parsed.data.seoDescription !== undefined) data.seoDescription = parsed.data.seoDescription;
-    return this.prisma.category.update({ where: { id }, data });
+    return this.prisma.niche.update({ where: { id }, data });
   }
 
-  @Delete("categories/:id")
-  async deleteCategory(
+  @Delete("niches/:id")
+  async deleteNiche(
     @Param("id") id: string,
     @Headers("x-admin-role") role?: string,
     @Headers("x-admin-key") apiKey?: string
   ) {
     this.authorize(role, apiKey, ["admin"]);
-    const count = await this.prisma.product.count({ where: { categoryId: id } });
+    const count = await this.prisma.product.count({ where: { nicheId: id } });
     if (count > 0) {
       throw new HttpException(
-        `Không thể xoá: danh mục có ${count} sản phẩm. Hãy xoá/chuyển sản phẩm trước.`,
+        `Không thể xoá: niche có ${count} sản phẩm. Hãy xoá/chuyển sản phẩm trước.`,
         HttpStatus.CONFLICT
       );
     }
-    await this.prisma.category.delete({ where: { id } });
+    await this.prisma.niche.delete({ where: { id } });
     return { success: true };
   }
 
-  @Post("categories/bulk")
-  async bulkCategoryAction(
+  @Post("niches/bulk")
+  async bulkNicheAction(
     @Body() payload: unknown,
     @Headers("x-admin-role") role?: string,
     @Headers("x-admin-key") apiKey?: string
   ) {
     this.authorize(role, apiKey, ["admin"]);
-    const parsed = bulkCategorySchema.safeParse(payload);
+    const parsed = bulkNicheSchema.safeParse(payload);
     if (!parsed.success) {
       throw new HttpException(parsed.error.flatten(), HttpStatus.BAD_REQUEST);
     }
     const { ids, action } = parsed.data;
     if (action === "delete") {
       const blocking = await this.prisma.product.count({
-        where: { categoryId: { in: ids } }
+        where: { nicheId: { in: ids } }
       });
       if (blocking > 0) {
         throw new HttpException(
-          `Không thể xoá: có ${blocking} sản phẩm đang trỏ vào danh mục đã chọn. Xoá sản phẩm trước.`,
+          `Không thể xoá: có ${blocking} sản phẩm đang trỏ vào niche đã chọn. Xoá sản phẩm trước.`,
           HttpStatus.CONFLICT
         );
       }
-      const result = await this.prisma.category.deleteMany({ where: { id: { in: ids } } });
+      const result = await this.prisma.niche.deleteMany({ where: { id: { in: ids } } });
       return { success: true, count: result.count };
     }
-    const status = action === "activate" ? CategoryStatus.ACTIVE : CategoryStatus.INACTIVE;
-    const result = await this.prisma.category.updateMany({
+    const status = action === "activate" ? NicheStatus.ACTIVE : NicheStatus.INACTIVE;
+    const result = await this.prisma.niche.updateMany({
       where: { id: { in: ids } },
       data: { status }
     });
@@ -1275,7 +1275,7 @@ export class AdminController {
 
   @Get("products")
   async listProducts(
-    @Query("categoryId") categoryId?: string,
+    @Query("nicheId") nicheId?: string,
     @Query("network") network?: string,
     @Query("isPublic") isPublic?: string,
     @Query("search") search?: string,
@@ -1285,7 +1285,7 @@ export class AdminController {
   ) {
     this.authorize(role, apiKey, ["viewer", "reviewer", "admin"]);
     const where: Prisma.ProductWhereInput = {};
-    if (categoryId) where.categoryId = categoryId;
+    if (nicheId) where.nicheId = nicheId;
     if (network && (Object.values(AffiliateNetwork) as string[]).includes(network)) {
       where.network = network as AffiliateNetwork;
     }
@@ -1295,7 +1295,7 @@ export class AdminController {
     return this.prisma.product.findMany({
       where,
       include: {
-        category: { select: { id: true, slug: true, name: true } },
+        niche: { select: { id: true, slug: true, name: true } },
         campaign: { select: { id: true, name: true, atCampaignId: true } },
         _count: { select: { clickLogs: true, extractions: true } }
       },
@@ -1313,7 +1313,7 @@ export class AdminController {
     this.authorize(role, apiKey, ["viewer", "reviewer", "admin"]);
     const product = await this.prisma.product.findUnique({
       where: { id },
-      include: { category: { select: { id: true, slug: true, name: true } } }
+      include: { niche: { select: { id: true, slug: true, name: true } } }
     });
     if (!product) throw new HttpException("Product not found", HttpStatus.NOT_FOUND);
     return product;
@@ -1330,17 +1330,17 @@ export class AdminController {
     if (!parsed.success) {
       throw new HttpException(parsed.error.flatten(), HttpStatus.BAD_REQUEST);
     }
-    const category = await this.prisma.category.findUnique({
-      where: { id: parsed.data.categoryId },
+    const niche = await this.prisma.niche.findUnique({
+      where: { id: parsed.data.nicheId },
       select: { id: true }
     });
-    if (!category) {
-      throw new HttpException("Danh mục không tồn tại", HttpStatus.BAD_REQUEST);
+    if (!niche) {
+      throw new HttpException("Niche không tồn tại", HttpStatus.BAD_REQUEST);
     }
 
     const slug = await uniqueSlugWithin(parsed.data.name, async (candidate) => {
       const found = await this.prisma.product.findFirst({
-        where: { categoryId: parsed.data.categoryId, slug: candidate },
+        where: { nicheId: parsed.data.nicheId, slug: candidate },
         select: { id: true }
       });
       return Boolean(found);
@@ -1350,7 +1350,7 @@ export class AdminController {
       data: {
         name: parsed.data.name,
         affiliateUrl: parsed.data.affiliateUrl,
-        categoryId: parsed.data.categoryId,
+        nicheId: parsed.data.nicheId,
         network: parsed.data.network,
         slug,
         isPublic: parsed.data.isPublic ?? false,
@@ -1379,8 +1379,8 @@ export class AdminController {
     if (parsed.data.scrapedData !== undefined) {
       data.scrapedData = parsed.data.scrapedData as Prisma.InputJsonValue;
     }
-    if (parsed.data.categoryId !== undefined) {
-      data.category = { connect: { id: parsed.data.categoryId } };
+    if (parsed.data.nicheId !== undefined) {
+      data.niche = { connect: { id: parsed.data.nicheId } };
     }
     if (parsed.data.campaignId !== undefined) {
       data.campaign =
@@ -1481,7 +1481,7 @@ export class AdminController {
       include: {
         _count: { select: { products: true, conversions: true } },
         assignments: {
-          include: { category: { select: { id: true, name: true, slug: true } } },
+          include: { niche: { select: { id: true, name: true, slug: true } } },
           orderBy: { priority: "asc" }
         }
       },
@@ -1489,7 +1489,7 @@ export class AdminController {
     });
   }
 
-  // ───── Campaign ↔ Category assignments (N:N) ─────
+  // ───── Campaign ↔ Niche assignments (N:N) ─────
 
   @Get("campaigns/:id/assignments")
   async listCampaignAssignments(
@@ -1500,9 +1500,9 @@ export class AdminController {
     this.authorize(role, apiKey, ["viewer", "reviewer", "admin"]);
     const campaign = await this.prisma.campaign.findUnique({ where: { id }, select: { id: true } });
     if (!campaign) throw new HttpException("Campaign not found", HttpStatus.NOT_FOUND);
-    return this.prisma.campaignCategory.findMany({
+    return this.prisma.campaignNiche.findMany({
       where: { campaignId: id },
-      include: { category: { select: { id: true, name: true, slug: true } } },
+      include: { niche: { select: { id: true, name: true, slug: true } } },
       orderBy: { priority: "asc" }
     });
   }
@@ -1522,54 +1522,54 @@ export class AdminController {
     const campaign = await this.prisma.campaign.findUnique({ where: { id } });
     if (!campaign) throw new HttpException("Campaign not found", HttpStatus.NOT_FOUND);
 
-    let categoryId = parsed.data.categoryId ?? null;
-    if (parsed.data.newCategory) {
-      const existing = await this.prisma.category.findUnique({
-        where: { slug: parsed.data.newCategory.slug }
+    let nicheId = parsed.data.nicheId ?? null;
+    if (parsed.data.newNiche) {
+      const existing = await this.prisma.niche.findUnique({
+        where: { slug: parsed.data.newNiche.slug }
       });
       if (existing) {
         throw new HttpException(
-          `Slug "${parsed.data.newCategory.slug}" đã tồn tại — chọn slug khác hoặc assign vào category đó.`,
+          `Slug "${parsed.data.newNiche.slug}" đã tồn tại — chọn slug khác hoặc assign vào niche đó.`,
           HttpStatus.CONFLICT
         );
       }
-      const created = await this.prisma.category.create({
+      const created = await this.prisma.niche.create({
         data: {
-          name: parsed.data.newCategory.name,
-          slug: parsed.data.newCategory.slug,
-          status: CategoryStatus.ACTIVE,
-          schemaConfig: parsed.data.newCategory.schemaConfig as Prisma.InputJsonValue
+          name: parsed.data.newNiche.name,
+          slug: parsed.data.newNiche.slug,
+          status: NicheStatus.ACTIVE,
+          schemaConfig: parsed.data.newNiche.schemaConfig as Prisma.InputJsonValue
         }
       });
-      categoryId = created.id;
+      nicheId = created.id;
     }
 
-    if (!categoryId) {
-      throw new HttpException("Thiếu categoryId", HttpStatus.BAD_REQUEST);
+    if (!nicheId) {
+      throw new HttpException("Thiếu nicheId", HttpStatus.BAD_REQUEST);
     }
-    const exists = await this.prisma.category.findUnique({ where: { id: categoryId } });
+    const exists = await this.prisma.niche.findUnique({ where: { id: nicheId } });
     if (!exists) {
-      throw new HttpException("Category không tồn tại", HttpStatus.BAD_REQUEST);
+      throw new HttpException("Niche không tồn tại", HttpStatus.BAD_REQUEST);
     }
 
-    const dup = await this.prisma.campaignCategory.findUnique({
-      where: { campaignId_categoryId: { campaignId: id, categoryId } }
+    const dup = await this.prisma.campaignNiche.findUnique({
+      where: { campaignId_nicheId: { campaignId: id, nicheId } }
     });
     if (dup) {
       throw new HttpException(
-        "Cặp (campaign, category) đã tồn tại — sửa filterRules thay vì tạo mới.",
+        "Cặp (campaign, niche) đã tồn tại — sửa filterRules thay vì tạo mới.",
         HttpStatus.CONFLICT
       );
     }
 
-    const assignment = await this.prisma.campaignCategory.create({
+    const assignment = await this.prisma.campaignNiche.create({
       data: {
         campaignId: id,
-        categoryId,
+        nicheId,
         filterRules: parsed.data.filterRules as Prisma.InputJsonValue,
         priority: parsed.data.priority ?? 100
       },
-      include: { category: { select: { id: true, name: true, slug: true } } }
+      include: { niche: { select: { id: true, name: true, slug: true } } }
     });
 
     // Khi assign assignment đầu tiên, auto chuyển campaign sang APPROVED để crawler pick up.
@@ -1599,23 +1599,23 @@ export class AdminController {
     if (!parsed.success) {
       throw new HttpException(parsed.error.flatten(), HttpStatus.BAD_REQUEST);
     }
-    const existing = await this.prisma.campaignCategory.findUnique({
+    const existing = await this.prisma.campaignNiche.findUnique({
       where: { id: assignmentId }
     });
     if (!existing || existing.campaignId !== id) {
       throw new HttpException("Assignment not found", HttpStatus.NOT_FOUND);
     }
-    const data: Prisma.CampaignCategoryUpdateInput = {};
+    const data: Prisma.CampaignNicheUpdateInput = {};
     if (parsed.data.filterRules !== undefined) {
       data.filterRules = parsed.data.filterRules as Prisma.InputJsonValue;
     }
     if (parsed.data.priority !== undefined) {
       data.priority = parsed.data.priority;
     }
-    return this.prisma.campaignCategory.update({
+    return this.prisma.campaignNiche.update({
       where: { id: assignmentId },
       data,
-      include: { category: { select: { id: true, name: true, slug: true } } }
+      include: { niche: { select: { id: true, name: true, slug: true } } }
     });
   }
 
@@ -1627,13 +1627,13 @@ export class AdminController {
     @Headers("x-admin-key") apiKey?: string
   ) {
     this.authorize(role, apiKey, ["admin"]);
-    const existing = await this.prisma.campaignCategory.findUnique({
+    const existing = await this.prisma.campaignNiche.findUnique({
       where: { id: assignmentId }
     });
     if (!existing || existing.campaignId !== id) {
       throw new HttpException("Assignment not found", HttpStatus.NOT_FOUND);
     }
-    await this.prisma.campaignCategory.delete({ where: { id: assignmentId } });
+    await this.prisma.campaignNiche.delete({ where: { id: assignmentId } });
     return { success: true };
   }
 
@@ -1766,32 +1766,32 @@ export class AdminController {
     if (!parsed.success) {
       throw new HttpException(parsed.error.flatten(), HttpStatus.BAD_REQUEST);
     }
-    const { ids, action, categoryId } = parsed.data;
-    if (action === "assign-category") {
-      // categoryId đã được validate bởi schema refine
-      const exists = await this.prisma.category.findUnique({
-        where: { id: categoryId! },
+    const { ids, action, nicheId } = parsed.data;
+    if (action === "assign-niche") {
+      // nicheId đã được validate bởi schema refine
+      const exists = await this.prisma.niche.findUnique({
+        where: { id: nicheId! },
         select: { id: true }
       });
       if (!exists) {
-        throw new HttpException("Category không tồn tại", HttpStatus.BAD_REQUEST);
+        throw new HttpException("Niche không tồn tại", HttpStatus.BAD_REQUEST);
       }
-      // N:N: tạo CampaignCategory cho mỗi campaign trong ids. Cặp đã tồn tại → skip.
+      // N:N: tạo CampaignNiche cho mỗi campaign trong ids. Cặp đã tồn tại → skip.
       // Cũng auto-approve campaign khi có assignment mới (signal cho crawler-cycle pick up).
       let count = 0;
       let skipped = 0;
       for (const campaignId of ids) {
-        const dup = await this.prisma.campaignCategory.findUnique({
-          where: { campaignId_categoryId: { campaignId, categoryId: categoryId! } }
+        const dup = await this.prisma.campaignNiche.findUnique({
+          where: { campaignId_nicheId: { campaignId, nicheId: nicheId! } }
         });
         if (dup) {
           skipped += 1;
           continue;
         }
-        await this.prisma.campaignCategory.create({
+        await this.prisma.campaignNiche.create({
           data: {
             campaignId,
-            categoryId: categoryId!,
+            nicheId: nicheId!,
             filterRules: DEFAULT_FILTER_RULES as unknown as Prisma.InputJsonValue,
             priority: 100
           }

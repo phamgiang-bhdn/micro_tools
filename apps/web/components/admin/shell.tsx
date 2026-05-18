@@ -81,11 +81,11 @@ const NAV: NavGroup[] = [
     label: "Catalog",
     entries: [
       {
-        id: "categories",
-        label: "Danh mục",
-        href: "/admin/categories",
+        id: "niches",
+        label: "Niche",
+        href: "/admin/niches",
         icon: <CategoryIcon />,
-        match: (p) => p.startsWith("/admin/categories")
+        match: (p) => p.startsWith("/admin/niches")
       },
       {
         id: "products",

@@ -96,19 +96,19 @@ export const CAMPAIGN_ASSIGNMENT_OPTIONS: Array<{ value: CampaignAssignment; lab
   { value: "assigned", label: "Đã assign" }
 ];
 
-// ===== Category =====
+// ===== Niche =====
 
-export const CATEGORY_STATUS_VALUES = ["ACTIVE", "INACTIVE"] as const;
-export type CategoryStatus = (typeof CATEGORY_STATUS_VALUES)[number];
+export const NICHE_STATUS_VALUES = ["ACTIVE", "INACTIVE"] as const;
+export type NicheStatus = (typeof NICHE_STATUS_VALUES)[number];
 
-export const CATEGORY_STATUS_META: Record<CategoryStatus, { label: string; tone: Tone }> = {
+export const NICHE_STATUS_META: Record<NicheStatus, { label: string; tone: Tone }> = {
   ACTIVE: { label: "Đang hiện", tone: "success" },
   INACTIVE: { label: "Ẩn", tone: "neutral" }
 };
 
-export const CATEGORY_STATUS_OPTIONS = CATEGORY_STATUS_VALUES.map((v) => ({
+export const NICHE_STATUS_OPTIONS = NICHE_STATUS_VALUES.map((v) => ({
   value: v,
-  label: CATEGORY_STATUS_META[v].label
+  label: NICHE_STATUS_META[v].label
 }));
 
 // ===== Generic active toggle (coupons, etc.) =====
@@ -133,7 +133,7 @@ export const ADMIN_PARAMS = {
   status: "status",
   type: "type",
   network: "network",
-  category: "categoryId",
+  niche: "nicheId",
   isPublic: "isPublic",
   isActive: "isActive",
   from: "from",

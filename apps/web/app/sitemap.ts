@@ -1,27 +1,27 @@
 import type { MetadataRoute } from "next";
-import { fetchArticles, fetchCategoryBySlug, fetchCategories } from "../lib/api";
+import { fetchArticles, fetchNicheBySlug, fetchNiches } from "../lib/api";
 import { slugify } from "../lib/slug";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const base = process.env.SITE_URL ?? "http://localhost:3100";
   const now = new Date();
 
-  const { categories } = await fetchCategories();
+  const { niches } = await fetchNiches();
 
-  const categoryEntries: MetadataRoute.Sitemap = categories.map((category) => ({
-    url: `${base}/categories/${category.slug}`,
+  const nicheEntries: MetadataRoute.Sitemap = niches.map((niche) => ({
+    url: `${base}/categories/${niche.slug}`,
     lastModified: now,
     changeFrequency: "hourly",
     priority: 0.8
   }));
 
   const productDetails = await Promise.all(
-    categories.slice(0, 20).map((category) => fetchCategoryBySlug(category.slug))
+    niches.slice(0, 20).map((niche) => fetchNicheBySlug(niche.slug))
   );
-  const productEntries: MetadataRoute.Sitemap = productDetails.flatMap((category) =>
-    category
-      ? category.products.map((product) => ({
-          url: `${base}/categories/${category.slug}/${product.slug ?? slugify(product.name) ?? product.id}`,
+  const productEntries: MetadataRoute.Sitemap = productDetails.flatMap((niche) =>
+    niche
+      ? niche.products.map((product) => ({
+          url: `${base}/categories/${niche.slug}/${product.slug ?? slugify(product.name) ?? product.id}`,
           lastModified: now,
           changeFrequency: "daily" as const,
           priority: 0.6
@@ -50,7 +50,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       changeFrequency: "daily",
       priority: 0.7
     },
-    ...categoryEntries,
+    ...nicheEntries,
     ...productEntries,
     ...articleEntries
   ];

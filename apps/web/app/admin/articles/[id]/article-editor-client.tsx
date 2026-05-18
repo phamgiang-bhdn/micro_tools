@@ -5,7 +5,7 @@ import { useState } from "react";
 import ReactMarkdown from "react-markdown";
 import { updateArticleAction } from "../../actions";
 
-interface CategoryOption {
+interface NicheOption {
   id: string;
   name: string;
 }
@@ -13,7 +13,7 @@ interface CategoryOption {
 interface ProductOption {
   id: string;
   name: string;
-  categoryName: string;
+  nicheName: string;
 }
 
 export interface ArticleEditorInitial {
@@ -24,7 +24,7 @@ export interface ArticleEditorInitial {
   body: string;
   metaTitle: string | null;
   metaDescription: string | null;
-  categoryId: string | null;
+  nicheId: string | null;
   productIds: string[];
   hasBlocks?: boolean;
   coverImage?: string | null;
@@ -32,11 +32,11 @@ export interface ArticleEditorInitial {
 
 interface Props {
   initial: ArticleEditorInitial;
-  categories: CategoryOption[];
+  niches: NicheOption[];
   products: ProductOption[];
 }
 
-export function ArticleEditorClient({ initial, categories, products }: Props): React.ReactElement {
+export function ArticleEditorClient({ initial, niches, products }: Props): React.ReactElement {
   const [tab, setTab] = useState<"edit" | "preview">("edit");
   const [body, setBody] = useState(initial.body);
   const [pending, setPending] = useState(false);
@@ -169,12 +169,12 @@ export function ArticleEditorClient({ initial, categories, products }: Props): R
         </Field>
       </div>
 
-      <Field label="Danh mục gắn kèm" htmlFor="categoryId">
-        <select id="categoryId" name="categoryId" defaultValue={initial.categoryId ?? ""} className={input}>
+      <Field label="Niche gắn kèm" htmlFor="nicheId">
+        <select id="nicheId" name="nicheId" defaultValue={initial.nicheId ?? ""} className={input}>
           <option value="">— Không gắn —</option>
-          {categories.map((category) => (
-            <option key={category.id} value={category.id}>
-              {category.name}
+          {niches.map((niche) => (
+            <option key={niche.id} value={niche.id}>
+              {niche.name}
             </option>
           ))}
         </select>
@@ -198,7 +198,7 @@ export function ArticleEditorClient({ initial, categories, products }: Props): R
                 defaultChecked={initial.productIds.includes(product.id)}
               />
               <span className="text-admin-ink">{product.name}</span>
-              <span className="text-xs text-admin-mute">— {product.categoryName}</span>
+              <span className="text-xs text-admin-mute">— {product.nicheName}</span>
             </label>
           ))}
         </div>

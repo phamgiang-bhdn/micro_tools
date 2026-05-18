@@ -11,10 +11,10 @@ import {
 } from "../../../components/admin/ui";
 import {
   ADMIN_PARAMS,
-  CATEGORY_STATUS_OPTIONS,
+  NICHE_STATUS_OPTIONS,
   DEFAULT_PAGE_SIZE
 } from "../../../lib/admin/constants";
-import { CategoriesTable, type CategoryRow } from "./categories-table";
+import { NichesTable, type NicheRow } from "./niches-table";
 
 export const dynamic = "force-dynamic";
 
@@ -22,11 +22,11 @@ interface PageProps {
   searchParams: Promise<{ search?: string; status?: "ACTIVE" | "INACTIVE"; page?: string }>;
 }
 
-export default async function CategoriesPage({
+export default async function NichesPage({
   searchParams
 }: PageProps): Promise<React.ReactElement> {
   const { search = "", status = "", page = "1" } = await searchParams;
-  const all = await adminGet<CategoryRow[]>("/admin/categories");
+  const all = await adminGet<NicheRow[]>("/admin/niches");
 
   const filtered = all.filter((c) => {
     if (status && c.status !== status) return false;
@@ -46,7 +46,7 @@ export default async function CategoriesPage({
     if (status) qs.set(ADMIN_PARAMS.status, status);
     if (p > 1) qs.set(ADMIN_PARAMS.page, String(p));
     const s = qs.toString();
-    return `/admin/categories${s ? `?${s}` : ""}`;
+    return `/admin/niches${s ? `?${s}` : ""}`;
   };
 
   const active = all.filter((c) => c.status === "ACTIVE").length;
@@ -56,17 +56,17 @@ export default async function CategoriesPage({
   return (
     <ListPageShell
       eyebrow="Cấu hình"
-      title="Danh mục"
+      title="Niche"
       subtitle={
         <>
-          Mỗi danh mục là một niche micro-tool.{" "}
+          Mỗi niche là một micro-tool.{" "}
           <code className="rounded bg-admin-subtle px-1 py-0.5 text-xs">schemaConfig</code> định
           nghĩa field AI bóc tách cho sản phẩm trong niche đó.
         </>
       }
       overview={[
         {
-          label: "Tổng danh mục",
+          label: "Tổng niche",
           value: all.length.toLocaleString("vi-VN"),
           icon: <Layers className="size-4" />
         },
@@ -89,7 +89,7 @@ export default async function CategoriesPage({
         }
       ]}
       filter={
-        <FilterBar resetHref="/admin/categories">
+        <FilterBar resetHref="/admin/niches">
           <NativeFilterInput
             label="Tìm tên / slug"
             name={ADMIN_PARAMS.search}
@@ -100,13 +100,13 @@ export default async function CategoriesPage({
             label="Trạng thái"
             name={ADMIN_PARAMS.status}
             defaultValue={status}
-            options={CATEGORY_STATUS_OPTIONS}
+            options={NICHE_STATUS_OPTIONS}
           />
         </FilterBar>
       }
       table={
         <div>
-          <CategoriesTable
+          <NichesTable
             rows={items}
             filteredCount={filtered.length}
             totalCount={all.length}

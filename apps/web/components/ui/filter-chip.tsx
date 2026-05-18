@@ -6,7 +6,7 @@ interface FilterChipProps {
   href: string;
   active?: boolean;
   label: React.ReactNode;
-  /** Số đếm nhỏ bên phải (vd. số sản phẩm trong danh mục). */
+  /** Số đếm nhỏ bên phải (vd. số sản phẩm trong niche). */
   count?: number;
   /** Scroll lên đầu khi navigate (default: false để filter trên trang giữ vị trí). */
   scroll?: boolean;

@@ -13,7 +13,7 @@ export interface ImportResult {
 
 /**
  * Idempotent upsert: dùng affiliateUrl làm dedup key.
- * Tự sinh slug duy nhất trong scope của category — phục vụ SEO URL.
+ * Tự sinh slug duy nhất trong scope của niche — phục vụ SEO URL.
  * Auto-upsert Campaign (network, externalId) khi offer có offer.campaign — link Product.campaignId.
  */
 @Injectable()
@@ -33,9 +33,9 @@ export class ImportService {
         continue;
       }
 
-      const category = await this.prisma.category.findUnique({ where: { slug: offer.categorySlug } });
-      if (!category) {
-        this.logger.warn(`Category slug ${offer.categorySlug} not found — skip ${offer.name}`);
+      const niche = await this.prisma.niche.findUnique({ where: { slug: offer.nicheSlug } });
+      if (!niche) {
+        this.logger.warn(`Niche slug ${offer.nicheSlug} not found — skip ${offer.name}`);
         skipped += 1;
         continue;
       }
@@ -99,7 +99,7 @@ export class ImportService {
 
       const slug = await uniqueSlugWithin(slugify(offer.name), async (candidate) => {
         const hit = await this.prisma.product.findFirst({
-          where: { categoryId: category.id, slug: candidate },
+          where: { nicheId: niche.id, slug: candidate },
           select: { id: true }
         });
         return Boolean(hit);
@@ -107,7 +107,7 @@ export class ImportService {
 
       await this.prisma.product.create({
         data: {
-          categoryId: category.id,
+          nicheId: niche.id,
           network,
           campaignId: campaignId ?? null,
           name: offer.name,

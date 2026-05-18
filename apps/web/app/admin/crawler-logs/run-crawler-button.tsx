@@ -15,7 +15,7 @@ const POLL_INTERVAL_MS = 800;
 
 /**
  * Client button cho /admin/crawler-logs.
- * - Loading: progress bar `done/total`, label "merchant/category đang chạy", elapsed timer.
+ * - Loading: progress bar `done/total`, label "merchant/niche đang chạy", elapsed timer.
  *   Poll `/admin/crawler/progress` mỗi 800ms để cập nhật.
  * - Done: panel breakdown per-assignment + nút dismiss.
  * - Error: toast + giữ panel cuối.
@@ -156,7 +156,7 @@ function ResultPanel({
                   <tr key={a.assignmentId}>
                     <td className="px-2.5 py-1.5">
                       <div className="font-mono text-[11.5px] text-admin-ink">
-                        {a.merchantSlug} / {a.categorySlug}
+                        {a.merchantSlug} / {a.nicheSlug}
                       </div>
                       <div className="text-[11px] text-admin-mute">{a.campaignName}</div>
                     </td>
@@ -186,7 +186,7 @@ function ResultPanel({
             <a href="/admin/campaigns" className="font-medium text-admin-accent underline">
               /admin/campaigns
             </a>{" "}
-            để approve + assign Category cho ít nhất 1 Campaign.
+            để approve + assign Niche cho ít nhất 1 Campaign.
           </div>
         )}
 

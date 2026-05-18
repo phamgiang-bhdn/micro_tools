@@ -5,7 +5,7 @@ import { LazadaAffiliateClient } from "./clients/lazada.client";
 import { ShopeeAffiliateClient } from "./clients/shopee.client";
 import { TiktokAffiliateClient } from "./clients/tiktok.client";
 import { CrawlerService, offerPassesFilter, rulesToFetchOpts } from "./crawler.service";
-import * as categoryInference from "./category-inference.util";
+import * as nicheInference from "./niche-inference.util";
 import { DEFAULT_FILTER_RULES, FilterRules } from "./dto/filter-rules.dto";
 import { NormalizedOffer } from "./dto/normalized-offer.dto";
 import { EnrichmentService } from "./enrichment.service";
@@ -18,7 +18,7 @@ function makeOffer(overrides: Partial<NormalizedOffer> = {}): NormalizedOffer {
     name: "Sản phẩm",
     affiliateUrl: "https://shopee.vn/x",
     currency: "VND",
-    categorySlug: "",
+    nicheSlug: "",
     ...overrides
   };
 }
@@ -27,7 +27,7 @@ interface AssignmentRow {
   id: string;
   priority: number;
   filterRules: unknown;
-  category: { id: string; slug: string };
+  niche: { id: string; slug: string };
   campaign: { id: string; name: string; merchantName: string };
 }
 
@@ -35,7 +35,7 @@ class FakePrisma {
   assignments: AssignmentRow[] = [];
   lastCrawlerLogUpdate: Record<string, unknown> | null = null;
 
-  campaignCategory = {
+  campaignNiche = {
     findMany: jest.fn(async () => this.assignments)
   };
 
@@ -98,14 +98,14 @@ describe(CrawlerService.name, () => {
           id: "a-tivi",
           priority: 100,
           filterRules: null,
-          category: { id: "cat-tivi", slug: "tivi" },
+          niche: { id: "cat-tivi", slug: "tivi" },
           campaign: { id: "c-1", name: "Lazada", merchantName: "lazada_kol" }
         },
         {
           id: "a-may-loc",
           priority: 100,
           filterRules: null,
-          category: { id: "cat-loc", slug: "may-loc-khong-khi" },
+          niche: { id: "cat-loc", slug: "may-loc-khong-khi" },
           campaign: { id: "c-1", name: "Lazada", merchantName: "lazada_kol" }
         }
       ];
@@ -138,7 +138,7 @@ describe(CrawlerService.name, () => {
             updateLookbackDays: 7,
             domains: ["lazada.vn"]
           },
-          category: { id: "cat-tivi", slug: "tivi" },
+          niche: { id: "cat-tivi", slug: "tivi" },
           campaign: { id: "c-1", name: "Lazada", merchantName: "lazada_kol" }
         }
       ];
@@ -173,7 +173,7 @@ describe(CrawlerService.name, () => {
           id: "a-1",
           priority: 100,
           filterRules: { domains: ["shopee.vn", "lazada.vn"] },
-          category: { id: "cat-1", slug: "tivi" },
+          niche: { id: "cat-1", slug: "tivi" },
           campaign: { id: "c-1", name: "X", merchantName: "lazada_kol" }
         }
       ];
@@ -185,14 +185,14 @@ describe(CrawlerService.name, () => {
       expect(call?.domain).toBeUndefined();
     });
 
-    it("routes every fetched offer directly to assignment's category (no name match)", async () => {
+    it("routes every fetched offer directly to assignment's niche (no name match)", async () => {
       const { service, prisma, accesstrade, importer } = await buildService();
       prisma.assignments = [
         {
           id: "a-tivi",
           priority: 100,
           filterRules: null,
-          category: { id: "cat-tivi", slug: "tivi" },
+          niche: { id: "cat-tivi", slug: "tivi" },
           campaign: { id: "c-1", name: "Lazada", merchantName: "lazada_kol" }
         }
       ];
@@ -205,7 +205,7 @@ describe(CrawlerService.name, () => {
 
       const offers = importer.upsertOffers.mock.calls[0][0];
       expect(offers).toHaveLength(2);
-      expect(offers.every((o) => o.categorySlug === "tivi")).toBe(true);
+      expect(offers.every((o) => o.nicheSlug === "tivi")).toBe(true);
       expect(offers.every((o) => o.campaignDbId === "c-1")).toBe(true);
     });
 
@@ -216,7 +216,7 @@ describe(CrawlerService.name, () => {
           id: "a-bad",
           priority: 100,
           filterRules: { garbageField: true },
-          category: { id: "cat-1", slug: "tivi" },
+          niche: { id: "cat-1", slug: "tivi" },
           campaign: { id: "c-1", name: "Lazada", merchantName: "lazada_kol" }
         }
       ];
@@ -230,27 +230,27 @@ describe(CrawlerService.name, () => {
       expect(offers).toHaveLength(1);
     });
 
-    it("sets categorySlug from assignment, not from inferCategorySlug", async () => {
+    it("sets nicheSlug from assignment, not from inferNicheSlug", async () => {
       const { service, prisma, accesstrade, importer } = await buildService();
-      const inferSpy = jest.spyOn(categoryInference, "inferCategorySlug");
+      const inferSpy = jest.spyOn(nicheInference, "inferNicheSlug");
       prisma.assignments = [
         {
           id: "a-1",
           priority: 100,
           filterRules: {},
-          category: { id: "cat-1", slug: "may-loc-khong-khi" },
+          niche: { id: "cat-1", slug: "may-loc-khong-khi" },
           campaign: { id: "c-1", name: "X", merchantName: "lazada_kol" }
         }
       ];
       accesstrade.fetchProducts.mockResolvedValueOnce([
-        makeOffer({ externalId: "p-1", categorySlug: "" })
+        makeOffer({ externalId: "p-1", nicheSlug: "" })
       ]);
 
       await service.runFullCycle("test");
 
       expect(inferSpy).not.toHaveBeenCalled();
       const offers = importer.upsertOffers.mock.calls[0][0];
-      expect(offers[0].categorySlug).toBe("may-loc-khong-khi");
+      expect(offers[0].nicheSlug).toBe("may-loc-khong-khi");
       expect(offers[0].campaignDbId).toBe("c-1");
       inferSpy.mockRestore();
     });
@@ -262,7 +262,7 @@ describe(CrawlerService.name, () => {
           id: "a-tivi",
           priority: 100,
           filterRules: null,
-          category: { id: "cat-tivi", slug: "tivi" },
+          niche: { id: "cat-tivi", slug: "tivi" },
           campaign: { id: "c-1", name: "Lazada", merchantName: "lazada_kol" }
         }
       ];
@@ -278,7 +278,7 @@ describe(CrawlerService.name, () => {
         assignmentId: "a-tivi",
         campaignId: "c-1",
         merchantSlug: "lazada_kol",
-        categorySlug: "tivi",
+        nicheSlug: "tivi",
         fetched: 2,
         routed: 2,
         failedFilter: 0

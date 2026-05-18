@@ -15,7 +15,7 @@ export interface AssignmentBreakdown {
   campaignId: string;
   campaignName: string;
   merchantSlug: string;
-  categorySlug: string;
+  nicheSlug: string;
   fetched: number;
   routed: number;
   failedFilter: number;
@@ -31,7 +31,7 @@ interface AssignmentTask {
   id: string;
   priority: number;
   filterRules: Prisma.JsonValue;
-  category: { id: string; slug: string };
+  niche: { id: string; slug: string };
   campaign: {
     id: string;
     name: string;
@@ -45,11 +45,11 @@ const SLEEP_BETWEEN_FETCH_MS = 500;
 /**
  * Orchestrator (per-assignment fetch — push filterRules xuống AT để pre-filter server-side):
  *
- * 1. Lấy tất cả `CampaignCategory` (assignment) của Campaign APPROVED + có atCampaignId + merchantName.
+ * 1. Lấy tất cả `CampaignNiche` (assignment) của Campaign APPROVED + có atCampaignId + merchantName.
  * 2. Mỗi assignment = 1 fetch `/v1/datafeeds?campaign=<merchantSlug>` + push filterRules đã convert
  *    sang AT param (`discount_rate_from/to`, `price_from/to`, `discount_from/to`, `discount_amount_from/to`,
  *    `status_discount`, `update_from`, `domain` nếu rule chỉ có 1 domain).
- * 3. Mỗi offer fetched → route thẳng vào `assignment.category.slug` (KHÔNG cần name match, KHÔNG cần
+ * 3. Mỗi offer fetched → route thẳng vào `assignment.niche.slug` (KHÔNG cần name match, KHÔNG cần
  *    first-match-wins — vì AT đã filter đúng cho assignment này).
  * 4. Sleep `SLEEP_BETWEEN_FETCH_MS` giữa các fetch để né rate-limit.
  * 5. Trả về `CycleResult.assignments[]` để UI hiển thị breakdown chi tiết per-assignment.
@@ -57,7 +57,7 @@ const SLEEP_BETWEEN_FETCH_MS = 500;
  * Limit `PER_ASSIGNMENT_LIMIT = 100` (1 page, không paginate). Đủ cho test + early adopter; scale lên sau.
  *
  * Multi-network skeleton (shopee/tiktok/lazada) vẫn được inject — sprint hiện chỉ Accesstrade active.
- * `category-inference.util.ts` (@deprecated): crawler-cycle KHÔNG infer category từ free-text nữa.
+ * `niche-inference.util.ts` (@deprecated): crawler-cycle KHÔNG infer niche từ free-text nữa.
  */
 export interface CrawlerProgress {
   isRunning: boolean;
@@ -128,7 +128,7 @@ export class CrawlerService {
       if (assignments.length === 0) {
         this.progress.currentLabel = "Không có assignment nào eligible";
         this.logger.warn(
-          "No eligible assignments (need Campaign APPROVED + atCampaignId + merchantName + ≥1 CampaignCategory). Cycle is a no-op."
+          "No eligible assignments (need Campaign APPROVED + atCampaignId + merchantName + ≥1 CampaignNiche). Cycle is a no-op."
         );
       }
 
@@ -137,7 +137,7 @@ export class CrawlerService {
 
       for (let i = 0; i < assignments.length; i++) {
         const a = assignments[i];
-        this.progress.currentLabel = `${a.campaign.merchantSlug} / ${a.category.slug}`;
+        this.progress.currentLabel = `${a.campaign.merchantSlug} / ${a.niche.slug}`;
         const result = await this.runForAssignment(a);
         breakdowns.push(result.breakdown);
         allOffers.push(...result.offers);
@@ -205,7 +205,7 @@ export class CrawlerService {
   }
 
   private async loadAssignments(): Promise<AssignmentTask[]> {
-    const rows = await this.prisma.campaignCategory.findMany({
+    const rows = await this.prisma.campaignNiche.findMany({
       where: {
         campaign: {
           status: "APPROVED",
@@ -217,7 +217,7 @@ export class CrawlerService {
         id: true,
         priority: true,
         filterRules: true,
-        category: { select: { id: true, slug: true } },
+        niche: { select: { id: true, slug: true } },
         campaign: { select: { id: true, name: true, merchantName: true } }
       },
       orderBy: [{ campaignId: "asc" }, { priority: "asc" }]
@@ -231,7 +231,7 @@ export class CrawlerService {
         id: r.id,
         priority: r.priority,
         filterRules: r.filterRules,
-        category: r.category,
+        niche: r.niche,
         campaign: {
           id: r.campaign.id,
           name: r.campaign.name,
@@ -256,7 +256,7 @@ export class CrawlerService {
       batch = await this.accesstrade.fetchProducts(fetchOpts);
     } catch (error: unknown) {
       this.logger.error(
-        `Assignment ${a.id} (${a.campaign.name} → ${a.category.slug}) fetch failed`,
+        `Assignment ${a.id} (${a.campaign.name} → ${a.niche.slug}) fetch failed`,
         error instanceof Error ? error.stack : String(error)
       );
     }
@@ -270,7 +270,7 @@ export class CrawlerService {
       }
       routed.push({
         ...offer,
-        categorySlug: a.category.slug,
+        nicheSlug: a.niche.slug,
         campaignDbId: a.campaign.id
       });
     }
@@ -280,18 +280,18 @@ export class CrawlerService {
       campaignId: a.campaign.id,
       campaignName: a.campaign.name,
       merchantSlug: a.campaign.merchantSlug,
-      categorySlug: a.category.slug,
+      nicheSlug: a.niche.slug,
       fetched: batch.length,
       routed: routed.length,
       failedFilter
     };
 
     this.logger.log(
-      `Assignment ${a.campaign.merchantSlug}/${a.category.slug}: fetched ${batch.length}, routed ${routed.length}, ${failedFilter} failed-client-filter`
+      `Assignment ${a.campaign.merchantSlug}/${a.niche.slug}: fetched ${batch.length}, routed ${routed.length}, ${failedFilter} failed-client-filter`
     );
     if (batch.length === 0) {
       this.logger.warn(
-        `Assignment ${a.campaign.merchantSlug}/${a.category.slug}: AT trả 0 offer với filter ${JSON.stringify(fetchOpts)}. Có thể filterRules quá khắt hoặc merchantName sai slug.`
+        `Assignment ${a.campaign.merchantSlug}/${a.niche.slug}: AT trả 0 offer với filter ${JSON.stringify(fetchOpts)}. Có thể filterRules quá khắt hoặc merchantName sai slug.`
       );
     }
 
