@@ -32,6 +32,7 @@
     "db:reset": "npm run prisma:reset --workspace api",
     "setup": "node scripts/setup.mjs",
     "bootstrap": "node scripts/bootstrap.mjs",
+    "dev": "node scripts/dev.mjs",
     "dev:api": "npm run start:dev --workspace api",
     "dev:web": "npm run dev --workspace web",
     "lint:web": "node scripts/run-step.mjs -- npm run lint --workspace web",
