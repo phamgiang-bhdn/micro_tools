@@ -2,16 +2,19 @@
 
 # dealvault
 
-**Affiliate micro-tool platform — Crawl. Extract. Compare. Track.**
+**Affiliate micro-tool platform cho thị trường Việt Nam**
 
-So sánh ưu đãi affiliate đa nguồn, trích dữ liệu sản phẩm bằng AI (human-in-the-loop) và đo conversion theo từng cú click.
+_Crawl • Extract • Compare • Track — mỗi micro-tool một ngách, càng chuyên càng dễ chuyển đổi._
+
+<br />
 
 [![Next.js 15](https://img.shields.io/badge/Next.js-15-000?logo=next.js&logoColor=fff)](https://nextjs.org)
 [![NestJS 10](https://img.shields.io/badge/NestJS-10-ea2845?logo=nestjs&logoColor=fff)](https://nestjs.com)
+[![React 19](https://img.shields.io/badge/React-19-149eca?logo=react&logoColor=fff)](https://react.dev)
 [![Prisma](https://img.shields.io/badge/Prisma-ORM-2D3748?logo=prisma&logoColor=fff)](https://prisma.io)
-[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-336791?logo=postgresql&logoColor=fff)](https://postgresql.org)
+[![PostgreSQL 16](https://img.shields.io/badge/PostgreSQL-16-336791?logo=postgresql&logoColor=fff)](https://postgresql.org)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=fff)](https://www.typescriptlang.org)
-[![Tailwind CSS](https://img.shields.io/badge/Tailwind-3-38BDF8?logo=tailwindcss&logoColor=fff)](https://tailwindcss.com)
+[![Tailwind](https://img.shields.io/badge/Tailwind-3-38BDF8?logo=tailwindcss&logoColor=fff)](https://tailwindcss.com)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 </div>
@@ -21,16 +24,18 @@ So sánh ưu đãi affiliate đa nguồn, trích dữ liệu sản phẩm bằng
 ## Mục lục
 
 - [Giới thiệu](#-giới-thiệu)
-- [Tính năng chính](#-tính-năng-chính)
+- [Điểm khác biệt](#-điểm-khác-biệt)
 - [Kiến trúc](#-kiến-trúc)
 - [Tech stack](#-tech-stack)
 - [Cấu trúc dự án](#-cấu-trúc-dự-án)
 - [Bắt đầu nhanh](#-bắt-đầu-nhanh)
-- [Troubleshooting](#-troubleshooting)
-- [Biến môi trường](#-biến-môi-trường)
 - [NPM scripts](#-npm-scripts)
+- [Biến môi trường](#-biến-môi-trường)
 - [Mô hình dữ liệu](#-mô-hình-dữ-liệu)
-- [Luồng hoạt động](#-luồng-hoạt-động)
+- [Luồng dữ liệu](#-luồng-dữ-liệu)
+- [Admin panel](#-admin-panel)
+- [Tích hợp Accesstrade](#-tích-hợp-accesstrade)
+- [Troubleshooting](#-troubleshooting)
 - [Roadmap](#-roadmap)
 - [Đóng góp](#-đóng-góp)
 
@@ -38,73 +43,101 @@ So sánh ưu đãi affiliate đa nguồn, trích dữ liệu sản phẩm bằng
 
 ## ✨ Giới thiệu
 
-**dealvault** là một nền tảng *micro-tool* affiliate được thiết kế theo hướng:
+**dealvault** không phải một site tổng hợp affiliate kiểu cũ. Nó là một nền tảng *micro-tool* — mỗi tool gắn với một ngách cụ thể (robot hút bụi, máy lọc không khí, máy lọc nước…), so sánh sâu trên những trường dữ liệu mà người mua thật sự quan tâm.
 
-> Mỗi micro-tool tập trung 1 ngách — càng chuyên, càng dễ chuyển đổi.
+> **Mỗi micro-tool = 1 ngách = 1 trang so sánh chuyên sâu.**
+> Càng chuyên, traffic càng đúng intent → conversion càng cao.
 
-Hệ thống crawl offer từ nhiều mạng affiliate (Accesstrade, Shopee, Tiki…), trích các trường dữ liệu quan trọng (giá, voucher, điểm thưởng, điều kiện…) bằng LLM với schema linh hoạt, **bắt buộc qua một bước duyệt thủ công** trước khi xuất bản. Click ra link affiliate luôn được sinh `trackingCode` duy nhất và đối soát qua webhook conversion.
+Hệ thống tự crawl offer từ Accesstrade (Shopee / Lazada / Tiki / TikTok Shop... qua publisher account), dùng LLM để bóc các trường dữ liệu theo schema riêng của từng ngách, **bắt buộc qua duyệt thủ công (human-in-the-loop)** trước khi xuất bản. Mọi cú click ra link đối tác đều có `trackingCode` 32 ký tự duy nhất → đối soát qua webhook conversion + reconciler `/order-list` chạy mỗi 30 phút.
 
-> Không phải link tổng hợp tay. Không phải clone WordPress. Đây là một sản phẩm engineering có production-mindset: ISR cho SEO, server actions cho redirect tracking, JSON-LD schema.org cho từng sản phẩm, separation rõ giữa data crawler — AI parser — review queue — public storefront.
+> 📖 Đọc [`docs/CONTEXT.md`](docs/CONTEXT.md) để hiểu strategy, business context và lý do tồn tại của HITL gate.
 
 ---
 
-## 🚀 Tính năng chính
+## 🚀 Điểm khác biệt
 
 ### Cho người dùng cuối
-- 🏷️ **So sánh đa nguồn** — mỗi micro-tool gom nhiều đối tác về một bảng so sánh duy nhất.
-- 🔥 **Deal hot** — tự động xếp hạng theo `% giảm`, độ tươi, chất lượng dữ liệu.
-- 🧾 **Trang sản phẩm SEO-ready** — `generateMetadata` động + JSON-LD `Product` / `Offer` / `AggregateRating` cho mỗi item.
-- 🔗 **Affiliate redirect có tracking** — server action sinh code duy nhất trước khi `redirect()` sang URL đối tác, kèm `utm_source`.
+
+| | |
+| --- | --- |
+| 🏷️ **So sánh sâu theo ngách** | Mỗi ngách có schema riêng — robot hút bụi so sánh `suctionPower`, `batteryMinutes`, `mopFunction`; máy lọc nước so sánh `filterStages`, `capacityLph`. Không phải bảng giá rập khuôn. |
+| 🔥 **Top tuần này** | Section homepage render snapshot `/top_products` Accesstrade pull mỗi 3h sáng — deal đang chạy thật, không phải hardcode. |
+| 📝 **Bài viết AI có người duyệt** | Buying guide & review viết bằng AI nhưng có admin review từng đoạn trước khi publish — đọc tại `/blog`. |
+| 🎟️ **Voucher tổng hợp** | Coupon sync từ Accesstrade mỗi 6h tại `/khuyen-mai/<merchant>`. Mã đã sanitize, click ra có tracking. |
+| 🔗 **Click có tracking thật** | Server action sinh `trackingCode` → ghi `ClickLog` → append `utm_source` → `redirect()` qua URL đối tác. Không phải `<a target=_blank>` rỗng. |
+| 🧾 **SEO-ready** | `generateMetadata` động, JSON-LD `Product` / `Offer` / `AggregateRating` / `Article`, ISR `revalidate: 300`, sitemap.xml + robots.txt sinh từ DB. |
 
 ### Cho operator / admin
-- 🤖 **AI extract pipeline** — Gemini bóc tách raw HTML/text → JSON theo `schemaConfig` của từng tool.
-- 👀 **Human-in-the-loop Refinery** — mọi kết quả AI mặc định ở trạng thái `PENDING_REVIEW`, cần duyệt mới `PUBLISHED`.
-- 🧪 **Prompt Studio** — versioning prompt template, kích hoạt / rollback, test sandbox.
-- 💰 **Money Trail** — bảng đối soát click → conversion webhook → doanh thu thực nhận.
-- 📈 **War Room** — KPI realtime: monthly revenue, conversion rate, token budget, crawler health.
+
+| | |
+| --- | --- |
+| 🤖 **AI extract pipeline** | Gemini bóc HTML/text → JSON theo `schemaConfig` từng ngách. Retry-on-rate-limit built-in (3 lần, backoff 15s/30s/45s). |
+| 👀 **Refinery** | Mọi kết quả AI mặc định `PENDING_REVIEW` — phải duyệt mới sang `PUBLISHED`. Không có path nào bypass. |
+| 📰 **Article V2 pipeline** | Multi-stage AI generation (research → outline → draft → polish) với live progress streaming lên UI. Trạng thái `DRAFT → PUBLISHED → ARCHIVED`. |
+| 🧪 **Prompt Studio** | Versioned `PromptTemplate` trong DB; bật/tắt nhanh, rollback, test sandbox. |
+| 💰 **Money Trail** | Đối soát click → conversion webhook → reconciler `/order-list` → doanh thu thật. Mismatch tự ghi `reconcileNotes` cho admin xử lý. |
+| 📈 **War Room** | KPI realtime: revenue tháng, conversion rate, token budget, crawler health, cron status. |
+| 🎯 **Per-campaign filters** | `filterRules` (price range, discount %, status, domain) đẩy thẳng xuống Accesstrade datafeeds query — chỉ kéo về data đúng tiêu chí. |
 
 ### Cho hệ thống
-- ⚡ **ISR (revalidate 300s)** trên trang public — vừa nhanh, vừa thân thiện crawler.
-- 🗺️ **`sitemap.xml` + `robots.txt`** sinh tự động từ database.
-- 🛡️ **Admin endpoints** được bảo vệ bằng `x-admin-role` + `x-admin-key`, bị `robots.txt` chặn index.
-- 🐳 **Docker compose** kèm Postgres + pgAdmin — `npm run setup` chạy là xong.
+
+- ⚡ **ISR 5 phút** trên trang public — nhanh cho user, thân thiện crawler.
+- 🛡️ **Admin auth shared-secret** (`x-admin-role` + `x-admin-key`) — không cần session, hai app share key. Endpoint admin bị `robots.txt` chặn index.
+- 🐳 **Docker compose** kèm Postgres 16 + pgAdmin — `npm run bootstrap` chạy là xong.
+- ⏰ **Cron-driven**: crawler-cycle (6h), top-products (3h sáng), coupon-sync (6h), reconciliation (30 phút) — toàn bộ env-gated, disable được riêng.
+- 🧼 **HTML sanitize** ở DB ingestion side (coupon AT có thể chứa `<script>`) — render side đã sạch, không sanitize ngược chiều.
 
 ---
 
 ## 🏗 Kiến trúc
 
 ```
-            ┌──────────────┐                  ┌────────────────┐
-            │   Crawler    │   raw content    │  AI Extractor  │
-            │  (cron job)  │ ───────────────► │  (Gemini API)  │
-            └──────────────┘                  └────────┬───────┘
-                                                       │ JSON theo
-                                                       │ schemaConfig
-                                                       ▼
-   ┌────────────┐   webhook    ┌───────────────────────────────────┐
-   │ Affiliate  │ ───────────► │           NestJS API              │
-   │  network   │              │  /tools  /tracking  /webhooks     │
-   │ (CPS/CPA)  │              │  /admin/refinery /prompts /money  │
-   └────────────┘              └──────────────┬────────────────────┘
-                                              │ Prisma
-                                              ▼
-                                       ┌─────────────┐
-                                       │ PostgreSQL  │
-                                       └──────┬──────┘
-                                              │
-                ┌─────────────────────────────┴─────────────────────────────┐
-                ▼                                                           ▼
-       ┌──────────────────┐                                       ┌──────────────────┐
-       │ Next.js public   │  ◄──── server action `redirect` ────► │ Affiliate target │
-       │  (ISR + SEO)     │       (sinh trackingCode + utm)       │     website      │
-       └──────────────────┘                                       └──────────────────┘
-                ▲
-                │
-       ┌────────┴────────┐
-       │   Admin panel   │
-       │ (refinery / KPI │
-       │  / prompt lab)  │
-       └─────────────────┘
+                    ┌─────────────────────────┐
+                    │   Accesstrade API       │
+                    │  /campaigns /datafeeds  │
+                    │  /top_products          │
+                    │  /coupons /order-list   │
+                    └────────────┬────────────┘
+                                 │  cron-driven pull
+                                 ▼
+       ┌──────────────────────────────────────────────────┐
+       │              NestJS API (port 4000)              │
+       │  ┌────────────────────────────────────────────┐  │
+       │  │ Crawler     → CampaignSync, DatafeedCycle  │  │
+       │  │             → CouponSync, TopProductsSync  │  │
+       │  │ AI          → parseBySchema, generateJson  │  │
+       │  │ Refinery    → HITL gate cho Product        │  │
+       │  │ Articles    → HITL gate cho Blog (V2)      │  │
+       │  │ Reconcile   → /order-list ground-truth     │  │
+       │  │ Tracking    → /tracking/click → ClickLog   │  │
+       │  │ Webhooks    → /webhooks/conversion         │  │
+       │  └────────────┬───────────────────────────────┘  │
+       └───────────────┼──────────────────────────────────┘
+                       │ Prisma
+                       ▼
+                ┌──────────────┐
+                │  PostgreSQL  │
+                └──────┬───────┘
+                       │
+       ┌───────────────┴──────────────────────────────────┐
+       ▼                                                  ▼
+┌──────────────────┐         server action        ┌──────────────────┐
+│  Next.js public  │ ──── createTrackingRedirect ─►  Affiliate URL  │
+│  /categories     │      (sinh trackingCode +    │                  │
+│  /blog           │       utm_source, redirect)  │ (Shopee, Lazada, │
+│  /khuyen-mai     │                              │  Tiki, TikTok…)  │
+│  ISR + JSON-LD   │                              └──────────────────┘
+└──────────────────┘
+        ▲
+        │  shared lib/, components/
+        ▼
+┌──────────────────┐
+│   /admin panel   │
+│  Refinery        │   header-auth (x-admin-role + x-admin-key)
+│  Prompt Studio   │   robots.txt blocked
+│  Money Trail     │
+│  War Room        │
+└──────────────────┘
 ```
 
 ---
@@ -113,12 +146,12 @@ Hệ thống crawl offer từ nhiều mạng affiliate (Accesstrade, Shopee, Tik
 
 | Tầng | Công nghệ |
 | --- | --- |
-| **Frontend** | Next.js 15 (App Router, RSC, Server Actions) · React 19 · TypeScript · Tailwind CSS · Radix Primitives |
-| **Backend** | NestJS 10 · TypeScript · class-validator · Prisma ORM |
-| **Database** | PostgreSQL 16 (JSONB cho `scrapedData` / `aiOutput`) |
-| **AI** | Google Gemini API (prompt template versioned trong DB) |
-| **Infra** | Docker Compose · pgAdmin · npm workspaces |
-| **Quan sát** | Built-in NestJS Logger, log có scope theo controller |
+| **Frontend** | Next.js 15 (App Router · RSC · Server Actions) · React 19 · TypeScript 5 · Tailwind CSS · Radix Primitives · react-markdown |
+| **Backend** | NestJS 10 · TypeScript 5 · class-validator · zod (admin endpoints) · Prisma ORM |
+| **Database** | PostgreSQL 16 (JSONB cho `scrapedData`, `aiOutput`, `schemaConfig`, `filterRules`, `atRawData`) |
+| **AI** | Google Gemini API (default `gemini-2.0-flash`) · OpenAI-compatible provider (Deepseek…) |
+| **Affiliate** | Accesstrade (active) · Shopee / Lazada / TikTok Shop clients (stub, env-gated) · Web-scrape fallback (Playwright + Gemini) |
+| **Infra** | Docker Compose · pgAdmin · npm workspaces · Cron-based schedulers (NestJS `@nestjs/schedule`) |
 
 ---
 
@@ -127,48 +160,57 @@ Hệ thống crawl offer từ nhiều mạng affiliate (Accesstrade, Shopee, Tik
 ```
 micro_tools/
 ├── apps/
-│   ├── api/                       # NestJS backend
+│   ├── api/                              # NestJS backend (port 4000)
 │   │   ├── prisma/
-│   │   │   ├── schema.prisma      # Category, Product, ClickLog, ConversionWebhook…
+│   │   │   ├── schema.prisma             # Niche, Product, Article, Campaign, Coupon, ClickLog…
 │   │   │   ├── migrations/
-│   │   │   └── seed.js            # Seed 2 categories + sản phẩm demo
+│   │   │   └── seed.js                   # 12 niches + system PromptTemplates (KHÔNG seed product)
 │   │   └── src/
-│   │       ├── main.ts            # bootstrap, prefix /api/v1
+│   │       ├── main.ts                   # bootstrap, prefix /api/v1, global ValidationPipe
 │   │       ├── modules/
-│   │       │   ├── categories/    # GET /categories, GET /categories/:slug
-│   │       │   ├── tracking/      # POST /tracking/click
-│   │       │   ├── webhooks/      # POST /webhooks/conversion
-│   │       │   └── admin/         # /admin/war-room, /refinery, /prompts, /money-trail
-│   │       ├── prisma/            # PrismaService singleton
-│   │       └── services/
+│   │       │   ├── admin/                # Refinery, Prompt Studio, Money Trail, War Room
+│   │       │   ├── article-pipeline/     # Article V2 multi-stage generation + streaming
+│   │       │   ├── articles/             # Public GET /articles, /articles/:slug
+│   │       │   ├── coupons/              # Public GET /coupons
+│   │       │   ├── crawler/              # AT clients, CampaignSync, CouponSync, TopProductsSync
+│   │       │   ├── niches/               # Public GET /niches, /niches/:slug
+│   │       │   ├── reconciliation/       # /v1/order-list ground-truth poller
+│   │       │   ├── top-products/         # Public GET /top-products
+│   │       │   ├── tracking/             # POST /tracking/click → ClickLog
+│   │       │   └── webhooks/             # POST /webhooks/conversion → ConversionWebhook
+│   │       ├── prisma/                   # PrismaService singleton
+│   │       ├── services/                 # AiService, ArticleService, ScraperService
+│   │       └── common/                   # sanitize-html, helpers
 │   │
-│   └── web/                       # Next.js public + admin UI
+│   └── web/                              # Next.js 15 storefront + admin (port 3100)
 │       ├── app/
-│       │   ├── page.tsx           # Hero + category grid + deal hot
-│       │   ├── layout.tsx         # Metadata SEO base, OG, Twitter
-│       │   ├── sitemap.ts         # /categories + product detail URLs
-│       │   ├── robots.ts          # Chặn /admin
-│       │   ├── not-found.tsx
-│       │   ├── loading.tsx
-│       │   ├── error.tsx
-│       │   ├── categories/[slug]/page.tsx                # Trang category
-│       │   ├── categories/[slug]/[productSlug]/page.tsx  # Chi tiết sản phẩm + JSON-LD
-│       │   ├── actions/tracking.ts                       # Server action sinh trackingCode
-│       │   └── admin/             # Refinery, Prompt Studio, Money Trail
-│       ├── components/
-│       │   ├── hero.tsx
-│       │   ├── product-card.tsx
-│       │   ├── navbar.tsx
-│       │   ├── footer.tsx
-│       │   └── ui/                # button, badge, card, breadcrumb…
+│       │   ├── page.tsx                  # Hero · niche grid · top-products
+│       │   ├── layout.tsx · sitemap.ts · robots.ts
+│       │   ├── categories/[slug]/        # Niche page (URL legacy giữ /categories cho SEO)
+│       │   │   └── [productSlug]/        # Product detail · JSON-LD Product/Offer/AggregateRating
+│       │   ├── blog/                     # Blog list (?type, ?category)
+│       │   │   └── [slug]/               # Blog detail · JSON-LD Article
+│       │   ├── khuyen-mai/[merchantSlug]/# Coupon page per merchant
+│       │   ├── actions/tracking.ts       # createTrackingRedirect() — KHÔNG REFACTOR
+│       │   ├── api/                      # Route handlers (proxy/streaming)
+│       │   └── admin/                    # Refinery · Articles · Campaigns · Coupons · …
+│       │       ├── actions.ts            # adminFetch + post() helpers (header injection)
+│       │       └── preview/[extractionId]/
+│       ├── components/                   # hero · product-card · navbar · ui/ (Radix atoms)
 │       └── lib/
-│           ├── api.ts             # fetchCategories, fetchCategoryBySlug, featuredProducts
-│           ├── format.ts          # formatMoney, normalizeProduct
-│           └── types.ts
+│           ├── api.ts                    # Server fetch wrapper
+│           ├── format.ts                 # formatMoney + normalizeProduct (SAFE READ scrapedData)
+│           ├── admin/constants.ts        # Magic strings tập trung
+│           └── types.ts                  # NicheItem, ProductItem, ProductView
 │
-├── scripts/                       # Helpers chạy CLI có banner màu
-├── docker-compose.yml             # Postgres + pgAdmin
-└── package.json                   # Workspaces gốc (apps/web + apps/api)
+├── docs/
+│   ├── CONTEXT.md                        # Business context + lý do HITL
+│   ├── ARTICLE_V2.md                     # Article V2 pipeline design
+│   ├── integrations/accesstrade.md       # AT API reference + gotchas
+│   └── sprints/                          # Sprint logs (at-source-of-truth…)
+├── scripts/                              # Banner-coloured CLI helpers
+├── docker-compose.yml                    # Postgres 16 + pgAdmin
+└── package.json                          # Workspaces (apps/web + apps/api)
 ```
 
 ---
@@ -176,9 +218,11 @@ micro_tools/
 ## ⚡ Bắt đầu nhanh
 
 ### Yêu cầu
+
 - **Node.js ≥ 20**
 - **Docker Desktop** (cho Postgres)
-- Một **Gemini API key** (chỉ cần khi muốn dùng AI extract)
+- **Gemini API key** — chỉ cần khi muốn dùng AI extract / blog AI (có thể skip nếu chỉ xem storefront)
+- **Accesstrade access token** — chỉ cần khi muốn crawl thật (có thể skip lần đầu)
 
 ### Cài đặt 1 dòng
 
@@ -189,137 +233,42 @@ npm install
 npm run bootstrap
 ```
 
-`npm run bootstrap` sẽ tự động:
-1. Tạo `.env` từ `.env.example` nếu chưa có
-2. Bật Postgres + pgAdmin (docker compose)
-3. Áp Prisma migrations
-4. Seed 5 micro-tools + 19 sản phẩm demo
+`npm run bootstrap` tự động:
+
+1. ✅ Copy `apps/api/.env.example` → `.env` và `apps/web/.env.example` → `.env` (nếu chưa có)
+2. ✅ `docker compose up -d` — Postgres 16 + pgAdmin
+3. ✅ `prisma migrate deploy` — áp toàn bộ migration
+4. ✅ Seed **12 niches** + system `PromptTemplate` (KHÔNG seed product — product đến từ crawler)
 
 ### Chạy dev
-
-Chỉ cần **1 lệnh duy nhất** — tự động kiểm tra & setup môi trường nếu cần:
 
 ```bash
 npm run dev
 ```
 
-Script sẽ tự động:
-1. ✅ Cài đặt dependencies nếu chưa có (`npm install`)
-2. ✅ Tạo `.env` từ `.env.example` nếu chưa có
-3. ✅ Khởi động Docker containers + deploy migrations
-4. ✅ Chạy cả **API** (localhost:4000) và **WEB** (localhost:3100) cùng lúc
+Script `scripts/dev.mjs` tự kiểm tra deps + env, khởi động Docker nếu cần, rồi chạy **cả API (4000) và Web (3100) song song**.
 
-> 💡 Nếu muốn chạy riêng từng server:
-> ```bash
-> npm run dev:api   # Backend NestJS, cổng 4000
-> npm run dev:web   # Frontend Next.js, cổng 3100
-> ```
+> 💡 Muốn chạy riêng: `npm run dev:api` hoặc `npm run dev:web`.
+> 💡 Port bị chiếm? `npm run kill:all` (kill 4000 + 3100).
 
-Mở:
-- 🛍️ Public storefront → http://localhost:3100
-- 🛠️ Admin panel → http://localhost:3100/admin
-- 📡 API → http://localhost:4000/api/v1
-- 🐘 pgAdmin → http://localhost:5050
+### Mở app
 
----
+| | |
+| --- | --- |
+| 🛍️ Public storefront | http://localhost:3100 |
+| 🛠️ Admin panel | http://localhost:3100/admin |
+| 📡 API base | http://localhost:4000/api/v1 |
+| 🐘 pgAdmin | http://localhost:5050 |
 
-## Troubleshooting
+### Có dữ liệu thật
 
-### Lỗi "EADDRINUSE: address already in use" (port bị chiếm)
+Storefront vừa cài xong sẽ trống (chỉ có 12 niche, không có product). Để có data:
 
-Port 4000 hoặc 3100 đang có process khác sử dụng. Tìm và kill process:
-
-**Windows:**
-```powershell
-# Tìm process chiếm port:
-netstat -ano | findstr :4000
-netstat -ano | findstr :3100
-
-# Kill process (thay <PID> bằng số tìm được):
-taskkill /PID <PID> /F
-```
-
-**Linux/Mac:**
-```bash
-# Tìm và kill process:
-lsof -i :4000 | awk 'NR>1 {print $2}' | xargs kill -9
-```
-
-### Lỗi seed không chạy được (không load được .env)
-
-File `apps/api/prisma/seed.js` đã được fix để tự động load `.env`. Nếu vẫn lỗi, chạy thủ công:
-
-```bash
-cd apps/api
-node -r dotenv/config prisma/seed.js
-```
-
-### Lỗi "Authentication failed" khi connect PostgreSQL
-
-Kiểm tra lại username/password trong `DATABASE_URL`. Đảm bảo:
-- PostgreSQL server đang chạy
-- Database đã được tạo
-- Username/password đúng
-
-Test kết nối:
-```bash
-psql -U postgres -d affiliate_db -c "SELECT 1;"
-```
-
-### Lỗi "PrismaClientInitializationError: DATABASE_URL not found"
-
-Đảm bảo file `apps/api/.env` tồn tại và có `DATABASE_URL`. Kiểm tra:
-
-```bash
-cat apps/api/.env | grep DATABASE_URL
-```
-
-### Tóm tắt các bước (copy-paste nhanh)
-
-```bash
-# 1. Clone & install
-git clone https://github.com/phamgiang-bhdn/micro_tools.git
-cd micro_tools
-npm install
-
-# 2. Cấu hình DATABASE_URL trong apps/api/.env
-# Ví dụ: DATABASE_URL="postgresql://postgres:your_password@localhost:5432/affiliate_db?schema=public"
-
-# 3. Apply migrations + seed (lần đầu — db:reset đã bao gồm seed)
-npm run db:reset
-
-# 4. Chạy dev (2 terminals)
-npm run dev:api   # Terminal 1 - Backend port 4000
-npm run dev:web   # Terminal 2 - Frontend port 3100
-
-# 5. Nếu port bị chiếm, tìm và kill process:
-netstat -ano | findstr :4000    # Tìm PID
-netstat -ano | findstr :3100    # Tìm PID
-taskkill /PID <PID> /F          # Kill process
-```
-
----
-
-## � Biến môi trường
-
-### `apps/api/.env`
-| Tên | Mô tả | Bắt buộc |
-| --- | --- | :---: |
-| `DATABASE_URL` | Postgres connection string | ✅ |
-| `PORT` | Cổng API (mặc định `4000`) | — |
-| `GEMINI_API_KEY` | API key cho AI extract / Prompt Studio | ✅ (cho AI) |
-| `ADMIN_API_KEY` | Secret chung với frontend cho admin endpoints | ✅ |
-
-### `apps/web/.env`
-| Tên | Mô tả | Bắt buộc |
-| --- | --- | :---: |
-| `PORT` | Cổng Next.js (mặc định `3100`) | — |
-| `API_BASE_URL` | URL API backend, vd `http://localhost:4000/api/v1` | ✅ |
-| `ADMIN_ROLE` | `viewer` \| `reviewer` \| `admin` | — |
-| `ADMIN_API_KEY` | Phải trùng với api `.env` | ✅ |
-| `SITE_URL` | URL công khai (dùng cho `sitemap.xml`, OG, canonical) | ✅ ở prod |
-
-> ⚠️ File `.env` đã được `.gitignore`. Chỉ commit `.env.example`.
+1. Vào `/admin/campaigns` → bấm **"Sync from Accesstrade"** (cần `ACCESSTRADE_ACCESS_TOKEN` trong `apps/api/.env`).
+2. Gán campaign vào Niche, set `filterRules` (price range / min discount).
+3. Chạy `POST /api/v1/admin/crawler/run` từ admin, hoặc đợi cron `0 */6 * * *`.
+4. Vào `/admin` (Refinery tab) duyệt extraction từ `PENDING_REVIEW` → `PUBLISHED`.
+5. Product sẽ xuất hiện ở `/categories/<slug>`.
 
 ---
 
@@ -327,82 +276,307 @@ taskkill /PID <PID> /F          # Kill process
 
 | Lệnh | Mô tả |
 | --- | --- |
-| `npm run help` | In bảng mô tả tất cả lệnh kèm màu |
-| `npm run bootstrap` | `env:init` + `setup` (chuẩn bị máy dev từ 0) |
+| `npm run help` | In bảng mô tả tất cả lệnh kèm banner màu |
+| `npm run bootstrap` | `env:init` + `setup` — setup máy dev từ 0 |
 | `npm run setup` | `docker:up` + `db:deploy` + seed |
+| `npm run dev` | Khởi động cả API + Web (auto-check env, deps, docker) |
+| `npm run dev:api` / `dev:web` | Chạy riêng từng workspace |
+| `npm run kill:api` / `kill:web` / `kill:all` | Kill process giữ port (fix EADDRINUSE) |
 | `npm run docker:up` / `docker:down` | Bật / tắt Postgres + pgAdmin |
 | `npm run db:deploy` | Áp migration đã có + regen Prisma Client (sau `git pull`) |
-| `npm run db:migrate -- --name xxx` | Tạo migration mới từ schema diff + apply (lúc dev) |
-| `npm run db:reset` | Drop DB → apply lại tất cả migration → seed (pre-release dùng thoải mái) |
-| `npm run dev:api` / `dev:web` | Chạy dev server |
-| `npm run build` | Build production (web + api) |
+| `npm run db:migrate -- --name xxx` | Tạo migration mới từ schema diff + apply (dev) |
+| `npm run db:reset` | Drop DB → apply lại tất cả migration → seed (**không bao giờ chạy prod**) |
+| `npm run prisma:studio --workspace api` | Mở Prisma Studio GUI |
+| `npm run build` | Build production (web rồi api) |
 | `npm run lint:web` | ESLint cho web |
 | `npm run test:api` | Jest cho api |
 
 ---
 
-## 🗃 Mô hình dữ liệu
+## 🔐 Biến môi trường
 
-```prisma
-Category      (id, slug 🔑, name, status, schemaConfig: Json)
- └─ Product   (id, categoryId →, name, affiliateUrl, scrapedData: JsonB, network)
-     ├─ ClickLog        (trackingCode 🔑, ipHash, userAgent, createdAt)
-     │   └─ ConversionWebhook (trackingCode →, revenue, status, payload, receivedAt)
-     └─ ProductExtraction (rawContent, aiOutput, status: DRAFT_RAW|PENDING_REVIEW|PUBLISHED|ERROR)
-PromptTemplate (name 🔑, content, version, isActive, activatedAt)
-```
+Hai file `.env` riêng (`apps/api/.env` và `apps/web/.env`) — đều có `.env.example` sibling, `npm run env:init` copy nếu thiếu. **`ADMIN_API_KEY` phải trùng giữa hai file.**
 
-- `schemaConfig` (Json) cho phép mỗi tool định nghĩa schema riêng — AI extract sẽ phải khớp đúng schema này.
-- `scrapedData` (JsonB) lưu kết quả đã duyệt — frontend dùng `normalizeProduct()` để hiển thị an toàn dù schema lệch.
-- `trackingCode` là unique key xuyên suốt: click → conversion → đối soát doanh thu.
+### `apps/api/.env`
+
+| Tên | Mô tả | Bắt buộc |
+| --- | --- | :---: |
+| `DATABASE_URL` | Postgres connection string | ✅ |
+| `PORT` | Cổng API (default `4000`) | — |
+| `ADMIN_API_KEY` | Shared secret với web app | ✅ |
+| `AI_PROVIDER` | `gemini` \| `openai-compatible` | — |
+| `GEMINI_API_KEY` | Khi `AI_PROVIDER=gemini` | ✅ (cho AI) |
+| `GEMINI_MODEL` | Default `gemini-2.0-flash` | — |
+| `AI_BASE_URL` / `AI_API_KEY` / `AI_MODEL` | Khi `AI_PROVIDER=openai-compatible` (vd Deepseek) | — |
+| `ACCESSTRADE_ACCESS_TOKEN` | Token AT publisher | ✅ (cho crawl) |
+| `TAVILY_API_KEY` | Search API cho Article V2 research stage | — |
+| `UNSPLASH_ACCESS_KEY` | Hero image cho blog | — |
+| `CRAWLER_ENABLED` / `CRAWLER_CRON` / `CRAWLER_ENABLED_NETWORKS` | Crawler-cycle controls | — |
+| `COUPON_SYNC_ENABLED` / `COUPON_SYNC_CRON` | `/v1/offers_informations/coupon` poller | — |
+| `TOP_PRODUCTS_ENABLED` / `TOP_PRODUCTS_CRON` | `/v1/top_products` daily snapshot | — |
+| `RECONCILE_ENABLED` / `RECONCILE_CRON` | `/v1/order-list` ground-truth poller | — |
+
+### `apps/web/.env`
+
+| Tên | Mô tả | Bắt buộc |
+| --- | --- | :---: |
+| `PORT` | Cổng Next.js (default `3100`) | — |
+| `API_BASE_URL` | URL API backend (vd `http://localhost:4000/api/v1`) | ✅ |
+| `ADMIN_ROLE` | `viewer` \| `reviewer` \| `admin` | — |
+| `ADMIN_API_KEY` | **Phải trùng** với api/.env | ✅ |
+| `SITE_URL` | URL công khai (sitemap, OG, canonical) | ✅ ở prod |
+
+> ⚠️ `.env` đã `.gitignore`. Chỉ commit `.env.example`.
 
 ---
 
-## 🔄 Luồng hoạt động
+## 🗃 Mô hình dữ liệu
 
-### 1. Crawl & extract
-```
-cron → fetch HTML offer page → ProductExtraction.rawContent
-     → Gemini (active PromptTemplate) → aiOutput (JSON)
-     → status = PENDING_REVIEW
+Schema rút gọn (xem full ở [`apps/api/prisma/schema.prisma`](apps/api/prisma/schema.prisma)):
+
+```prisma
+// Presentation layer (admin định nghĩa, SEO-facing)
+Niche            (id, slug 🔑, name, status, schemaConfig: Json)
+ └─ Product      (id, nicheId →, campaignId →?, name, slug, affiliateUrl,
+                   scrapedData: JsonB, network)
+     ├─ ProductExtraction (rawContent, aiOutput,
+     │                     status: DRAFT_RAW | PENDING_REVIEW | PUBLISHED | ERROR)
+     ├─ ClickLog          (trackingCode 🔑, ipHash, userAgent, createdAt)
+     │   └─ ConversionWebhook (trackingCode →, revenue, status,
+     │                         atOrderId, source, reconcileNotes, payload)
+     └─ ProductReview     (rating, content, ...)
+
+// Upstream layer (Accesstrade source-of-truth)
+Campaign         (id, atCampaignId 🔑, network, merchantName,
+                   status: APPLIED|APPROVED|PAUSED|REJECTED|INACTIVE,
+                   filterRules: Json, atRawData: Json, ...)
+ └─ CampaignNiche  (M:N campaign ↔ niche, có filterRules + priority per pair)
+
+// Catalog mới (sync từ AT)
+Coupon           (atCouponId 🔑, merchantSlug, contentHtml, expiresAt, isActive)
+TopProductSnapshot (snapshotDate, position, atProductId, ... — daily snapshot)
+Shop · Brand · Source · Category  (taxonomy phụ trợ)
+
+// Blog AI (HITL)
+Article          (id, slug 🔑, type: BUYING_GUIDE|REVIEW,
+                   status: DRAFT|PUBLISHED|ARCHIVED, productIds: String[],
+                   aiModel, ...)
+ ├─ ArticleSection
+ ├─ ArticleEvidence
+ └─ ArticleGenerationRun  (multi-stage progress cho Article V2)
+Author           (id, name, ...)
+
+// Hệ thống
+PromptTemplate   (name 🔑, content, version, isActive, activatedAt)
+CrawlerLog · ReconciliationLog  (audit trail cho cron job)
 ```
 
-### 2. Human review
+**Bất biến quan trọng:**
+
+- `trackingCode` là **join key xuyên suốt** revenue attribution: click → conversion webhook → reconciler. **Không đổi format** (32 ký tự uuid không dấu gạch) — partner systems expect token đó.
+- `Niche.schemaConfig` (Json) định nghĩa schema riêng cho mỗi ngách. AI extractor phải khớp; web đọc qua `normalizeProduct()` trong [`apps/web/lib/format.ts`](apps/web/lib/format.ts) — **đừng bypass**.
+- `Campaign` join AT side qua `atCampaignId` (numeric, real AT id). `externalId` slug-based là legacy, chỉ giữ cho backward compat.
+
+---
+
+## 🔄 Luồng dữ liệu
+
+### 1️⃣ Sync campaigns từ Accesstrade
+
 ```
-Admin /refinery
-  ├─ Approve → Product.scrapedData = aiOutput; status = PUBLISHED
-  ├─ Reject & retry → enqueue lại với prompt mới
-  └─ Reject → status = ERROR + errorReason
+Admin /admin/campaigns → "Sync from AT"
+  → CampaignSyncService pull /v1/campaigns?approval=successful
+  → Upsert theo atCampaignId
+  → Admin-managed fields (status, notes, assignments, filterRules) KHÔNG bị đè
+  → Admin gán Campaign → Niche → status auto APPROVED
 ```
 
-### 3. User click → affiliate redirect
+### 2️⃣ Crawler cycle (mỗi 6h, env-gated)
+
 ```
-[Click "Xem deal"]
+CrawlerScheduler @Cron(CRAWLER_CRON)
+  → Load tất cả CampaignNiche có Campaign.status=APPROVED + atCampaignId + merchantName
+  → Per-assignment fetch /v1/datafeeds?campaign=<merchantSlug> với filterRules đẩy xuống AT
+  → Sleep 500ms giữa fetch · Limit 100 offer/page
+  → Normalize → ImportService → ProductExtraction.status=DRAFT_RAW
+  → (Optional) AI enrich qua AiService.parseBySchema → status=PENDING_REVIEW
+```
+
+### 3️⃣ Human review (Refinery — HITL gate)
+
+```
+Admin /admin (Refinery tab)
+  ├─ Approve   → Product.scrapedData = aiOutput; status = PUBLISHED  ✨ go-live
+  ├─ Edit+save → chỉnh aiOutput trước khi approve
+  ├─ Reject + retry → enqueue lại với active PromptTemplate mới
+  └─ Reject    → status = ERROR + errorReason (admin xem ở /admin)
+```
+
+### 4️⃣ User click → affiliate redirect
+
+```
+[Người dùng bấm "Xem deal"]
   → server action createTrackingRedirect()
-      ├─ uuid → trackingCode (32 ký tự, không dấu gạch)
-      ├─ POST /tracking/click → tạo ClickLog
-      └─ append ?utm_source=<trackingCode>
-  → redirect() sang URL đối tác
+      ├─ randomUUID().replace(/-/g, "") → 32 ký tự trackingCode
+      ├─ POST /api/v1/tracking/click → tạo ClickLog
+      └─ append ?utm_source=<trackingCode> vào affiliateUrl
+  → redirect() (308) sang URL đối tác
 ```
 
-### 4. Đối soát đơn hàng
+### 5️⃣ Đối soát doanh thu (real-time + ground-truth)
+
 ```
-Đối tác POST /webhooks/conversion {trackingCode, revenue, status}
-  → ConversionWebhook tham chiếu ClickLog
-  → KPI War Room cập nhật doanh thu / conversion rate
+[A] Real-time:   Đối tác POST /webhooks/conversion {trackingCode, revenue, status}
+                  → ConversionWebhook tham chiếu ClickLog (source="webhook")
+
+[B] Ground-truth: ReconciliationService @Cron(*/30) pull /v1/order-list
+                  → Match theo utm_source = trackingCode
+                  → Update ConversionWebhook (source="api-reconcile" hoặc "both")
+                  → Mismatch revenue > 1₫ → ghi reconcileNotes cho admin
+
+[C] War Room dashboard: monthly revenue, conversion rate, source breakdown
 ```
+
+### 6️⃣ Article V2 (multi-stage AI authoring)
+
+```
+Admin /admin/articles/new (chọn topic, niche, productIds)
+  → ArticleService.generateDraft()
+      Stage 1: Research (Tavily search)
+      Stage 2: Outline (Gemini)
+      Stage 3: Draft (Gemini, full markdown)
+      Stage 4: Polish (Gemini, fix flow)
+  → Stream progress qua /api/articles/.../stream → UI live progress bar
+  → status = DRAFT (chưa public)
+  → Admin /admin/articles/[id] review Edit/Preview tabs
+  → Publish → status = PUBLISHED → /blog/[slug] hiển thị
+```
+
+---
+
+## 🎛 Admin panel
+
+Tất cả nằm dưới `/admin` (header-auth bằng `x-admin-role` + `x-admin-key`, robots.txt block index).
+
+| Trang | Vai trò tối thiểu | Chức năng |
+| --- | --- | --- |
+| `/admin` (Refinery) | `reviewer` | Duyệt `ProductExtraction` từ `PENDING_REVIEW` → `PUBLISHED` |
+| `/admin/articles` | `reviewer` | Quản lý blog AI, Article V2 pipeline, publish/archive |
+| `/admin/campaigns` | `admin` | Sync campaign từ AT, gán Niche, tinh chỉnh `filterRules` |
+| `/admin/niches` | `admin` | Tạo / chỉnh `schemaConfig` cho từng ngách |
+| `/admin/products` | `reviewer` | List + edit product đã published |
+| `/admin/coupons` | `reviewer` | Duyệt coupon từ AT sync (HITL: `isActive=false` mặc định) |
+| `/admin/shops` · `/brands` · `/sources` | `admin` | Taxonomy phụ trợ |
+| `/admin/crawler-logs` | `viewer` | Audit cron run (success/error/breakdown per-assignment) |
+| `/admin/reconciliation` | `admin` | Trigger reconcile tay, xem `ReconciliationLog.unmatched` |
+| `/admin/money-trail` | `viewer` | Click → conversion → revenue ledger |
+| `/admin/analytics` (War Room) | `viewer` | KPI dashboard |
+| `/admin/categories` (Prompt Studio nằm trong actions) | `admin` | Quản lý `PromptTemplate` versions |
+
+> 🎨 UI convention: `ListPageShell` + `FormDialog` + `RowActions` + `lib/admin/constants.ts` cho magic strings. Không có route `/new` riêng — form mở qua dialog.
+
+---
+
+## 🔌 Tích hợp Accesstrade
+
+Đây là affiliate network active duy nhất hiện tại. Toàn bộ chi tiết endpoint, auth format, rate limit, mapping vào schema xem [`docs/integrations/accesstrade.md`](docs/integrations/accesstrade.md).
+
+| Endpoint AT | Tần suất | Service | Mục đích |
+| --- | --- | --- | --- |
+| `GET /v1/campaigns` | On-demand | `CampaignSyncService` | Lấy danh sách campaign đã approved cho publisher account |
+| `GET /v1/datafeeds` | Cron 6h | `CrawlerService` | Pull product offer per-assignment với `filterRules` push-down |
+| `GET /v1/top_products` | Cron 3h sáng | `TopProductsSyncService` | Snapshot top deal tuần (homepage section) |
+| `GET /v1/offers_informations/coupon` | Cron 6h | `CouponSyncService` | Voucher per merchant (3-level: merchant → icontext → coupon) |
+| `GET /v1/order-list` | Cron 30 phút | `ReconciliationService` | Ground-truth doanh thu, đối soát với webhook |
+| Webhook → `/api/v1/webhooks/conversion` | Real-time | `WebhooksController` | Postback CPA/CPS từ AT |
+
+**Rate limit AT**: cap 10 req/phút trên `/offers_informations/*` và `/order-list`. Code có sleep 7s giữa request — đừng bypass.
+
+---
+
+## 🚨 Troubleshooting
+
+<details>
+<summary><b>Port bị chiếm (EADDRINUSE)</b></summary>
+
+```bash
+npm run kill:all
+# hoặc Windows:
+netstat -ano | findstr :4000
+taskkill /PID <PID> /F
+```
+</details>
+
+<details>
+<summary><b>Postgres không connect được</b></summary>
+
+```bash
+# Kiểm tra Docker container có chạy không
+docker compose ps
+# Restart nếu cần
+npm run docker:down && npm run docker:up
+# Verify DATABASE_URL
+cat apps/api/.env | grep DATABASE_URL
+```
+</details>
+
+<details>
+<summary><b>"PrismaClientInitializationError: DATABASE_URL not found"</b></summary>
+
+File `apps/api/.env` chưa được tạo. Chạy:
+```bash
+npm run env:init
+```
+</details>
+
+<details>
+<summary><b>Seed báo lỗi không load được .env</b></summary>
+
+Seed script đã wire `dotenv` sẵn. Nếu vẫn lỗi, chạy thủ công:
+```bash
+cd apps/api
+node -r dotenv/config prisma/seed.js
+```
+</details>
+
+<details>
+<summary><b>AI extract trả 429 / quota</b></summary>
+
+`AiService` đã built-in retry 3 lần (backoff 15s/30s/45s). Nếu vẫn 429:
+- Check quota Gemini key
+- Hoặc switch sang OpenAI-compatible provider:
+  ```env
+  AI_PROVIDER=openai-compatible
+  AI_BASE_URL=https://api.deepseek.com
+  AI_API_KEY=...
+  AI_MODEL=deepseek-chat
+  ```
+</details>
+
+<details>
+<summary><b>Crawler không trả về sản phẩm nào</b></summary>
+
+- `Campaign.status` phải là `APPROVED` và có `atCampaignId` + `merchantName`
+- `CampaignNiche` assignment phải tồn tại
+- AT `?campaign=` nhận **merchant slug** (từ `Campaign.merchantName`), KHÔNG phải `atCampaignId` — xem [gotcha #3](docs/integrations/accesstrade.md)
+- Check `/admin/crawler-logs` để xem breakdown per-assignment
+</details>
 
 ---
 
 ## 🗺 Roadmap
 
-- [ ] So sánh giá đa shop cho cùng 1 sản phẩm (price-history chart)
-- [ ] Tự sinh OG image cho từng sản phẩm (next/og)
-- [ ] Tìm kiếm full-text + facet filter
-- [ ] Cảnh báo giá (price alert qua email/Telegram)
-- [ ] Affiliate adapter cho Shopee / Lazada / Tiki / Amazon
-- [ ] A/B test CTA button & landing variant
-- [ ] Cron health dashboard + auto-retry crawler
+- [x] Article V2 multi-stage pipeline với live UI progress streaming
+- [x] Reconciliation `/order-list` ground-truth
+- [x] Coupon sync per merchant + sanitize HTML gate
+- [x] Top products daily snapshot
+- [ ] Price history chart per product
+- [ ] OG image động sinh bằng `next/og`
+- [ ] Direct Shopee / Lazada / TikTok Shop integration (hiện đang qua AT)
+- [ ] Price alert qua email / Telegram
+- [ ] A/B test CTA & landing variant
+- [ ] Cron health dashboard với auto-retry crawler
+- [ ] Full-text search + faceted filter cross-niche
 
 ---
 
@@ -416,10 +590,24 @@ npm run test:api
 npm run build
 ```
 
-Style: TypeScript strict, không `any`, prefer functional component & server component mặc định.
+**Style guide:**
+- TypeScript strict, không `any`.
+- RSC mặc định; chỉ `"use client"` khi cần browser API / state / event.
+- Admin endpoints: zod cho validation, `authorize()` cho per-method gate.
+- Public endpoints: class-validator DTO, không re-validate trong controller.
+- Sau khi sửa `schema.prisma` → `npm run db:migrate -- --name <slug>`.
+- Đọc CLAUDE.md ở root + apps/api + apps/web trước khi đụng pattern lớn.
 
 ---
 
 ## 📄 License
 
 MIT © [phamgiang-bhdn](https://github.com/phamgiang-bhdn)
+
+<div align="center">
+
+<br />
+
+**Built with care — for a market that deserves better than affiliate spam.**
+
+</div>
