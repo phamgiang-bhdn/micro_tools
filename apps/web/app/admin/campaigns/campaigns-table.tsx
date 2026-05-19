@@ -39,9 +39,17 @@ import {
   runSelectedCampaignsCrawlerAction,
   updateCampaignFilterRulesAction,
   getCrawlerProgressAction,
+  bulkCampaignAction,
   type RunSelectedCrawlerResult,
   type CrawlerProgress
 } from "../actions";
+import {
+  BulkBar,
+  selectionColumnRenderers,
+  buildBulkConfirmMessage,
+  type BulkAction
+} from "../../../components/admin/bulk-bar";
+import { useBulkSelection } from "../../../components/admin/use-bulk-selection";
 import { withToast } from "../../../lib/admin/notify";
 import {
   type FilterRules,
@@ -82,6 +90,14 @@ interface CampaignsTableProps {
   totalCount: number;
 }
 
+const CAMPAIGN_BULK_ACTIONS: BulkAction[] = [
+  { value: "status:APPROVED", label: "Chuyển → APPROVED", confirm: "" },
+  { value: "status:PAUSED", label: "Chuyển → PAUSED", confirm: "" },
+  { value: "status:REJECTED", label: "Chuyển → REJECTED", confirm: "" },
+  { value: "status:INACTIVE", label: "Ẩn (INACTIVE)", confirm: "" },
+  { value: "crawl", label: "Lấy sản phẩm…", confirm: "" }
+];
+
 const EMPTY_CREATE: CampaignCreateInput = {
   network: "ACCESSTRADE",
   externalId: "",
@@ -109,6 +125,23 @@ export function CampaignsTable({
   const [createOpen, setCreateOpen] = React.useState(false);
   // Một dialog dùng chung cho "Xem chi tiết" + "Sửa" — cùng form, hiện đầy đủ data.
   const [editing, setEditing] = React.useState<CampaignRow | null>(null);
+
+  // ---- Bulk selection ----
+  const visibleIds = React.useMemo(() => rows.map((r) => r.id), [rows]);
+  const selection = useBulkSelection(visibleIds);
+  const [bulkAction, setBulkAction] = React.useState<string>("");
+  const [bulkPending, setBulkPending] = React.useState(false);
+
+  const selectColumn = React.useMemo<ColumnDef<CampaignRow>>(() => {
+    const r = selectionColumnRenderers<CampaignRow>({
+      allSelected: selection.allSelected,
+      toggleAll: selection.toggleAll,
+      isSelected: selection.isSelected,
+      toggleOne: selection.toggleOne,
+      rowLabel: (row) => row.name
+    });
+    return { key: "_select", header: r.header, cell: r.cell, width: "44px", noTruncate: true };
+  }, [selection.allSelected, selection.toggleAll, selection.isSelected, selection.toggleOne]);
 
   const handleCreate = async (data: CampaignCreateInput) => {
     const fd = new FormData();
@@ -208,6 +241,32 @@ export function CampaignsTable({
     setCrawlDialogRows(eligible);
   };
 
+  const applyBulk = async (): Promise<void> => {
+    if (!bulkAction || selection.count === 0) return;
+    const selectedRows = rows.filter((r) => selection.isSelected(r.id));
+    if (bulkAction === "crawl") {
+      openCrawlDialog(selectedRows);
+      return;
+    }
+    const cfg = CAMPAIGN_BULK_ACTIONS.find((a) => a.value === bulkAction);
+    const confirmMsg = buildBulkConfirmMessage(cfg, selection.count);
+    if (confirmMsg && !window.confirm(confirmMsg)) return;
+    setBulkPending(true);
+    try {
+      const fd = new FormData();
+      for (const id of selection.selected) fd.append("ids", id);
+      fd.set("action", bulkAction);
+      await bulkCampaignAction(fd);
+      selection.clear();
+      setBulkAction("");
+      router.refresh();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Bulk action thất bại");
+    } finally {
+      setBulkPending(false);
+    }
+  };
+
   const handleConfirmCrawl = async () => {
     if (!crawlDialogRows || crawlDialogRows.length === 0) return;
     setCrawlPending(true);
@@ -261,6 +320,7 @@ export function CampaignsTable({
   };
 
   const columns: ColumnDef<CampaignRow>[] = [
+    selectColumn,
     {
       key: "name",
       header: "Chiến dịch",
@@ -388,20 +448,32 @@ export function CampaignsTable({
   return (
     <>
       <div className="admin-card overflow-hidden p-0">
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-admin-line bg-admin-subtle/40 px-4 py-2.5">
-          <span className="text-xs text-admin-mute">
-            Đang hiển thị: <span className="font-semibold text-admin-ink">{filteredCount}</span>
-            {filteredCount !== totalCount ? <span> / {totalCount}</span> : null}
-          </span>
-          <AdminButton size="sm" iconLeft={<Plus />} onClick={() => setCreateOpen(true)}>
-            Tạo chiến dịch
-          </AdminButton>
-        </div>
+        <BulkBar
+          selectedCount={selection.count}
+          totalCount={rows.length}
+          actions={CAMPAIGN_BULK_ACTIONS}
+          action={bulkAction}
+          setAction={setBulkAction}
+          onApply={applyBulk}
+          pending={bulkPending}
+          rightSlot={
+            <div className="flex items-center gap-3">
+              <span className="text-[12.5px] text-admin-mute">
+                Hiển thị <span className="font-semibold text-admin-ink">{filteredCount}</span>
+                {filteredCount !== totalCount ? <span> / {totalCount}</span> : null}
+              </span>
+              <AdminButton size="sm" iconLeft={<Plus />} onClick={() => setCreateOpen(true)}>
+                Tạo chiến dịch
+              </AdminButton>
+            </div>
+          }
+        />
         <DataTable
           columns={columns}
           rows={rows}
           rowKey={(c) => c.id}
           emptyState="Không có chiến dịch nào khớp bộ lọc. Bấm 'Đồng bộ từ Accesstrade' phía trên hoặc đổi bộ lọc."
+          isRowHighlighted={(c) => selection.isSelected(c.id)}
         />
       </div>
 

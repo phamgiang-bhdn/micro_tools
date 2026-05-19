@@ -124,7 +124,6 @@ export function ShopsTable({ rows, totalCount }: ShopsTableProps): React.ReactEl
             >
               {s.name}
             </button>
-            <div className="mt-0.5 font-mono text-[11px] text-admin-mute">{s.slug}</div>
           </div>
         </div>
       )

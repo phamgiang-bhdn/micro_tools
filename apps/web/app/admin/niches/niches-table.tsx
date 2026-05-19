@@ -25,8 +25,16 @@ import {
 import {
   createNicheAction,
   updateNicheAction,
-  deleteNicheAction
+  deleteNicheAction,
+  bulkNicheAction
 } from "../actions";
+import {
+  BulkBar,
+  selectionColumnRenderers,
+  buildBulkConfirmMessage,
+  type BulkAction
+} from "../../../components/admin/bulk-bar";
+import { useBulkSelection } from "../../../components/admin/use-bulk-selection";
 
 export interface NicheRow {
   id: string;
@@ -53,6 +61,18 @@ const DEFAULT_SCHEMA_JSON = `{
   "noiseLevel": "number"
 }`;
 
+const NICHE_BULK_ACTIONS: BulkAction[] = [
+  { value: "activate", label: "Kích hoạt (Đang hiện)", confirm: "" },
+  { value: "deactivate", label: "Ẩn (INACTIVE)", confirm: "" },
+  {
+    value: "delete",
+    label: "Xoá ngành hàng",
+    confirm:
+      "Xoá các ngành hàng đã chọn? Chỉ xoá được những niche không có sản phẩm gắn vào.",
+    tone: "danger"
+  }
+];
+
 const EMPTY_CREATE: NicheCreateInput = {
   name: "",
   slug: "",
@@ -78,6 +98,44 @@ export function NichesTable({
   const [createOpen, setCreateOpen] = React.useState(false);
   // Form chung cho "Xem chi tiết" + "Sửa".
   const [editing, setEditing] = React.useState<NicheRow | null>(null);
+
+  // ---- Bulk selection ----
+  const visibleIds = React.useMemo(() => rows.map((r) => r.id), [rows]);
+  const selection = useBulkSelection(visibleIds);
+  const [bulkAction, setBulkAction] = React.useState<string>("");
+  const [bulkPending, setBulkPending] = React.useState(false);
+
+  const selectColumn = React.useMemo<ColumnDef<NicheRow>>(() => {
+    const r = selectionColumnRenderers<NicheRow>({
+      allSelected: selection.allSelected,
+      toggleAll: selection.toggleAll,
+      isSelected: selection.isSelected,
+      toggleOne: selection.toggleOne,
+      rowLabel: (row) => row.name
+    });
+    return { key: "_select", header: r.header, cell: r.cell, width: "44px", noTruncate: true };
+  }, [selection.allSelected, selection.toggleAll, selection.isSelected, selection.toggleOne]);
+
+  const applyBulk = async (): Promise<void> => {
+    if (!bulkAction || selection.count === 0) return;
+    const cfg = NICHE_BULK_ACTIONS.find((a) => a.value === bulkAction);
+    const confirmMsg = buildBulkConfirmMessage(cfg, selection.count);
+    if (confirmMsg && !window.confirm(confirmMsg)) return;
+    setBulkPending(true);
+    try {
+      const fd = new FormData();
+      for (const id of selection.selected) fd.append("ids", id);
+      fd.set("action", bulkAction);
+      await bulkNicheAction(fd);
+      selection.clear();
+      setBulkAction("");
+      router.refresh();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Bulk action thất bại");
+    } finally {
+      setBulkPending(false);
+    }
+  };
 
   const handleCreate = async (data: NicheCreateInput) => {
     const fd = new FormData();
@@ -112,6 +170,7 @@ export function NichesTable({
   };
 
   const columns: ColumnDef<NicheRow>[] = [
+    selectColumn,
     {
       key: "name",
       header: "Tên",
@@ -124,7 +183,6 @@ export function NichesTable({
           >
             {c.name}
           </button>
-          <div className="mt-0.5 font-mono text-[11px] text-admin-mute">{c.slug}</div>
         </div>
       )
     },
@@ -199,20 +257,32 @@ export function NichesTable({
   return (
     <>
       <div className="admin-card overflow-hidden p-0">
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-admin-line bg-admin-subtle/40 px-4 py-2.5">
-          <span className="text-xs text-admin-mute">
-            Đang hiển thị: <span className="font-semibold text-admin-ink">{filteredCount}</span>
-            {filteredCount !== totalCount ? <span> / {totalCount}</span> : null}
-          </span>
-          <AdminButton size="sm" iconLeft={<Plus />} onClick={() => setCreateOpen(true)}>
-            Tạo ngành hàng
-          </AdminButton>
-        </div>
+        <BulkBar
+          selectedCount={selection.count}
+          totalCount={rows.length}
+          actions={NICHE_BULK_ACTIONS}
+          action={bulkAction}
+          setAction={setBulkAction}
+          onApply={applyBulk}
+          pending={bulkPending}
+          rightSlot={
+            <div className="flex items-center gap-3">
+              <span className="text-[12.5px] text-admin-mute">
+                Hiển thị <span className="font-semibold text-admin-ink">{filteredCount}</span>
+                {filteredCount !== totalCount ? <span> / {totalCount}</span> : null}
+              </span>
+              <AdminButton size="sm" iconLeft={<Plus />} onClick={() => setCreateOpen(true)}>
+                Tạo ngành hàng
+              </AdminButton>
+            </div>
+          }
+        />
         <DataTable
           columns={columns}
           rows={rows}
           rowKey={(c) => c.id}
           emptyState="Chưa có niche nào. Bấm 'Tạo niche' để thêm."
+          isRowHighlighted={(c) => selection.isSelected(c.id)}
         />
       </div>
 

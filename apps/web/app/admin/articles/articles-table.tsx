@@ -38,8 +38,16 @@ import {
   deleteArticleAction,
   duplicateArticleAction,
   generateArticleAction,
-  publishArticleAction
+  publishArticleAction,
+  bulkArticleAction
 } from "../actions";
+import {
+  BulkBar,
+  selectionColumnRenderers,
+  buildBulkConfirmMessage,
+  type BulkAction
+} from "../../../components/admin/bulk-bar";
+import { useBulkSelection } from "../../../components/admin/use-bulk-selection";
 
 export interface NicheWithProducts {
   id: string;
@@ -61,6 +69,17 @@ const dateFmt = new Intl.DateTimeFormat("vi-VN", {
   minute: "2-digit"
 });
 
+const ARTICLE_BULK_ACTIONS: BulkAction[] = [
+  { value: "publish", label: "Đăng bài", confirm: "Đăng các bài đã chọn lên storefront?" },
+  { value: "archive", label: "Lưu trữ", confirm: "Chuyển các bài đã chọn về ARCHIVED?" },
+  {
+    value: "delete",
+    label: "Xoá bài",
+    confirm: "Xoá các bài đã chọn? Không thể hoàn tác.",
+    tone: "danger"
+  }
+];
+
 const EMPTY_GENERATE: ArticleGenerateInput = {
   type: "BUYING_GUIDE",
   topic: "",
@@ -75,6 +94,45 @@ export function ArticlesTable({
 }: ArticlesTableProps): React.ReactElement {
   const router = useRouter();
   const [createOpen, setCreateOpen] = React.useState(false);
+
+  // ---- Bulk selection ----
+  const visibleIds = React.useMemo(() => rows.map((r) => r.id), [rows]);
+  const selection = useBulkSelection(visibleIds);
+  const [bulkAction, setBulkAction] = React.useState<string>("");
+  const [bulkPending, setBulkPending] = React.useState(false);
+
+  const selectColumn = React.useMemo<ColumnDef<ArticleAdminSummary>>(() => {
+    const r = selectionColumnRenderers<ArticleAdminSummary>({
+      allSelected: selection.allSelected,
+      toggleAll: selection.toggleAll,
+      isSelected: selection.isSelected,
+      toggleOne: selection.toggleOne,
+      rowLabel: (row) => row.title
+    });
+    return { key: "_select", header: r.header, cell: r.cell, width: "44px", noTruncate: true };
+  }, [selection.allSelected, selection.toggleAll, selection.isSelected, selection.toggleOne]);
+
+  const applyBulk = async (): Promise<void> => {
+    if (!bulkAction || selection.count === 0) return;
+    const cfg = ARTICLE_BULK_ACTIONS.find((a) => a.value === bulkAction);
+    const confirmMsg = buildBulkConfirmMessage(cfg, selection.count);
+    if (confirmMsg && !window.confirm(confirmMsg)) return;
+    setBulkPending(true);
+    try {
+      const fd = new FormData();
+      for (const id of selection.selected) fd.append("ids", id);
+      fd.set("action", bulkAction);
+      fd.set("reviewer", "admin");
+      await bulkArticleAction(fd);
+      selection.clear();
+      setBulkAction("");
+      router.refresh();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Bulk action thất bại");
+    } finally {
+      setBulkPending(false);
+    }
+  };
 
   const callSingle = async (action: typeof publishArticleAction, id: string) => {
     const fd = new FormData();
@@ -104,6 +162,7 @@ export function ArticlesTable({
   };
 
   const columns: ColumnDef<ArticleAdminSummary>[] = [
+    selectColumn,
     {
       key: "title",
       header: "Tiêu đề",
@@ -196,17 +255,29 @@ export function ArticlesTable({
   return (
     <>
       <div className="admin-card overflow-hidden p-0">
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-admin-line bg-admin-subtle/40 px-4 py-2.5">
-          <span className="text-xs text-admin-mute">{rows.length} bài viết</span>
-          <AdminButton size="sm" iconLeft={<Sparkles />} onClick={() => setCreateOpen(true)}>
-            Tạo bài viết
-          </AdminButton>
-        </div>
+        <BulkBar
+          selectedCount={selection.count}
+          totalCount={rows.length}
+          actions={ARTICLE_BULK_ACTIONS}
+          action={bulkAction}
+          setAction={setBulkAction}
+          onApply={applyBulk}
+          pending={bulkPending}
+          rightSlot={
+            <div className="flex items-center gap-3">
+              <span className="text-[12.5px] text-admin-mute">{rows.length} bài viết</span>
+              <AdminButton size="sm" iconLeft={<Sparkles />} onClick={() => setCreateOpen(true)}>
+                Tạo bài viết
+              </AdminButton>
+            </div>
+          }
+        />
         <DataTable
           columns={columns}
           rows={rows}
           rowKey={(a) => a.id}
           emptyState="Không có bài viết."
+          isRowHighlighted={(a) => selection.isSelected(a.id)}
         />
       </div>
 

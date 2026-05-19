@@ -28,8 +28,17 @@ import {
   createProductAction,
   updateProductAction,
   deleteProductAction,
-  toggleProductPublicAction
+  toggleProductPublicAction,
+  bulkProductAction,
+  bulkAssignShopAction
 } from "../actions";
+import {
+  BulkBar,
+  selectionColumnRenderers,
+  buildBulkConfirmMessage,
+  type BulkAction
+} from "../../../components/admin/bulk-bar";
+import { useBulkSelection } from "../../../components/admin/use-bulk-selection";
 
 export interface ProductRow {
   id: string;
@@ -67,6 +76,29 @@ interface ProductsTableProps {
   totalCount: number;
   hasFilter: boolean;
 }
+
+const PRODUCT_BULK_ACTIONS: BulkAction[] = [
+  { value: "make-public", label: "Hiện trên storefront", confirm: "" },
+  { value: "make-private", label: "Ẩn khỏi storefront", confirm: "" },
+  { value: "assign-niche", label: "Gán ngành hàng…", confirm: "" },
+  {
+    value: "clear-niche",
+    label: "Bỏ gán ngành hàng",
+    confirm: "Bỏ ngành hàng của các sản phẩm đã chọn?"
+  },
+  { value: "assign-shop", label: "Gán shop…", confirm: "" },
+  {
+    value: "clear-shop",
+    label: "Bỏ gán shop",
+    confirm: "Bỏ shop của các sản phẩm đã chọn?"
+  },
+  {
+    value: "delete",
+    label: "Xoá sản phẩm",
+    confirm: "Xoá sản phẩm đã chọn? Hành động không thể hoàn tác.",
+    tone: "danger"
+  }
+];
 
 const EMPTY_CREATE: ProductCreateInput = {
   name: "",
@@ -146,6 +178,76 @@ export function ProductsTable({
   const [editing, setEditing] = React.useState<ProductRow | null>(null);
   // Form chung cho "Xem chi tiết" + "Sửa".
 
+  // ---- Bulk selection ----
+  const visibleIds = React.useMemo(() => rows.map((r) => r.id), [rows]);
+  const selection = useBulkSelection(visibleIds);
+  const [bulkAction, setBulkAction] = React.useState<string>("");
+  const [bulkNicheId, setBulkNicheId] = React.useState<string>("");
+  const [bulkShopId, setBulkShopId] = React.useState<string>("");
+  const [bulkPending, setBulkPending] = React.useState(false);
+
+  // Reset extra-slot state khi đổi action chính.
+  React.useEffect(() => {
+    setBulkNicheId("");
+    setBulkShopId("");
+  }, [bulkAction]);
+
+  const selectColumn = React.useMemo<ColumnDef<ProductRow>>(() => {
+    const r = selectionColumnRenderers<ProductRow>({
+      allSelected: selection.allSelected,
+      toggleAll: selection.toggleAll,
+      isSelected: selection.isSelected,
+      toggleOne: selection.toggleOne,
+      rowLabel: (row) => row.name
+    });
+    return {
+      key: "_select",
+      header: r.header,
+      cell: r.cell,
+      width: "44px",
+      noTruncate: true
+    };
+  }, [selection.allSelected, selection.toggleAll, selection.isSelected, selection.toggleOne]);
+
+  const applyBulk = async (): Promise<void> => {
+    if (!bulkAction || selection.count === 0) return;
+    const cfg = PRODUCT_BULK_ACTIONS.find((a) => a.value === bulkAction);
+    if (bulkAction === "assign-niche" && !bulkNicheId) {
+      alert("Chọn ngành hàng trước khi áp dụng.");
+      return;
+    }
+    if (bulkAction === "assign-shop" && !bulkShopId) {
+      alert("Chọn shop trước khi áp dụng.");
+      return;
+    }
+    const confirmMsg = buildBulkConfirmMessage(cfg, selection.count);
+    if (confirmMsg && !window.confirm(confirmMsg)) return;
+
+    setBulkPending(true);
+    try {
+      const fd = new FormData();
+      for (const id of selection.selected) fd.append("ids", id);
+      if (bulkAction === "assign-shop") {
+        fd.set("shopId", bulkShopId);
+        await bulkAssignShopAction(fd);
+      } else if (bulkAction === "clear-shop") {
+        fd.set("shopId", "");
+        await bulkAssignShopAction(fd);
+      } else {
+        fd.set("action", bulkAction);
+        if (bulkAction === "assign-niche") fd.set("nicheId", bulkNicheId);
+        await bulkProductAction(fd);
+      }
+      selection.clear();
+      setBulkAction("");
+      router.refresh();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Bulk action thất bại");
+    } finally {
+      setBulkPending(false);
+    }
+  };
+
   const nicheOptions = React.useMemo(
     () => niches.map((c) => ({ value: c.id, label: c.name })),
     [niches]
@@ -200,6 +302,7 @@ export function ProductsTable({
   };
 
   const columns: ColumnDef<ProductRow>[] = [
+    selectColumn,
     {
       key: "image",
       header: <span className="sr-only">Ảnh</span>,
@@ -239,15 +342,14 @@ export function ProductsTable({
             >
               {p.name}
             </button>
-            <div className="mt-0.5 flex items-center gap-2 truncate text-[11px] text-admin-mute">
-              {s.brand ? (
-                <span className="truncate font-medium text-admin-ink/80">{s.brand}</span>
-              ) : null}
-              {s.store ? <span className="truncate">· {s.store}</span> : null}
-              {p.slug ? (
-                <span className="truncate font-mono text-[10px]">/{p.slug}</span>
-              ) : null}
-            </div>
+            {s.brand || s.store ? (
+              <div className="mt-0.5 flex items-center gap-2 truncate text-[11px] text-admin-mute">
+                {s.brand ? (
+                  <span className="truncate font-medium text-admin-ink/80">{s.brand}</span>
+                ) : null}
+                {s.store ? <span className="truncate">· {s.store}</span> : null}
+              </div>
+            ) : null}
           </div>
         );
       }
@@ -295,10 +397,7 @@ export function ProductsTable({
       hideOnMobile: true,
       cell: (p) =>
         p.niche ? (
-          <div className="leading-tight">
-            <div className="text-[12.5px] text-admin-ink">{p.niche.name}</div>
-            <div className="font-mono text-[10.5px] text-admin-mute">{p.niche.slug}</div>
-          </div>
+          <span className="text-[12.5px] text-admin-ink">{p.niche.name}</span>
         ) : (
           <StatusPill tone="warning" dot>
             Chưa gán
@@ -403,21 +502,62 @@ export function ProductsTable({
   return (
     <>
       <div className="admin-card overflow-hidden p-0">
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-admin-line bg-admin-subtle/40 px-4 py-2.5">
-          <span className="text-xs text-admin-mute">
-            Đang hiển thị: <span className="font-semibold text-admin-ink">{rows.length}</span>
-            {totalCount !== rows.length ? <span> / {totalCount}</span> : null}
-            {hasFilter ? <span className="ml-1 text-admin-mute">(theo lọc)</span> : null}
-          </span>
-          <AdminButton size="sm" iconLeft={<Plus />} onClick={() => setCreateOpen(true)}>
-            Thêm sản phẩm
-          </AdminButton>
-        </div>
+        <BulkBar
+          selectedCount={selection.count}
+          totalCount={rows.length}
+          actions={PRODUCT_BULK_ACTIONS}
+          action={bulkAction}
+          setAction={setBulkAction}
+          onApply={applyBulk}
+          pending={bulkPending}
+          extraSlot={
+            bulkAction === "assign-niche" ? (
+              <select
+                value={bulkNicheId}
+                onChange={(e) => setBulkNicheId(e.target.value)}
+                className="h-8 rounded-md border border-admin-line bg-admin-surface px-2 pr-7 text-[12.5px] text-admin-ink focus:border-admin-accent focus:outline-none focus:ring-2 focus:ring-admin-accent/20"
+              >
+                <option value="">— Chọn ngành hàng —</option>
+                {nicheOptions.map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+            ) : bulkAction === "assign-shop" ? (
+              <select
+                value={bulkShopId}
+                onChange={(e) => setBulkShopId(e.target.value)}
+                className="h-8 rounded-md border border-admin-line bg-admin-surface px-2 pr-7 text-[12.5px] text-admin-ink focus:border-admin-accent focus:outline-none focus:ring-2 focus:ring-admin-accent/20"
+              >
+                <option value="">— Chọn shop —</option>
+                {shopOptions.map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+            ) : null
+          }
+          rightSlot={
+            <div className="flex items-center gap-3">
+              <span className="text-[12.5px] text-admin-mute">
+                Hiển thị <span className="font-semibold text-admin-ink">{rows.length}</span>
+                {totalCount !== rows.length ? <span> / {totalCount}</span> : null}
+                {hasFilter ? <span className="ml-1 text-admin-mute">(theo lọc)</span> : null}
+              </span>
+              <AdminButton size="sm" iconLeft={<Plus />} onClick={() => setCreateOpen(true)}>
+                Thêm sản phẩm
+              </AdminButton>
+            </div>
+          }
+        />
         <DataTable
           columns={columns}
           rows={rows}
           rowKey={(p) => p.id}
           emptyState={hasFilter ? "Không có sản phẩm khớp bộ lọc." : "Chưa có sản phẩm nào."}
+          isRowHighlighted={(p) => selection.isSelected(p.id)}
         />
       </div>
 
@@ -520,7 +660,9 @@ function ProductFields({
         <ControlledSelectField<ProductUpdateInput>
           name="shopId"
           label="Shop"
-          options={[{ value: "", label: "— Không gán —" }, ...shopOptions]}
+          options={shopOptions}
+          allowEmpty
+          emptyLabel="— Không gán —"
           hint="Hiển thị tên shop trên storefront thay cho campaign."
         />
       ) : null}

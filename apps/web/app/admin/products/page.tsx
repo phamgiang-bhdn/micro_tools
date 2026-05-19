@@ -2,10 +2,7 @@ import type React from "react";
 import { Boxes, Eye, EyeOff, Network } from "lucide-react";
 import {
   adminGet,
-  FilterBar,
   ListPageShell,
-  NativeFilterInput,
-  NativeFilterSelect,
   Pagination,
   paginateRows
 } from "../../../components/admin/ui";
@@ -16,6 +13,7 @@ import {
   NETWORK_OPTIONS
 } from "../../../lib/admin/constants";
 import { ProductsTable, type NicheLite, type ProductRow } from "./products-table";
+import { ProductsFilter, type AdvancedFieldDef } from "./products-filter";
 
 export const dynamic = "force-dynamic";
 
@@ -168,71 +166,34 @@ export default async function ProductsPage({
         }
       ]}
       filter={
-        <FilterBar resetHref="/admin/products">
-          <NativeFilterInput
-            label="Tìm tên"
-            name={ADMIN_PARAMS.search}
-            defaultValue={filters.search ?? ""}
-            placeholder="Tên sản phẩm..."
-          />
-          <NativeFilterSelect
-            label="Trạng thái niche"
-            name="nicheStatus"
-            defaultValue={filters.nicheStatus ?? ""}
-            options={NICHE_STATUS_OPTIONS}
-          />
-          <NativeFilterSelect
-            label="Ngành hàng"
-            name="nicheId"
-            defaultValue={filters.nicheId ?? ""}
-            options={nicheOptions}
-          />
-          <NativeFilterSelect
-            label="Phân loại (AT)"
-            name="categoryId"
-            defaultValue={filters.categoryId ?? ""}
-            options={categoryOptions}
-          />
-          <NativeFilterSelect
-            label="Nguồn bán"
-            name="sourceId"
-            defaultValue={filters.sourceId ?? ""}
-            options={sourceOptions}
-          />
-          <NativeFilterSelect
-            label="Tên miền"
-            name="brandId"
-            defaultValue={filters.brandId ?? ""}
-            options={brandOptions}
-          />
-          <NativeFilterSelect
-            label="Trạng thái shop"
-            name="shopStatus"
-            defaultValue={filters.shopStatus ?? ""}
-            options={SHOP_STATUS_OPTIONS}
-          />
-          <NativeFilterSelect
-            label="Cửa hàng"
-            name="shopId"
-            defaultValue={filters.shopId ?? ""}
-            options={shopOptions}
-          />
-          <NativeFilterSelect
-            label="Mạng affiliate"
-            name={ADMIN_PARAMS.network}
-            defaultValue={filters.network ?? ""}
-            options={NETWORK_OPTIONS}
-          />
-          <NativeFilterSelect
-            label="Hiển thị"
-            name={ADMIN_PARAMS.isPublic}
-            defaultValue={filters.isPublic ?? ""}
-            options={ACTIVE_TOGGLE_OPTIONS.map((o) => ({
-              ...o,
-              label: o.value === "true" ? "Đang hiện" : "Đang ẩn"
-            }))}
-          />
-        </FilterBar>
+        <ProductsFilter
+          basePath="/admin/products"
+          storageKey="admin:products:filters:v1"
+          searchKey={ADMIN_PARAMS.search}
+          searchPlaceholder="Tìm theo tên sản phẩm..."
+          statusKey={ADMIN_PARAMS.isPublic}
+          statusLabel="Hiển thị"
+          statusOptions={ACTIVE_TOGGLE_OPTIONS.map((o) => ({
+            ...o,
+            label: o.value === "true" ? "Đang hiện" : "Đang ẩn"
+          }))}
+          advancedFields={
+            [
+              { key: "nicheStatus", label: "Trạng thái niche", options: NICHE_STATUS_OPTIONS },
+              { key: "nicheId", label: "Ngành hàng", options: nicheOptions },
+              { key: "categoryId", label: "Phân loại (AT)", options: categoryOptions },
+              { key: "sourceId", label: "Nguồn bán", options: sourceOptions },
+              { key: "brandId", label: "Tên miền", options: brandOptions },
+              { key: "shopStatus", label: "Trạng thái shop", options: SHOP_STATUS_OPTIONS },
+              { key: "shopId", label: "Cửa hàng", options: shopOptions },
+              {
+                key: ADMIN_PARAMS.network,
+                label: "Mạng affiliate",
+                options: NETWORK_OPTIONS.map((o) => ({ value: o.value, label: o.label }))
+              }
+            ] satisfies AdvancedFieldDef[]
+          }
+        />
       }
       table={
         <div>
