@@ -63,7 +63,8 @@ const TONE: Record<
 };
 
 export function CalloutBlock({ tone, title, body }: Props): React.ReactElement {
-  const t = TONE[tone];
+  // AI có thể trả tone lạ (vd "note", "caution") → fallback info để không crash.
+  const t = TONE[tone] ?? TONE.info;
   return (
     <aside className={`relative flex gap-4 rounded-2xl border-l-4 ${t.wrap} border p-5 sm:p-6`}>
       <span aria-hidden className={`grid size-10 shrink-0 place-items-center rounded-xl ${t.iconBg}`}>

@@ -2,14 +2,10 @@ import type React from "react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import ReactMarkdown from "react-markdown";
 import { fetchArticleBySlug, fetchNicheBySlug } from "../../../lib/api";
 import { articleVisual, readingTime } from "../../../lib/article-format";
-import { ComparisonTable } from "../../../components/article/comparison-table";
-import { QuickPicks } from "../../../components/article/quick-picks";
-import { SpecsTable } from "../../../components/article/specs-table";
-import { VerdictCard } from "../../../components/article/verdict-card";
 import { BlockRenderer } from "../../../components/article/blocks/block-renderer";
+import { ArticleToc } from "../../../components/article/article-toc";
 
 export const revalidate = 300;
 
@@ -57,35 +53,81 @@ export default async function ArticleDetailPage({ params }: PageProps): Promise<
   const schemaConfig = (niche?.schemaConfig ?? undefined) as Record<string, unknown> | undefined;
 
   const visual = articleVisual(article.type);
-  const mins = readingTime(article.body);
+  const fullText = (article.sections ?? []).map((s) => s.heading + "\n" + s.summary).join("\n") || article.body;
+  const mins = readingTime(fullText);
   const dateStr = article.publishedAt ? dateFmt.format(new Date(article.publishedAt)) : "";
 
   const isReview = article.type === "REVIEW";
-  const heroProduct = article.products[0];
   const productImages = article.products.slice(0, 3).map((p) => {
     const sd = (p.scrapedData ?? {}) as Record<string, unknown>;
     return typeof sd.image === "string" ? sd.image : null;
   }).filter((img): img is string => Boolean(img));
   const heroImages = article.coverImage ? [article.coverImage, ...productImages].slice(0, 3) : productImages;
 
-  // Chèn 1 CTA inline sau H2 đầu tiên (nếu có heroProduct)
-  const bodyParts = splitAfterFirstH2(article.body);
+  const hasSections = Array.isArray(article.sections) && article.sections.length > 0;
 
-  const jsonLd = {
-    "@context": "https://schema.org",
-    "@type": "Article",
-    headline: article.title,
-    description: article.excerpt || article.metaDescription || undefined,
-    datePublished: article.publishedAt,
-    image: heroImages,
-    author: { "@type": "Organization", name: "dealvault" },
-    publisher: { "@type": "Organization", name: "dealvault" },
-    mainEntityOfPage: { "@type": "WebPage", "@id": `${SITE_URL}/blog/${article.slug}` }
-  };
+  // JSON-LD V2: Article + ItemList (TOC) + FAQPage (nếu có faq block) + Review (nếu type=REVIEW)
+  const authorJsonLd = article.author
+    ? { "@type": "Person", name: article.author.name, url: `${SITE_URL}/blog?author=${article.author.slug}` }
+    : { "@type": "Organization", name: "dealvault" };
+
+  const jsonLdParts: Array<Record<string, unknown>> = [
+    {
+      "@context": "https://schema.org",
+      "@type": "Article",
+      headline: article.title,
+      description: article.excerpt || article.metaDescription || undefined,
+      datePublished: article.publishedAt,
+      dateModified: article.publishedAt,
+      image: heroImages,
+      author: authorJsonLd,
+      publisher: { "@type": "Organization", name: "dealvault", url: SITE_URL },
+      mainEntityOfPage: { "@type": "WebPage", "@id": `${SITE_URL}/blog/${article.slug}` }
+    }
+  ];
+
+  if (hasSections) {
+    jsonLdParts.push({
+      "@context": "https://schema.org",
+      "@type": "ItemList",
+      itemListElement: article.sections!.map((s, i) => ({
+        "@type": "ListItem",
+        position: i + 1,
+        name: s.heading,
+        url: `${SITE_URL}/blog/${article.slug}#${s.anchorSlug}`
+      }))
+    });
+
+    // Gather FAQ items across sections
+    const faqItems: Array<{ q: string; a: string }> = [];
+    for (const s of article.sections!) {
+      for (const b of s.blocks) {
+        if (b && typeof b === "object" && (b as Record<string, unknown>).type === "faq") {
+          const items = (b as { items?: Array<{ q?: string; a?: string }> }).items ?? [];
+          for (const it of items) {
+            if (it?.q && it?.a) faqItems.push({ q: it.q, a: it.a });
+          }
+        }
+      }
+    }
+    if (faqItems.length > 0) {
+      jsonLdParts.push({
+        "@context": "https://schema.org",
+        "@type": "FAQPage",
+        mainEntity: faqItems.map((f) => ({
+          "@type": "Question",
+          name: f.q,
+          acceptedAnswer: { "@type": "Answer", text: f.a }
+        }))
+      });
+    }
+  }
 
   return (
     <article className="bg-canvas">
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+      {jsonLdParts.map((j, i) => (
+        <script key={i} type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(j) }} />
+      ))}
 
       {/* ───── HERO ───── */}
       <header className={`relative overflow-hidden bg-gradient-to-br ${visual.gradient} text-white`}>
@@ -150,96 +192,80 @@ export default async function ArticleDetailPage({ params }: PageProps): Promise<
         </div>
       </header>
 
-      <main className="mx-auto max-w-3xl px-4 pb-20 sm:px-6">
-        {article.blocks && article.blocks.length > 0 ? (
-          // ────── NEW: STRUCTURED BLOCKS RENDER ──────
-          <BlockRenderer
-            blocks={article.blocks}
-            products={article.products}
-            schemaConfig={schemaConfig}
-          />
-        ) : (
-          // ────── LEGACY: markdown body render ──────
-          <>
-            {isReview && heroProduct ? (
-              <VerdictCard product={heroProduct} excerpt={article.excerpt} />
-            ) : null}
-            {!isReview && article.products.length > 0 ? (
-              <QuickPicks products={article.products} />
+      <main className="mx-auto max-w-6xl px-4 pb-20 sm:px-6">
+        <div className="grid grid-cols-1 gap-8 lg:grid-cols-[240px_1fr]">
+          <aside className="hidden lg:block">
+            {hasSections ? <ArticleToc sections={article.sections!} /> : null}
+          </aside>
+          <div>
+            {hasSections ? (
+              article.sections!.map((section) => (
+                <section
+                  key={section.id}
+                  id={section.anchorSlug}
+                  className="mb-12 scroll-mt-24"
+                >
+                  <h2 className="text-2xl font-bold tracking-tight text-ink">{section.heading}</h2>
+                  {section.summary ? (
+                    <p className="mt-1.5 text-sm leading-relaxed text-ink-soft">{section.summary}</p>
+                  ) : null}
+                  <div className="mt-5">
+                    <BlockRenderer
+                      blocks={section.blocks}
+                      products={article.products}
+                      schemaConfig={schemaConfig}
+                    />
+                  </div>
+                </section>
+              ))
+            ) : (
+              <div className="rounded-xl border border-amber-200 bg-amber-50 p-6 text-sm text-amber-900">
+                Bài này chưa có nội dung sections — vui lòng quay lại sau.
+              </div>
+            )}
+
+            {article.author ? (
+              <aside className="mt-12 flex items-start gap-4 rounded-2xl border border-line bg-card/60 p-5">
+                {article.author.avatarUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={article.author.avatarUrl} alt={article.author.name} className="size-12 rounded-full object-cover" />
+                ) : (
+                  <span className="grid size-12 shrink-0 place-items-center rounded-full bg-brand-50 text-brand-700 font-bold">
+                    {article.author.name.slice(0, 1)}
+                  </span>
+                )}
+                <div className="text-sm leading-6 text-ink-soft">
+                  <p className="font-semibold text-ink">{article.author.name}</p>
+                  {article.author.bio ? <p className="mt-1">{article.author.bio}</p> : null}
+                </div>
+              </aside>
             ) : null}
 
-            <div className="prose prose-slate max-w-none prose-headings:mt-10 prose-headings:font-semibold prose-h2:mt-12 prose-h2:text-2xl prose-h2:tracking-tight prose-h3:text-xl prose-p:leading-7 prose-a:text-brand-700 prose-a:no-underline hover:prose-a:underline prose-strong:text-ink prose-li:marker:text-brand-500 prose-blockquote:border-l-4 prose-blockquote:border-brand-300 prose-blockquote:bg-card prose-blockquote:px-4 prose-blockquote:py-2 prose-blockquote:not-italic prose-blockquote:text-ink-soft prose-img:rounded-xl">
-              <ReactMarkdown>{bodyParts.before}</ReactMarkdown>
+            <aside className="mt-10 flex gap-4 rounded-2xl border border-line bg-card/60 p-5 shadow-sm">
+              <span aria-hidden className="grid size-9 shrink-0 place-items-center rounded-full bg-brand-50 text-brand-700">
+                <InfoIcon />
+              </span>
+              <div className="text-sm leading-6 text-ink-soft">
+                <p className="font-semibold text-ink">Minh bạch về affiliate</p>
+                <p className="mt-1">
+                  Bài này có liên kết affiliate — nếu bạn mua qua link, dealvault nhận hoa hồng từ đối tác mà bạn không phải trả thêm.
+                </p>
+              </div>
+            </aside>
+
+            <div className="mt-10 flex justify-center">
+              <Link
+                href="/blog"
+                className="inline-flex items-center gap-2 rounded-full border border-line bg-card px-5 py-2.5 text-sm font-medium text-ink-soft transition hover:border-brand-300 hover:text-brand-700"
+              >
+                <BackArrowIcon /> Xem thêm bài viết khác
+              </Link>
             </div>
-
-            {bodyParts.after ? (
-              <>
-                {!isReview && article.products.length >= 2 ? (
-                  <ComparisonTable products={article.products} schemaConfig={schemaConfig} />
-                ) : null}
-                <div className="prose prose-slate max-w-none prose-headings:mt-10 prose-headings:font-semibold prose-h2:mt-12 prose-h2:text-2xl prose-h2:tracking-tight prose-h3:text-xl prose-p:leading-7 prose-a:text-brand-700 prose-a:no-underline hover:prose-a:underline prose-strong:text-ink prose-li:marker:text-brand-500 prose-blockquote:border-l-4 prose-blockquote:border-brand-300 prose-blockquote:bg-card prose-blockquote:px-4 prose-blockquote:py-2 prose-blockquote:not-italic prose-blockquote:text-ink-soft prose-img:rounded-xl">
-                  <ReactMarkdown>{bodyParts.after}</ReactMarkdown>
-                </div>
-              </>
-            ) : null}
-
-            {isReview && heroProduct ? (
-              <SpecsTable product={heroProduct} schemaConfig={schemaConfig} />
-            ) : null}
-
-            {!isReview && article.products.length > 3 ? (
-              <section className="mt-14">
-                <div className="mb-5">
-                  <p className="text-xs font-semibold uppercase tracking-wider text-brand-700">Tất cả sản phẩm trong bài</p>
-                  <h2 className="mt-1 text-xl font-bold tracking-tight text-ink">Danh sách đầy đủ</h2>
-                </div>
-                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4">
-                  {article.products.slice(3).map((p) => (
-                    <CompactProductCard key={p.id} product={p} />
-                  ))}
-                </div>
-              </section>
-            ) : null}
-          </>
-        )}
-
-        {/* AFFILIATE DISCLOSURE */}
-        <aside className="mt-14 flex gap-4 rounded-2xl border border-line bg-card/60 p-5 shadow-sm">
-          <span aria-hidden className="grid size-9 shrink-0 place-items-center rounded-full bg-brand-50 text-brand-700">
-            <InfoIcon />
-          </span>
-          <div className="text-sm leading-6 text-ink-soft">
-            <p className="font-semibold text-ink">Minh bạch về affiliate</p>
-            <p className="mt-1">
-              Bài này có liên kết affiliate — nếu bạn mua qua link, dealvault nhận hoa hồng từ đối tác mà bạn không phải trả thêm.
-              Giá có thể đã thay đổi từ lúc viết, vui lòng kiểm tra lại trên trang đối tác.
-            </p>
           </div>
-        </aside>
-
-        <div className="mt-10 flex justify-center">
-          <Link
-            href="/blog"
-            className="inline-flex items-center gap-2 rounded-full border border-line bg-card px-5 py-2.5 text-sm font-medium text-ink-soft transition hover:border-brand-300 hover:text-brand-700"
-          >
-            <BackArrowIcon /> Xem thêm bài viết khác
-          </Link>
         </div>
       </main>
     </article>
   );
-}
-
-/**
- * Tách markdown body làm 2 phần tại heading H2 đầu tiên.
- * Trả về { before, after } — `before` luôn có, `after` có thể rỗng.
- */
-function splitAfterFirstH2(body: string): { before: string; after: string } {
-  // Tìm vị trí H2 thứ HAI (vì H2 đầu thường là "TL;DR" — không muốn cắt ngay đó)
-  const matches = [...body.matchAll(/^##\s/gm)];
-  if (matches.length < 2) return { before: body, after: "" };
-  const secondH2 = matches[1].index ?? 0;
-  return { before: body.slice(0, secondH2).trim(), after: body.slice(secondH2).trim() };
 }
 
 function HeroVisual({
@@ -289,24 +315,6 @@ function HeroVisual({
           <img src={images[2]} alt="" className="aspect-square w-full object-cover" />
         </div>
       ) : null}
-    </div>
-  );
-}
-
-function CompactProductCard({ product }: { product: { id: string; name: string; scrapedData: Record<string, unknown> } }): React.ReactElement {
-  const sd = product.scrapedData ?? {};
-  const image = typeof sd.image === "string" ? sd.image : null;
-  return (
-    <div className="rounded-xl border border-line bg-card p-3 shadow-card">
-      {image ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={image} alt={product.name} className="aspect-square w-full rounded-lg object-cover" loading="lazy" />
-      ) : (
-        <div className="grid aspect-square w-full place-items-center rounded-lg bg-gradient-to-br from-brand-50 to-accent-50 text-2xl font-bold text-brand-700">
-          ★
-        </div>
-      )}
-      <p className="mt-2 line-clamp-2 text-sm font-medium text-ink">{product.name}</p>
     </div>
   );
 }

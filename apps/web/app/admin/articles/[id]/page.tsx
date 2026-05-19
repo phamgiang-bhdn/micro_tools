@@ -1,18 +1,13 @@
 import type React from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, AlertTriangle } from "lucide-react";
-import { fetchNiches, fetchNicheBySlug } from "../../../../lib/api";
-import type { ArticleAdminDetail } from "../../../../lib/types";
+import { ArrowLeft } from "lucide-react";
 import { PageHeader, StatusPill } from "../../../../components/admin/ui";
 import {
   ARTICLE_STATUS_META,
   ARTICLE_TYPE_META
 } from "../../../../lib/admin/constants";
-import { ArticleEditorClient } from "./article-editor-client";
-import { GeneratingScreen } from "./generating-screen";
-import { ArticleHeaderActions } from "./header-actions";
-import { ScheduleForm } from "./schedule-form";
+import { ArticleV2Client } from "./article-v2-client";
 
 export const dynamic = "force-dynamic";
 
@@ -30,128 +25,97 @@ async function getJson<T>(path: string): Promise<T | null> {
   return (await response.json()) as T;
 }
 
+interface V2DetailDto {
+  id: string;
+  title: string;
+  status: string;
+  topic: string | null;
+  wordCount: number | null;
+  readabilityScore: number | null;
+  revisionCount: number;
+  aiRevisionCount: number;
+  currentStageMessage: string | null;
+  currentStageProgress: number | null;
+  generationError: string | null;
+  briefJson: Record<string, unknown> | null;
+  outlineJson: Record<string, unknown> | null;
+  evidenceFreshAt: string | null;
+  slug: string;
+  type: "BUYING_GUIDE" | "REVIEW";
+  author: { id: string; name: string; slug: string } | null;
+  sections: Array<{
+    id: string;
+    anchorSlug: string;
+    heading: string;
+    summary: string;
+    order: number;
+    status: string;
+    wordCount: number;
+    estimatedWords: number;
+    blocks: unknown[];
+    evidenceRefs: string[];
+  }>;
+  evidence: Array<{
+    id: string;
+    type: string;
+    sourceUrl: string;
+    sourceDomain: string;
+    title: string | null;
+    factCheckPassed: boolean;
+    fetchedAt: string;
+  }>;
+  runs: Array<{
+    id: string;
+    stage: string;
+    agent: string;
+    success: boolean;
+    errorReason: string | null;
+    durationMs: number | null;
+    startedAt: string;
+    finishedAt: string | null;
+  }>;
+}
+
 interface PageProps {
   params: Promise<{ id: string }>;
 }
 
-export default async function AdminArticleDetail({
-  params
-}: PageProps): Promise<React.ReactElement> {
+export default async function AdminArticleDetail({ params }: PageProps): Promise<React.ReactElement> {
   const { id } = await params;
-  const article = await getJson<ArticleAdminDetail>(`/admin/articles/${id}`);
-  if (!article) notFound();
+  const v2Detail = await getJson<V2DetailDto>(`/admin/articles/${id}/v2-detail`);
+  if (!v2Detail) notFound();
 
-  if (article.status === "GENERATING") {
-    return <GeneratingScreen articleId={article.id} topic={article.title} />;
-  }
-
-  const { niches } = await fetchNiches();
-  const nicheDetails = await Promise.all(niches.map((c) => fetchNicheBySlug(c.slug)));
-  const productOptions = nicheDetails
-    .filter((c) => c !== null)
-    .flatMap((niche) =>
-      niche!.products.map((p) => ({ id: p.id, name: p.name, nicheName: niche!.name }))
-    );
-
-  const statusMeta = ARTICLE_STATUS_META[article.status];
-  const typeMeta = ARTICLE_TYPE_META[article.type];
+  const statusMeta = ARTICLE_STATUS_META[v2Detail.status as keyof typeof ARTICLE_STATUS_META];
+  const typeMeta = ARTICLE_TYPE_META[v2Detail.type];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <Link
         href="/admin/articles"
         className="inline-flex items-center gap-1 text-xs text-admin-mute hover:text-admin-ink"
       >
         <ArrowLeft className="size-3" /> Quay lại danh sách
       </Link>
-
       <PageHeader
         eyebrow={typeMeta.label}
-        title={article.title}
+        title={v2Detail.title}
         subtitle={
           <span className="inline-flex flex-wrap items-center gap-2">
-            <StatusPill tone={statusMeta.tone} dot>
-              {statusMeta.label}
+            <StatusPill tone={statusMeta?.tone ?? "info"} dot>
+              {statusMeta?.label ?? v2Detail.status}
             </StatusPill>
             <code className="rounded bg-admin-subtle px-1.5 py-0.5 font-mono text-[11px] text-admin-mute">
-              /blog/{article.slug}
+              /blog/{v2Detail.slug}
             </code>
-            {article.aiModel ? (
-              <span className="text-[11px] text-admin-mute">AI: {article.aiModel}</span>
-            ) : null}
-            {article.aiPromptName ? (
-              <span className="text-[11px] text-admin-mute">prompt: {article.aiPromptName}</span>
+            {v2Detail.evidenceFreshAt ? (
+              <span className="text-[11px] text-admin-mute">
+                Evidence fresh: {new Date(v2Detail.evidenceFreshAt).toLocaleDateString("vi-VN")}
+              </span>
             ) : null}
           </span>
         }
-        actions={
-          <ArticleHeaderActions
-            articleId={article.id}
-            slug={article.slug}
-            title={article.title}
-            status={article.status}
-          />
-        }
       />
-
-      {article.status === "DRAFT" ? (
-        <ScheduleForm articleId={article.id} scheduledAt={article.scheduledAt} />
-      ) : null}
-
-      {article.status === "FAILED" && article.generationError ? (
-        <div className="flex items-start gap-3 rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-900">
-          <AlertTriangle className="mt-0.5 size-5 shrink-0" />
-          <div className="min-w-0">
-            <p className="font-semibold">AI sinh bài thất bại</p>
-            <pre className="mt-1 whitespace-pre-wrap text-xs">{article.generationError}</pre>
-            <p className="mt-2 text-xs">Xoá bài này và tạo lại, hoặc tự fill nội dung tay.</p>
-          </div>
-        </div>
-      ) : null}
-
-      {article.products.length > 0 ? (
-        <div className="admin-card p-4 text-sm">
-          <div className="mb-2 font-semibold text-admin-ink">Sản phẩm gắn trong bài</div>
-          <ul className="space-y-1">
-            {article.products.map((p) => (
-              <li key={p.id} className="flex items-center justify-between gap-3">
-                <span className="text-admin-ink">{p.name}</span>
-                <span className="flex items-center gap-1.5 text-xs">
-                  <span className="text-admin-mute">{p.network}</span>
-                  {!p.isPublic ? (
-                    <StatusPill tone="warning">Chờ duyệt Refinery</StatusPill>
-                  ) : (
-                    <StatusPill tone="success">Public</StatusPill>
-                  )}
-                </span>
-              </li>
-            ))}
-          </ul>
-          {article.products.some((p) => !p.isPublic) ? (
-            <p className="mt-2 text-xs text-admin-mute">
-              Sản phẩm &quot;Chờ duyệt&quot; sẽ ẨN trên storefront tới khi approve ở Refinery.
-            </p>
-          ) : null}
-        </div>
-      ) : null}
-
-      <ArticleEditorClient
-        initial={{
-          id: article.id,
-          title: article.title,
-          slug: article.slug,
-          excerpt: article.excerpt,
-          body: article.body,
-          metaTitle: article.metaTitle,
-          metaDescription: article.metaDescription,
-          nicheId: article.nicheId,
-          productIds: article.productIds,
-          hasBlocks: Array.isArray(article.blocks) && article.blocks.length > 0,
-          coverImage: article.coverImage
-        }}
-        niches={niches.map((c) => ({ id: c.id, name: c.name }))}
-        products={productOptions}
-      />
+      <ArticleV2Client article={v2Detail} />
     </div>
   );
 }

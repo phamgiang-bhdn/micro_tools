@@ -8,12 +8,8 @@ export class TopProductsSyncScheduler {
 
   constructor(private readonly service: TopProductsSyncService) {}
 
-  @Cron(process.env.TOP_PRODUCTS_CRON ?? "0 3 * * *", { name: "top-products-sync" })
+  @Cron("0 3 * * *", { name: "top-products-sync" })
   async handleCron(): Promise<void> {
-    if (process.env.TOP_PRODUCTS_ENABLED === "false") {
-      this.logger.debug("Top products sync disabled via env");
-      return;
-    }
     try {
       await this.service.syncDailySnapshot();
     } catch (error: unknown) {

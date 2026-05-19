@@ -67,7 +67,20 @@ export interface ProductView {
 }
 
 export type ArticleType = "BUYING_GUIDE" | "REVIEW";
-export type ArticleStatus = "GENERATING" | "DRAFT" | "PUBLISHED" | "ARCHIVED" | "FAILED";
+export type ArticleStatus =
+  | "DRAFT_BRIEF"
+  | "RESEARCHING"
+  | "REVIEWS_SCRAPED"
+  | "OUTLINE_READY"
+  | "IMAGES_READY"
+  | "DRAFTING"
+  | "SELF_CRITIQUED"
+  | "FACT_CHECKED"
+  | "PENDING_REVIEW"
+  | "NEEDS_REVISION"
+  | "PUBLISHED"
+  | "ARCHIVED"
+  | "FAILED";
 
 export interface ArticleSummary {
   id: string;
@@ -114,7 +127,31 @@ export interface ArticleDetail extends ArticleSummary {
   metaDescription: string | null;
   productIds: string[];
   products: ProductItem[];
-  // coverImage already on ArticleSummary; restate for clarity in detail consumers.
+  // V2 fields (null if article còn legacy v1)
+  sections?: ArticleSectionPublic[];
+  author?: { id: string; slug: string; name: string; bio: string | null; avatarUrl: string | null } | null;
+  layoutVariant?: string | null;
+  evidence?: ArticleEvidencePublic[];
+}
+
+export interface ArticleSectionPublic {
+  id: string;
+  anchorSlug: string;
+  heading: string;
+  summary: string;
+  order: number;
+  blocks: ArticleBlock[];
+  evidenceRefs: string[];
+  wordCount: number;
+}
+
+export interface ArticleEvidencePublic {
+  id: string;
+  type: string;
+  sourceUrl: string;
+  sourceDomain: string;
+  title: string | null;
+  payload: Record<string, unknown>;
 }
 
 export interface ArticleAdminDetail {
@@ -143,4 +180,8 @@ export interface ArticleAdminDetail {
   updatedAt: string;
   niche: { id: string; slug: string; name: string } | null;
   products: Array<{ id: string; name: string; slug: string | null; network: string; isPublic: boolean }>;
+  // V2 markers (null nếu là article legacy v1)
+  topic?: string | null;
+  briefJson?: Record<string, unknown> | null;
+  authorId?: string | null;
 }

@@ -15,7 +15,8 @@ import {
 import { AffiliateNetwork, ArticleStatus, ArticleType, CampaignStatus, NicheStatus, ParseStatus, Prisma } from "@prisma/client";
 import { z } from "zod";
 import { AiService } from "../../services/ai.service";
-import { ArticleService } from "../../services/article.service";
+import { ArticlePipelineService } from "../article-pipeline/article-pipeline.service";
+import { PipelineStageName } from "../article-pipeline/pipeline.types";
 import { PrismaService } from "../../prisma/prisma.service";
 import { CampaignSyncService } from "../crawler/campaign-sync.service";
 import { CouponSyncService } from "../crawler/coupon-sync.service";
@@ -224,7 +225,7 @@ export class AdminController {
   constructor(
     private readonly prisma: PrismaService,
     private readonly aiService: AiService,
-    private readonly articleService: ArticleService,
+    private readonly articlePipeline: ArticlePipelineService,
     private readonly campaignSync: CampaignSyncService,
     private readonly reconciliation: ReconciliationService,
     private readonly couponSync: CouponSyncService,
@@ -658,70 +659,59 @@ export class AdminController {
       throw new HttpException("REVIEW cần nhập tên / slug / URL sản phẩm", HttpStatus.BAD_REQUEST);
     }
 
-    const placeholderSlug = `ai-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
-    const article = await this.prisma.article.create({
-      data: {
-        slug: placeholderSlug,
-        title: parsed.data.topic.slice(0, 120),
-        body: "(đang sinh nội dung...)",
-        type: parsed.data.type,
-        status: "GENERATING",
-        nicheId: parsed.data.nicheId ?? null,
-        productIds: [],
-        pinnedProductIds: parsed.data.pinnedProductIds ?? []
-      }
+    const { id } = await this.articlePipeline.createAndStart({
+      type: parsed.data.type,
+      topic: parsed.data.topic,
+      nicheId: parsed.data.nicheId ?? null,
+      productRef: parsed.data.productRef ?? null,
+      pinnedProductIds: parsed.data.pinnedProductIds ?? []
     });
-
-    // Fire-and-forget. Caller polls /admin/articles/:id for status transitions.
-    setImmediate(() => {
-      this.runArticleGeneration(article.id, parsed.data).catch((err) => {
-        this.logger.error(`Background article generation crashed for ${article.id}`, err);
-      });
-    });
-
-    return { id: article.id, status: article.status };
+    return { id, status: ArticleStatus.DRAFT_BRIEF };
   }
 
-  private async runArticleGeneration(
-    articleId: string,
-    input: z.infer<typeof generateArticleSchema>
-  ): Promise<void> {
-    try {
-      const draft = await this.articleService.generateDraft({
-        type: input.type,
-        topic: input.topic,
-        nicheId: input.nicheId ?? null,
-        pinnedProductIds: input.pinnedProductIds ?? [],
-        productRef: input.productRef ?? null
-      });
-      const uniqueSlug = await this.articleService.ensureUniqueSlug(draft.output.slug, articleId);
+  @Post("articles/:id/retry-stage")
+  async retryArticleStage(
+    @Param("id") id: string,
+    @Body() body: { stage?: string },
+    @Headers("x-admin-role") role?: string,
+    @Headers("x-admin-key") apiKey?: string
+  ) {
+    this.authorize(role, apiKey, ["reviewer", "admin"]);
+    const stage = body?.stage;
+    const valid = Object.values(PipelineStageName);
+    if (!stage || !valid.includes(stage as PipelineStageName)) {
+      throw new HttpException(
+        `stage required, one of: ${valid.join(", ")}`,
+        HttpStatus.BAD_REQUEST
+      );
+    }
+    await this.articlePipeline.retryStage(id, stage as PipelineStageName);
+    return { success: true };
+  }
 
-      await this.prisma.article.update({
-        where: { id: articleId },
-        data: {
-          slug: uniqueSlug,
-          title: draft.output.title,
-          excerpt: draft.output.excerpt,
-          body: draft.derivedBody,
-          blocks: draft.output.blocks as Prisma.InputJsonValue,
-          status: "DRAFT",
-          productIds: draft.resolvedProductIds,
-          coverImage: draft.coverImage,
-          metaTitle: draft.output.metaTitle || null,
-          metaDescription: draft.output.metaDescription || null,
-          aiModel: draft.modelName,
-          aiPromptName: draft.promptName,
-          generationError: null
-        }
-      });
-    } catch (err) {
-      const rawMessage = err instanceof Error ? err.message : String(err);
-      const redacted = redactSecrets(rawMessage);
-      this.logger.error(`Article generation failed for ${articleId}: ${redacted}`);
-      await this.prisma.article.update({
-        where: { id: articleId },
-        data: { status: "FAILED", generationError: redacted.slice(0, 1000) }
-      });
+  @Post("articles/:id/request-revision")
+  async requestArticleRevision(
+    @Param("id") id: string,
+    @Body() body: { reason?: string; reviewer?: string },
+    @Headers("x-admin-role") role?: string,
+    @Headers("x-admin-key") apiKey?: string
+  ) {
+    this.authorize(role, apiKey, ["reviewer", "admin"]);
+    const reason = (body?.reason ?? "").trim();
+    if (!reason) throw new HttpException("reason required", HttpStatus.BAD_REQUEST);
+    await this.articlePipeline.requestRevision(id, reason, body?.reviewer ?? "admin");
+    return { success: true };
+  }
+
+  private async ensureUniqueArticleSlug(candidate: string, excludeId?: string): Promise<string> {
+    let slug = candidate;
+    let suffix = 1;
+    while (true) {
+      const existing = await this.prisma.article.findUnique({ where: { slug } });
+      if (!existing || existing.id === excludeId) return slug;
+      suffix += 1;
+      slug = `${candidate}-${suffix}`;
+      if (suffix > 50) return `${candidate}-${Date.now().toString(36)}`;
     }
   }
 
@@ -750,7 +740,7 @@ export class AdminController {
       data.niche = parsed.data.nicheId ? { connect: { id: parsed.data.nicheId } } : { disconnect: true };
     }
     if (parsed.data.slug !== undefined) {
-      data.slug = await this.articleService.ensureUniqueSlug(parsed.data.slug, id);
+      data.slug = await this.ensureUniqueArticleSlug(parsed.data.slug, id);
     }
 
     return this.prisma.article.update({ where: { id }, data });
@@ -776,7 +766,7 @@ export class AdminController {
     this.authorize(role, apiKey, ["reviewer", "admin"]);
     const src = await this.prisma.article.findUnique({ where: { id } });
     if (!src) throw new HttpException("Article not found", HttpStatus.NOT_FOUND);
-    const newSlug = await this.articleService.ensureUniqueSlug(`${src.slug}-copy`);
+    const newSlug = await this.ensureUniqueArticleSlug(`${src.slug}-copy`);
     return this.prisma.article.create({
       data: {
         slug: newSlug,
@@ -786,7 +776,7 @@ export class AdminController {
         blocks: src.blocks ?? Prisma.JsonNull,
         coverImage: src.coverImage,
         type: src.type,
-        status: "DRAFT",
+        status: ArticleStatus.PENDING_REVIEW,
         nicheId: src.nicheId,
         productIds: src.productIds,
         pinnedProductIds: src.pinnedProductIds,
@@ -811,14 +801,28 @@ export class AdminController {
       await this.prisma.article.deleteMany({ where: { id: { in: body.ids } } });
       return { success: true, count: body.ids.length };
     }
-    const status = body.action === "publish" ? ArticleStatus.PUBLISHED : ArticleStatus.ARCHIVED;
+    if (body.action === "publish") {
+      // HITL gate cứng: chỉ publish bài đang ở PENDING_REVIEW.
+      const result = await this.prisma.article.updateMany({
+        where: {
+          id: { in: body.ids },
+          status: ArticleStatus.PENDING_REVIEW
+        },
+        data: {
+          status: ArticleStatus.PUBLISHED,
+          reviewedBy: reviewer,
+          reviewedAt: new Date(),
+          publishedAt: new Date()
+        }
+      });
+      return { success: true, count: result.count, skipped: body.ids.length - result.count };
+    }
     const result = await this.prisma.article.updateMany({
       where: { id: { in: body.ids } },
       data: {
-        status,
+        status: ArticleStatus.ARCHIVED,
         reviewedBy: reviewer,
-        reviewedAt: new Date(),
-        publishedAt: status === ArticleStatus.PUBLISHED ? new Date() : undefined
+        reviewedAt: new Date()
       }
     });
     return { success: true, count: result.count };
@@ -847,15 +851,18 @@ export class AdminController {
     @Headers("x-admin-key") apiKey?: string
   ) {
     this.authorize(role, apiKey, ["reviewer", "admin"]);
-    return this.prisma.article.update({
-      where: { id },
-      data: {
-        status: "PUBLISHED",
-        publishedAt: new Date(),
-        reviewedBy: body?.reviewer || "admin",
-        reviewedAt: new Date()
-      }
-    });
+    const article = await this.prisma.article.findUnique({ where: { id }, select: { status: true } });
+    if (!article) throw new HttpException("Article not found", HttpStatus.NOT_FOUND);
+
+    // HITL gate cứng: chỉ cho phép publish từ PENDING_REVIEW.
+    if (article.status !== ArticleStatus.PENDING_REVIEW) {
+      throw new HttpException(
+        `Không thể publish ở status ${article.status}. Cần PENDING_REVIEW.`,
+        HttpStatus.CONFLICT
+      );
+    }
+    await this.articlePipeline.approve(id, body?.reviewer || "admin");
+    return { success: true };
   }
 
   // ───── Coupons ─────
@@ -2011,5 +2018,241 @@ export class AdminController {
         reviewedAt: new Date()
       }
     });
+  }
+
+  // ──────── Article V2: sections / evidence / runs ────────
+
+  @Get("articles/:id/v2-detail")
+  async getArticleV2Detail(
+    @Param("id") id: string,
+    @Headers("x-admin-role") role?: string,
+    @Headers("x-admin-key") apiKey?: string
+  ) {
+    this.authorize(role, apiKey, ["viewer", "reviewer", "admin"]);
+    const article = await this.prisma.article.findUnique({
+      where: { id },
+      include: {
+        niche: true,
+        author: true,
+        sections: { orderBy: { order: "asc" } },
+        evidence: { orderBy: { fetchedAt: "desc" } },
+        runs: { orderBy: { startedAt: "desc" }, take: 30 }
+      }
+    });
+    if (!article) throw new HttpException("Article not found", HttpStatus.NOT_FOUND);
+    return article;
+  }
+
+  /**
+   * Lightweight endpoint cho UI poll mỗi 2s khi pipeline đang chạy.
+   * Trả status hiện tại, message bước, percent, last 8 run logs — đủ render progress bar.
+   * Không include section / evidence để tiết kiệm payload mỗi tick.
+   */
+  @Get("articles/:id/progress")
+  async getArticleProgress(
+    @Param("id") id: string,
+    @Headers("x-admin-role") role?: string,
+    @Headers("x-admin-key") apiKey?: string
+  ) {
+    this.authorize(role, apiKey, ["viewer", "reviewer", "admin"]);
+    const article = await this.prisma.article.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        status: true,
+        currentStageMessage: true,
+        currentStageProgress: true,
+        generationError: true,
+        aiRevisionCount: true,
+        wordCount: true,
+        updatedAt: true
+      }
+    });
+    if (!article) throw new HttpException("Article not found", HttpStatus.NOT_FOUND);
+    const runs = await this.prisma.articleGenerationRun.findMany({
+      where: { articleId: id },
+      orderBy: { startedAt: "desc" },
+      take: 8,
+      select: {
+        id: true,
+        stage: true,
+        success: true,
+        errorReason: true,
+        durationMs: true,
+        startedAt: true,
+        finishedAt: true
+      }
+    });
+    return { article, runs };
+  }
+
+  @Put("articles/:id/sections/:sectionId")
+  async updateSection(
+    @Param("id") articleId: string,
+    @Param("sectionId") sectionId: string,
+    @Body() body: { heading?: string; summary?: string; blocks?: unknown; status?: string; evidenceRefs?: string[] },
+    @Headers("x-admin-role") role?: string,
+    @Headers("x-admin-key") apiKey?: string
+  ) {
+    this.authorize(role, apiKey, ["reviewer", "admin"]);
+    const data: Prisma.ArticleSectionUpdateInput = {};
+    if (body.heading !== undefined) data.heading = body.heading;
+    if (body.summary !== undefined) data.summary = body.summary;
+    if (body.blocks !== undefined) data.blocks = body.blocks as Prisma.InputJsonValue;
+    if (body.status !== undefined) data.status = body.status;
+    if (body.evidenceRefs !== undefined) data.evidenceRefs = { set: body.evidenceRefs };
+    return this.prisma.articleSection.update({
+      where: { id: sectionId, articleId },
+      data
+    });
+  }
+
+  // ──────── Product reviews (manual seed cho V2 Review Scraper) ────────
+
+  @Get("product-reviews")
+  async listProductReviews(
+    @Query("productId") productId?: string,
+    @Query("limit") limit?: string,
+    @Headers("x-admin-role") role?: string,
+    @Headers("x-admin-key") apiKey?: string
+  ) {
+    this.authorize(role, apiKey, ["viewer", "reviewer", "admin"]);
+    const take = Math.min(Math.max(Number(limit ?? 50), 1), 200);
+    return this.prisma.productReview.findMany({
+      where: productId ? { productId } : undefined,
+      orderBy: [{ rating: "desc" }, { reviewDate: "desc" }],
+      take
+    });
+  }
+
+  @Post("product-reviews")
+  async createProductReview(
+    @Body() payload: unknown,
+    @Headers("x-admin-role") role?: string,
+    @Headers("x-admin-key") apiKey?: string
+  ) {
+    this.authorize(role, apiKey, ["reviewer", "admin"]);
+    const schema = z.object({
+      productId: z.string().uuid(),
+      source: z.string().min(1).max(40),
+      sourceUrl: z.string().url().nullable().optional(),
+      author: z.string().max(120).nullable().optional(),
+      rating: z.number().min(0).max(5).nullable().optional(),
+      title: z.string().max(200).nullable().optional(),
+      body: z.string().min(5).max(4000),
+      verifiedBuyer: z.boolean().optional(),
+      reviewDate: z.string().datetime().nullable().optional(),
+      sentiment: z.enum(["positive", "neutral", "negative"]).nullable().optional(),
+      topicTags: z.array(z.string()).max(20).optional()
+    });
+    const parsed = schema.safeParse(payload);
+    if (!parsed.success) throw new HttpException(parsed.error.flatten(), HttpStatus.BAD_REQUEST);
+    return this.prisma.productReview.create({
+      data: {
+        productId: parsed.data.productId,
+        source: parsed.data.source,
+        sourceUrl: parsed.data.sourceUrl ?? null,
+        author: parsed.data.author ?? null,
+        rating: parsed.data.rating ?? null,
+        title: parsed.data.title ?? null,
+        body: parsed.data.body,
+        verifiedBuyer: parsed.data.verifiedBuyer ?? false,
+        reviewDate: parsed.data.reviewDate ? new Date(parsed.data.reviewDate) : null,
+        sentiment: parsed.data.sentiment ?? null,
+        topicTags: parsed.data.topicTags ?? []
+      }
+    });
+  }
+
+  @Delete("product-reviews/:id")
+  async deleteProductReview(
+    @Param("id") id: string,
+    @Headers("x-admin-role") role?: string,
+    @Headers("x-admin-key") apiKey?: string
+  ) {
+    this.authorize(role, apiKey, ["admin"]);
+    await this.prisma.productReview.delete({ where: { id } });
+    return { success: true };
+  }
+
+  // ──────── Authors ────────
+
+  @Get("authors")
+  async listAuthors(
+    @Headers("x-admin-role") role?: string,
+    @Headers("x-admin-key") apiKey?: string
+  ) {
+    this.authorize(role, apiKey, ["viewer", "reviewer", "admin"]);
+    return this.prisma.author.findMany({ orderBy: { name: "asc" } });
+  }
+
+  @Post("authors")
+  async createAuthor(
+    @Body() payload: unknown,
+    @Headers("x-admin-role") role?: string,
+    @Headers("x-admin-key") apiKey?: string
+  ) {
+    this.authorize(role, apiKey, ["admin"]);
+    const schema = z.object({
+      slug: z.string().regex(/^[a-z0-9-]+$/).min(2).max(80),
+      name: z.string().min(2).max(120),
+      bio: z.string().max(2000).nullable().optional(),
+      avatarUrl: z.string().url().nullable().optional(),
+      voiceProfile: z.record(z.unknown()),
+      expertiseNiches: z.array(z.string().uuid()).max(50).optional(),
+      isActive: z.boolean().optional()
+    });
+    const parsed = schema.safeParse(payload);
+    if (!parsed.success) throw new HttpException(parsed.error.flatten(), HttpStatus.BAD_REQUEST);
+    return this.prisma.author.create({
+      data: {
+        slug: parsed.data.slug,
+        name: parsed.data.name,
+        bio: parsed.data.bio ?? null,
+        avatarUrl: parsed.data.avatarUrl ?? null,
+        voiceProfile: parsed.data.voiceProfile as Prisma.InputJsonValue,
+        expertiseNiches: parsed.data.expertiseNiches ?? [],
+        isActive: parsed.data.isActive ?? true
+      }
+    });
+  }
+
+  @Put("authors/:id")
+  async updateAuthor(
+    @Param("id") id: string,
+    @Body() payload: unknown,
+    @Headers("x-admin-role") role?: string,
+    @Headers("x-admin-key") apiKey?: string
+  ) {
+    this.authorize(role, apiKey, ["admin"]);
+    const schema = z.object({
+      name: z.string().min(2).max(120).optional(),
+      bio: z.string().max(2000).nullable().optional(),
+      avatarUrl: z.string().url().nullable().optional(),
+      voiceProfile: z.record(z.unknown()).optional(),
+      expertiseNiches: z.array(z.string().uuid()).max(50).optional(),
+      isActive: z.boolean().optional()
+    });
+    const parsed = schema.safeParse(payload);
+    if (!parsed.success) throw new HttpException(parsed.error.flatten(), HttpStatus.BAD_REQUEST);
+    const data: Prisma.AuthorUpdateInput = {};
+    if (parsed.data.name !== undefined) data.name = parsed.data.name;
+    if (parsed.data.bio !== undefined) data.bio = parsed.data.bio;
+    if (parsed.data.avatarUrl !== undefined) data.avatarUrl = parsed.data.avatarUrl;
+    if (parsed.data.voiceProfile !== undefined) data.voiceProfile = parsed.data.voiceProfile as Prisma.InputJsonValue;
+    if (parsed.data.expertiseNiches !== undefined) data.expertiseNiches = { set: parsed.data.expertiseNiches };
+    if (parsed.data.isActive !== undefined) data.isActive = parsed.data.isActive;
+    return this.prisma.author.update({ where: { id }, data });
+  }
+
+  @Delete("authors/:id")
+  async deleteAuthor(
+    @Param("id") id: string,
+    @Headers("x-admin-role") role?: string,
+    @Headers("x-admin-key") apiKey?: string
+  ) {
+    this.authorize(role, apiKey, ["admin"]);
+    await this.prisma.author.delete({ where: { id } });
+    return { success: true };
   }
 }

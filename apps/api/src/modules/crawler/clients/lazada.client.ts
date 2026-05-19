@@ -13,7 +13,7 @@ export class LazadaAffiliateClient implements AffiliateClient {
   private readonly logger = new Logger(LazadaAffiliateClient.name);
 
   isConfigured(): boolean {
-    return Boolean(process.env.LAZADA_AFFILIATE_APP_KEY && process.env.LAZADA_AFFILIATE_APP_SECRET);
+    return false; // STUB — chưa implement direct Lazada integration
   }
 
   async fetchProducts(): Promise<NormalizedOffer[]> {

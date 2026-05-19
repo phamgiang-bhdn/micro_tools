@@ -15,7 +15,7 @@ export class ShopeeAffiliateClient implements AffiliateClient {
   private readonly logger = new Logger(ShopeeAffiliateClient.name);
 
   isConfigured(): boolean {
-    return Boolean(process.env.SHOPEE_AFFILIATE_APP_ID && process.env.SHOPEE_AFFILIATE_APP_SECRET);
+    return false; // STUB — chưa implement direct Shopee integration
   }
 
   async fetchProducts(): Promise<NormalizedOffer[]> {

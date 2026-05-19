@@ -27,7 +27,7 @@ export class EnrichmentService {
   constructor(private readonly ai: AiService) {}
 
   isEnabled(): boolean {
-    return process.env.CRAWLER_AI_ENRICH !== "false" && Boolean(process.env.GEMINI_API_KEY);
+    return Boolean(process.env.GEMINI_API_KEY || process.env.AI_API_KEY);
   }
 
   async enrich(offer: NormalizedOffer): Promise<NormalizedOffer> {

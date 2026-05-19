@@ -98,14 +98,7 @@ export class CrawlerService {
     private readonly importer: ImportService,
     private readonly prisma: PrismaService
   ) {
-    const enabled = (process.env.CRAWLER_ENABLED_NETWORKS ?? "accesstrade")
-      .split(",")
-      .map((s) => s.trim().toLowerCase())
-      .filter(Boolean);
-    this.accesstradeEnabled = enabled.includes("accesstrade");
-    if (!this.accesstradeEnabled) {
-      this.logger.warn("CRAWLER_ENABLED_NETWORKS does not include 'accesstrade' — cycle will be a no-op");
-    }
+    this.accesstradeEnabled = true;
   }
 
   async runFullCycle(

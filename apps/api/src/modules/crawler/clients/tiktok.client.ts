@@ -13,7 +13,7 @@ export class TiktokAffiliateClient implements AffiliateClient {
   private readonly logger = new Logger(TiktokAffiliateClient.name);
 
   isConfigured(): boolean {
-    return Boolean(process.env.TIKTOK_AFFILIATE_APP_KEY && process.env.TIKTOK_AFFILIATE_APP_SECRET);
+    return false; // STUB — chưa implement direct TikTok integration
   }
 
   async fetchProducts(): Promise<NormalizedOffer[]> {

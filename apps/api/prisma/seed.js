@@ -417,6 +417,128 @@ async function main() {
       createdBy: "seed"
     }
   });
+
+  // ─── Article V2: phrase blacklist (Critic Agent loadable, 1 phrase per line) ───
+  const blacklistContent = [
+    "# Article V2 — phrase blacklist (Critic check). 1 phrase per line. Lines starting with # are comments.",
+    "trong thời đại công nghệ 4.0",
+    "không thể phủ nhận",
+    "không thể phủ nhận rằng",
+    "qua đó có thể thấy",
+    "tóm lại",
+    "đáng đồng tiền bát gạo",
+    "tối ưu hóa trải nghiệm",
+    "tối ưu hoá trải nghiệm",
+    "trải nghiệm tuyệt vời",
+    "nâng tầm trải nghiệm",
+    "đỉnh cao của công nghệ",
+    "lựa chọn hoàn hảo",
+    "siêu phẩm",
+    "không thể bỏ qua",
+    "đắc lực",
+    "đồng hành cùng bạn",
+    "cuộc sống hiện đại",
+    "ngày càng phổ biến",
+    "ngày càng được ưa chuộng"
+  ].join("\n");
+
+  await prisma.promptTemplate.upsert({
+    where: { name: "phrase-blacklist" },
+    update: { content: blacklistContent, isActive: true, version: 1, activatedAt: new Date() },
+    create: {
+      name: "phrase-blacklist",
+      content: blacklistContent,
+      isActive: true,
+      version: 1,
+      activatedAt: new Date(),
+      createdBy: "seed"
+    }
+  });
+
+  // ─── Article V2: default authors với voiceProfile khác nhau ───
+  const authors = [
+    {
+      slug: "minh-anh",
+      name: "Minh Anh",
+      bio: "Biên tập viên công nghệ, 5 năm review thiết bị nhà thông minh và đồ gia dụng.",
+      voiceProfile: {
+        tone: "conversational",
+        vocabRange: "neutral",
+        sentenceLength: "mixed",
+        englishLoanwords: "moderate",
+        openingPatterns: ["scenario", "question", "stat"],
+        quirks: ["hay so sánh với đời sống thực tế", "thi thoảng dùng câu hỏi tu từ"]
+      }
+    },
+    {
+      slug: "quang-huy",
+      name: "Quang Huy",
+      bio: "Kỹ sư điện tử, tập trung phân tích thông số kỹ thuật và benchmark.",
+      voiceProfile: {
+        tone: "technical",
+        vocabRange: "formal",
+        sentenceLength: "long",
+        englishLoanwords: "frequent",
+        openingPatterns: ["stat", "contrarian", "myth-bust"],
+        quirks: ["dùng số liệu cụ thể", "luôn cite spec sheet"]
+      }
+    },
+    {
+      slug: "thu-ha",
+      name: "Thu Hà",
+      bio: "Cây bút lifestyle, kể chuyện trải nghiệm sản phẩm theo góc nhìn người dùng phổ thông.",
+      voiceProfile: {
+        tone: "storytelling",
+        vocabRange: "casual",
+        sentenceLength: "short",
+        englishLoanwords: "minimal",
+        openingPatterns: ["anecdote", "scenario", "vivid"],
+        quirks: ["mở bài bằng tình huống đời thường", "kết thường có lời khuyên ngắn"]
+      }
+    },
+    {
+      slug: "tuan-kiet",
+      name: "Tuấn Kiệt",
+      bio: "Chuyên review góc nhìn phản biện — chỉ ra điểm yếu trước, rồi cân nhắc giá trị.",
+      voiceProfile: {
+        tone: "witty",
+        vocabRange: "neutral",
+        sentenceLength: "medium",
+        englishLoanwords: "moderate",
+        openingPatterns: ["contrarian", "myth-bust", "news"],
+        quirks: ["thẳng thắn về điểm yếu", "không ngại chê"]
+      }
+    }
+  ];
+
+  for (const a of authors) {
+    await prisma.author.upsert({
+      where: { slug: a.slug },
+      update: {
+        name: a.name,
+        bio: a.bio,
+        voiceProfile: a.voiceProfile,
+        isActive: true
+      },
+      create: {
+        slug: a.slug,
+        name: a.name,
+        bio: a.bio,
+        voiceProfile: a.voiceProfile,
+        expertiseNiches: [],
+        isActive: true
+      }
+    });
+  }
+
+  // Assign all niches as expertise cho author đầu tiên (Minh Anh) — admin sau có thể chỉnh.
+  const allNiches = await prisma.niche.findMany({ select: { id: true } });
+  await prisma.author.update({
+    where: { slug: "minh-anh" },
+    data: { expertiseNiches: allNiches.map((n) => n.id) }
+  });
+
+  console.log(`Seeded ${authors.length} authors + phrase-blacklist template.`);
 }
 
 main()

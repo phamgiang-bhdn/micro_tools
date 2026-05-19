@@ -196,7 +196,20 @@ export function ArticlesTable({
       cell: (a) => {
         const meta = ARTICLE_STATUS_META[a.status];
         return (
-          <StatusPill tone={meta.tone} dot pulse={a.status === "GENERATING"}>
+          <StatusPill
+            tone={meta.tone}
+            dot
+            pulse={[
+              "DRAFT_BRIEF",
+              "RESEARCHING",
+              "REVIEWS_SCRAPED",
+              "OUTLINE_READY",
+              "IMAGES_READY",
+              "DRAFTING",
+              "SELF_CRITIQUED",
+              "FACT_CHECKED"
+            ].includes(a.status)}
+          >
             {meta.label}
           </StatusPill>
         );
@@ -316,14 +329,14 @@ function buildMoreActions(
       }
     });
   }
-  if (a.status !== "PUBLISHED" && a.status !== "GENERATING") {
+  if (a.status === "PENDING_REVIEW") {
     items.push({
       label: "Đăng bài",
       icon: <CheckCircle2 />,
       onSelect: () => callSingle(publishArticleAction, a.id)
     });
   }
-  if (a.status !== "ARCHIVED" && a.status !== "GENERATING") {
+  if (a.status !== "ARCHIVED") {
     items.push({
       label: "Lưu trữ",
       icon: <Archive />,

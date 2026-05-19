@@ -14,6 +14,9 @@
     "bootstrap": "env:init + setup — có banner màu (setup máy dev).",
     "dev:api": "Chạy backend NestJS (port mặc định 4000).",
     "dev:web": "Chạy frontend Next.js (port 3100, http://localhost:3100).",
+    "kill:api": "Kill mọi process đang giữ port 4000 (fix EADDRINUSE).",
+    "kill:web": "Kill mọi process đang giữ port 3100.",
+    "kill:all": "Kill cả 4000 + 3100 cùng lúc.",
     "lint:web": "ESLint cho app web.",
     "test:api": "Jest cho app api.",
     "build": "Build production cả web rồi api."
@@ -35,6 +38,9 @@
     "dev": "node scripts/dev.mjs",
     "dev:api": "npm run start:dev --workspace api",
     "dev:web": "npm run dev --workspace web",
+    "kill:api": "node scripts/kill-port.mjs 4000",
+    "kill:web": "node scripts/kill-port.mjs 3100",
+    "kill:all": "node scripts/kill-port.mjs 4000 3100",
     "lint:web": "node scripts/run-step.mjs -- npm run lint --workspace web",
     "test:api": "node scripts/run-step.mjs -- npm run test --workspace api",
     "build": "node scripts/run-step.mjs -- npm run build --workspace web && node scripts/run-step.mjs -- npm run build --workspace api"

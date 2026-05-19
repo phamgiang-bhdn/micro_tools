@@ -30,8 +30,18 @@ export const NETWORK_OPTIONS = NETWORK_VALUES.map((v) => ({
 // ===== Article =====
 
 export const ARTICLE_STATUS_VALUES = [
-  "GENERATING",
-  "DRAFT",
+  // V2 pipeline
+  "DRAFT_BRIEF",
+  "RESEARCHING",
+  "REVIEWS_SCRAPED",
+  "OUTLINE_READY",
+  "IMAGES_READY",
+  "DRAFTING",
+  "SELF_CRITIQUED",
+  "FACT_CHECKED",
+  "PENDING_REVIEW",
+  "NEEDS_REVISION",
+  // Terminal
   "PUBLISHED",
   "ARCHIVED",
   "FAILED"
@@ -39,12 +49,31 @@ export const ARTICLE_STATUS_VALUES = [
 export type ArticleStatus = (typeof ARTICLE_STATUS_VALUES)[number];
 
 export const ARTICLE_STATUS_META: Record<ArticleStatus, { label: string; tone: Tone }> = {
-  GENERATING: { label: "Đang tạo", tone: "info" },
-  DRAFT: { label: "Nháp", tone: "warning" },
+  DRAFT_BRIEF: { label: "Đang lập brief", tone: "info" },
+  RESEARCHING: { label: "Đang research", tone: "info" },
+  REVIEWS_SCRAPED: { label: "Đã thu review", tone: "info" },
+  OUTLINE_READY: { label: "Outline xong", tone: "info" },
+  IMAGES_READY: { label: "Ảnh sẵn sàng", tone: "info" },
+  DRAFTING: { label: "Đang viết", tone: "info" },
+  SELF_CRITIQUED: { label: "Đã tự kiểm tra", tone: "info" },
+  FACT_CHECKED: { label: "Đã fact-check", tone: "info" },
+  PENDING_REVIEW: { label: "Chờ admin duyệt", tone: "warning" },
+  NEEDS_REVISION: { label: "Cần sửa thủ công", tone: "danger" },
   PUBLISHED: { label: "Đã đăng", tone: "success" },
   ARCHIVED: { label: "Lưu trữ", tone: "neutral" },
   FAILED: { label: "Lỗi", tone: "danger" }
 };
+
+export const PIPELINE_STAGES = [
+  { key: "brief-builder", label: "Định hướng", color: "info" },
+  { key: "research", label: "Tra cứu", color: "info" },
+  { key: "review-scraper", label: "Đánh giá", color: "info" },
+  { key: "outline", label: "Dàn ý", color: "info" },
+  { key: "image", label: "Ảnh", color: "info" },
+  { key: "writer", label: "Viết bài", color: "info" },
+  { key: "critic", label: "Kiểm tra", color: "info" },
+  { key: "fact-check", label: "Đối chiếu", color: "info" }
+] as const;
 
 export const ARTICLE_STATUS_OPTIONS = ARTICLE_STATUS_VALUES.map((v) => ({
   value: v,

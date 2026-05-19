@@ -141,6 +141,69 @@ export async function archiveArticleAction(formData: FormData): Promise<void> {
   revalidatePath(`/admin/articles/${id}`);
 }
 
+// ───────── Article V2 pipeline ─────────
+
+export async function retryArticleStageAction(articleId: string, stage: string): Promise<void> {
+  await post(`/admin/articles/${articleId}/retry-stage`, { stage });
+  revalidatePath(`/admin/articles/${articleId}`);
+}
+
+export async function requestArticleRevisionAction(articleId: string, reason: string, reviewer = "admin"): Promise<void> {
+  await post(`/admin/articles/${articleId}/request-revision`, { reason, reviewer });
+  revalidatePath(`/admin/articles/${articleId}`);
+}
+
+export async function approveArticleV2Action(articleId: string, reviewer = "admin"): Promise<void> {
+  await post(`/admin/articles/${articleId}/publish`, { reviewer });
+  revalidatePath("/admin/articles");
+  revalidatePath(`/admin/articles/${articleId}`);
+  revalidatePath("/blog");
+}
+
+export async function updateSectionAction(
+  articleId: string,
+  sectionId: string,
+  patch: { heading?: string; summary?: string; blocks?: unknown; status?: string; evidenceRefs?: string[] }
+): Promise<void> {
+  await adminFetch(`/admin/articles/${articleId}/sections/${sectionId}`, "PUT", patch);
+  revalidatePath(`/admin/articles/${articleId}`);
+}
+
+export interface ArticleProgressDto {
+  article: {
+    id: string;
+    status: string;
+    currentStageMessage: string | null;
+    currentStageProgress: number | null;
+    generationError: string | null;
+    aiRevisionCount: number;
+    wordCount: number | null;
+    updatedAt: string;
+  };
+  runs: Array<{
+    id: string;
+    stage: string;
+    success: boolean;
+    errorReason: string | null;
+    durationMs: number | null;
+    startedAt: string;
+    finishedAt: string | null;
+  }>;
+}
+
+/** Poll mỗi 2s từ client component khi pipeline đang chạy. Không revalidate. */
+export async function getArticleProgressAction(articleId: string): Promise<ArticleProgressDto> {
+  const response = await fetch(`${API_BASE_URL}/admin/articles/${articleId}/progress`, {
+    method: "GET",
+    headers: { "x-admin-role": ADMIN_ROLE, "x-admin-key": ADMIN_API_KEY },
+    cache: "no-store"
+  });
+  if (!response.ok) {
+    throw new Error(`Progress poll failed: ${response.status}`);
+  }
+  return (await response.json()) as ArticleProgressDto;
+}
+
 // ───────── Crawler ─────────
 
 export interface CrawlerCampaignBreakdown {

@@ -66,17 +66,18 @@ export default async function AdminArticlesPage({
   ];
 
   const published = articles.filter((a) => a.status === "PUBLISHED").length;
-  const drafts = articles.filter((a) => a.status === "DRAFT").length;
-  const failed = articles.filter((a) => a.status === "FAILED").length;
+  const pending = articles.filter((a) => a.status === "PENDING_REVIEW").length;
+  const inFlight = articles.filter((a) => ["DRAFT_BRIEF","RESEARCHING","REVIEWS_SCRAPED","OUTLINE_READY","IMAGES_READY","DRAFTING","SELF_CRITIQUED","FACT_CHECKED"].includes(a.status)).length;
+  const failed = articles.filter((a) => a.status === "FAILED" || a.status === "NEEDS_REVISION").length;
 
   return (
     <ListPageShell
       eyebrow="Nội dung"
       title="Bài viết"
-      subtitle="AI sinh bản nháp → admin duyệt → publish lên blog. Toàn bộ qua human review gate."
+      subtitle="AI sinh bản nháp qua 8 bước → admin duyệt từng phần → đăng lên blog."
       overview={[
         {
-          label: "Tổng (theo lọc)",
+          label: "Tổng bài",
           value: articles.length.toLocaleString("vi-VN"),
           icon: <FileText className="size-4" />
         },
@@ -87,15 +88,15 @@ export default async function AdminArticlesPage({
           icon: <FileCheck2 className="size-4" />
         },
         {
-          label: "Bản nháp",
-          value: drafts.toLocaleString("vi-VN"),
-          tone: "warning",
+          label: "Chờ duyệt",
+          value: pending.toLocaleString("vi-VN"),
+          tone: pending > 0 ? "warning" : "neutral",
           icon: <FilePen className="size-4" />
         },
         {
-          label: "Lỗi sinh",
-          value: failed.toLocaleString("vi-VN"),
-          tone: failed > 0 ? "danger" : "neutral",
+          label: "Đang xử lý / lỗi",
+          value: (inFlight + failed).toLocaleString("vi-VN"),
+          tone: failed > 0 ? "danger" : inFlight > 0 ? "info" : "neutral",
           icon: <AlertTriangle className="size-4" />
         }
       ]}

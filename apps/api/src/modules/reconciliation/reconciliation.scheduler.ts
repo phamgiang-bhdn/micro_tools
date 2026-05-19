@@ -8,14 +8,8 @@ export class ReconciliationScheduler {
 
   constructor(private readonly reconciler: ReconciliationService) {}
 
-  @Cron(process.env.RECONCILE_CRON ?? CronExpression.EVERY_30_MINUTES, {
-    name: "reconciliation-cycle"
-  })
+  @Cron(CronExpression.EVERY_30_MINUTES, { name: "reconciliation-cycle" })
   async handleCron(): Promise<void> {
-    if (process.env.RECONCILE_ENABLED === "false") {
-      this.logger.debug("Reconciliation disabled via env");
-      return;
-    }
     try {
       await this.reconciler.runReconcileCycle("cron");
     } catch (error: unknown) {

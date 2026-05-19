@@ -8,12 +8,8 @@ export class CouponSyncScheduler {
 
   constructor(private readonly couponSync: CouponSyncService) {}
 
-  @Cron(process.env.COUPON_SYNC_CRON ?? "0 */6 * * *", { name: "coupon-sync-cycle" })
+  @Cron("0 */6 * * *", { name: "coupon-sync-cycle" })
   async handleCron(): Promise<void> {
-    if (process.env.COUPON_SYNC_ENABLED === "false") {
-      this.logger.debug("Coupon sync disabled via env");
-      return;
-    }
     try {
       await this.couponSync.syncFromAccesstrade();
     } catch (error: unknown) {

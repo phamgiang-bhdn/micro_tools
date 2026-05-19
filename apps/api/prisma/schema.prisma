@@ -25,11 +25,33 @@ enum ArticleType {
 }
 
 enum ArticleStatus {
+  // Legacy (kept for backward compat with v1 articles)
   GENERATING
   DRAFT
+  // V2 pipeline states
+  DRAFT_BRIEF
+  RESEARCHING
+  REVIEWS_SCRAPED
+  OUTLINE_READY
+  IMAGES_READY
+  DRAFTING
+  SELF_CRITIQUED
+  FACT_CHECKED
+  PENDING_REVIEW
+  NEEDS_REVISION
+  // Terminal
   PUBLISHED
   ARCHIVED
   FAILED
+}
+
+enum EvidenceType {
+  FACT
+  REVIEW
+  PRICE
+  SPEC
+  IMAGE
+  NEWS
 }
 
 enum AffiliateNetwork {
@@ -253,6 +275,7 @@ model Product {
   clickLogs    ClickLog[]
   extractions  ProductExtraction[]
   coupons      Coupon[]
+  reviews      ProductReview[]
 
   @@unique([nicheId, slug])
   @@index([nicheId])
@@ -392,12 +415,151 @@ model Article {
   reviewedAt      DateTime?
   scheduledAt     DateTime?
   publishedAt     DateTime?
+  // V2 pipeline fields
+  briefJson       Json?         @db.JsonB
+  outlineJson     Json?         @db.JsonB
+  authorId        String?       @db.Uuid
+  layoutVariant   String?
+  wordCount       Int?
+  readabilityScore Float?
+  evidenceFreshAt DateTime?
+  revisionCount   Int           @default(0)
+  aiRevisionCount Int           @default(0)
+  thesisEmbedding Float[]
+  coverImageAttribution Json?   @db.JsonB
+  currentStageMessage String?
+  currentStageProgress Int?
+  topic           String?
+  productRef      String?
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
   niche           Niche?        @relation(fields: [nicheId], references: [id], onDelete: SetNull)
+  author          Author?       @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  sections        ArticleSection[]
+  evidence        ArticleEvidence[]
+  runs            ArticleGenerationRun[]
 
   @@index([status, publishedAt])
   @@index([nicheId, status])
   @@index([type, status])
   @@index([scheduledAt])
+  @@index([authorId])
+  @@index([evidenceFreshAt])
+}
+
+/// Author — định danh tác giả của Article V2. voiceProfile (Json) inject vào Writer prompt
+/// để chống mono-voice. expertiseNiches dùng cho round-robin rotation.
+model Author {
+  id              String   @id @default(uuid()) @db.Uuid
+  slug            String   @unique
+  name            String
+  bio             String?
+  avatarUrl       String?
+  voiceProfile    Json     @db.JsonB
+  expertiseNiches String[] @db.Uuid
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  articles        Article[]
+
+  @@index([isActive])
+}
+
+/// ArticleSection — đơn vị tổ chức bài V2. Article có nhiều section, mỗi section là khối
+/// blocks (giống schema cũ) + summary cho TOC + evidence refs. Render storefront chia section
+/// có anchor để TOC nhảy. Status per-section cho HITL approve granular.
+model ArticleSection {
+  id              String   @id @default(uuid()) @db.Uuid
+  articleId       String   @db.Uuid
+  anchorSlug      String
+  heading         String
+  summary         String
+  intent          String?
+  order           Int
+  blocks          Json     @db.JsonB
+  blockTypeHints  String[]
+  evidenceRefs    String[] @db.Uuid
+  wordCount       Int      @default(0)
+  estimatedWords  Int      @default(0)
+  isRequired      Boolean  @default(true)
+  status          String   @default("DRAFTING")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  article         Article  @relation(fields: [articleId], references: [id], onDelete: Cascade)
+
+  @@unique([articleId, anchorSlug])
+  @@index([articleId, order])
+}
+
+/// ArticleEvidence — moat chính chống thin-content. Mỗi claim/fact/review/price/image phải
+/// có evidence cite được. Fact-check loop verify sourceUrl còn live và content khớp.
+model ArticleEvidence {
+  id              String       @id @default(uuid()) @db.Uuid
+  articleId       String       @db.Uuid
+  type            EvidenceType
+  productId       String?      @db.Uuid
+  sourceUrl       String
+  sourceDomain    String
+  title           String?
+  payload         Json         @db.JsonB
+  contentHash     String
+  fetchedAt       DateTime     @default(now())
+  expiresAt       DateTime?
+  factCheckPassed Boolean      @default(false)
+  factCheckedAt   DateTime?
+  article         Article      @relation(fields: [articleId], references: [id], onDelete: Cascade)
+
+  @@index([articleId, type])
+  @@index([contentHash])
+  @@index([sourceDomain])
+  @@index([productId])
+}
+
+/// ProductReview — user review thật cào từ Accesstrade / Shopee / Tiki / Lazada.
+/// Đây là "original research signal" cho EEAT. Article có thể cite vào block review_quote.
+model ProductReview {
+  id              String    @id @default(uuid()) @db.Uuid
+  productId       String    @db.Uuid
+  source          String
+  sourceUrl       String?
+  author          String?
+  rating          Decimal?  @db.Decimal(3, 2)
+  title           String?
+  body            String
+  verifiedBuyer   Boolean   @default(false)
+  reviewDate      DateTime?
+  scrapedAt       DateTime  @default(now())
+  sentiment       String?
+  topicTags       String[]
+  raw             Json?     @db.JsonB
+  product         Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId, source])
+  @@index([productId, rating])
+  @@index([productId, sentiment])
+}
+
+/// ArticleGenerationRun — observability log per stage execution. Cho phép retry stage lẻ,
+/// debug cost, track duration. Inspect qua admin dashboard.
+model ArticleGenerationRun {
+  id            String   @id @default(uuid()) @db.Uuid
+  articleId     String   @db.Uuid
+  stage         String
+  agent         String
+  model         String?
+  promptName    String?
+  inputHash     String?
+  inputSize     Int?
+  outputSize    Int?
+  output        Json?     @db.JsonB
+  durationMs    Int?
+  costEstimate  Decimal?  @db.Decimal(10, 6)
+  success       Boolean   @default(false)
+  errorReason   String?
+  startedAt     DateTime  @default(now())
+  finishedAt    DateTime?
+  article       Article   @relation(fields: [articleId], references: [id], onDelete: Cascade)
+
+  @@index([articleId, startedAt])
+  @@index([stage, success])
 }

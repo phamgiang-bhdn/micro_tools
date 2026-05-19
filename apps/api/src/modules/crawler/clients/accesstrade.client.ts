@@ -219,17 +219,10 @@ export class AccesstradeClient implements AffiliateClient {
     path: string,
     params: URLSearchParams
   ): Promise<{ ok: boolean; status: number; body: string }> {
-    const base = process.env.ACCESSTRADE_API_BASE ?? "https://api.accesstrade.vn/v1";
+    const base = "https://api.accesstrade.vn/v1";
     const token = process.env.ACCESSTRADE_ACCESS_TOKEN as string;
-    const verbose = process.env.ACCESSTRADE_LOG_VERBOSE === "true";
     const qs = params.toString();
     const url = qs ? `${base}${path}?${qs}` : `${base}${path}`;
-
-    if (verbose) {
-      this.logger.log(
-        `[AT] curl -i -H "Authorization: Token ${token}" -H "Accept: application/json" "${url}"`
-      );
-    }
 
     try {
       const resp = await fetch(url, {
@@ -241,11 +234,9 @@ export class AccesstradeClient implements AffiliateClient {
       const body = await resp.text();
       return { ok: resp.ok, status: resp.status, body };
     } catch (error: unknown) {
-      if (verbose) {
-        this.logger.error(
-          `[AT] FETCH_THROW ${error instanceof Error ? error.message : String(error)}`
-        );
-      }
+      this.logger.error(
+        `[AT] FETCH_THROW ${error instanceof Error ? error.message : String(error)}`
+      );
       return { ok: false, status: 0, body: "" };
     }
   }

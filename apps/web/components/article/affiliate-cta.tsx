@@ -1,6 +1,5 @@
 import type React from "react";
-import { redirect } from "next/navigation";
-import { createTrackingRedirect } from "../../app/actions/tracking";
+import { affiliateRedirectAction } from "../../app/actions/affiliate";
 
 interface Props {
   productId: string;
@@ -13,8 +12,8 @@ interface Props {
 }
 
 /**
- * Nút CTA "Xem deal" dùng chung trong article. Mỗi nút là 1 server-action
- * tự sinh trackingCode và redirect — KHÔNG bypass tracking flow.
+ * Nút CTA "Xem deal" dùng chung trong article. Server-action ở file riêng để có thể render
+ * trong cả Server Component và Client Component tree (article-v2-client preview).
  */
 export function AffiliateCta({
   productId,
@@ -25,11 +24,7 @@ export function AffiliateCta({
   className = "",
   store
 }: Props): React.ReactElement {
-  async function buy(): Promise<void> {
-    "use server";
-    const tracked = await createTrackingRedirect({ productId, affiliateUrl });
-    redirect(tracked.finalUrl);
-  }
+  const buy = affiliateRedirectAction.bind(null, productId, affiliateUrl);
 
   const sizeClasses =
     size === "lg"

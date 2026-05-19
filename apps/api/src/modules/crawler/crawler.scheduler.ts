@@ -20,12 +20,8 @@ export class CrawlerScheduler {
     private readonly prisma: PrismaService
   ) {}
 
-  @Cron(process.env.CRAWLER_CRON ?? "0 */6 * * *", { name: "crawler-cycle" })
+  @Cron("0 */6 * * *", { name: "crawler-cycle" })
   async tick(): Promise<void> {
-    if (process.env.CRAWLER_ENABLED === "false") {
-      this.logger.log("Crawler disabled — skipping tick");
-      return;
-    }
     try {
       const r = await this.crawler.runFullCycle("cron");
       this.logger.log(`Tick done: fetched=${r.fetched} created=${r.created} updated=${r.updated}`);

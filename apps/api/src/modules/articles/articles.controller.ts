@@ -77,10 +77,11 @@ export class ArticlesController {
     const article = await this.prisma.article.findUnique({
       where: { slug },
       include: {
-        niche: { select: { slug: true, name: true } }
+        niche: { select: { slug: true, name: true } },
+        author: { select: { id: true, slug: true, name: true, bio: true, avatarUrl: true } },
+        sections: { orderBy: { order: "asc" } }
       }
     });
-    // article.coverImage included via spread below.
 
     if (!article || article.status !== "PUBLISHED") {
       throw new HttpException("Article not found", HttpStatus.NOT_FOUND);
@@ -94,7 +95,15 @@ export class ArticlesController {
           })
         : [];
 
-    return { ...article, products };
+    // Evidence cho citation render (image, review_quote ref)
+    const evidence = article.sections.length > 0
+      ? await this.prisma.articleEvidence.findMany({
+          where: { articleId: article.id },
+          select: { id: true, type: true, sourceUrl: true, sourceDomain: true, title: true, payload: true }
+        })
+      : [];
+
+    return { ...article, products, evidence };
   }
 }
 
