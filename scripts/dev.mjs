@@ -38,7 +38,50 @@ function checkEnvFile() {
   const envPath = join(root, ".env");
   const apiEnvPath = join(root, "apps", "api", ".env");
   const webEnvPath = join(root, "apps", "web", ".env");
-  return existsSync(envPath) || (existsSync(apiEnvPath) && existsSync(webEnvPath));
+  // Check if both api and web .env files exist
+  return existsSync(apiEnvPath) && existsSync(webEnvPath);
+}
+
+function loadEnvFiles() {
+  const envPath = join(root, ".env");
+  const apiEnvPath = join(root, "apps", "api", ".env");
+  const webEnvPath = join(root, "apps", "web", ".env");
+  
+  // Load root .env if exists
+  if (existsSync(envPath)) {
+    const content = fs.readFileSync(envPath, "utf-8");
+    parseAndSetEnv(content);
+  }
+  
+  // Load apps/api/.env if exists
+  if (existsSync(apiEnvPath)) {
+    const content = fs.readFileSync(apiEnvPath, "utf-8");
+    parseAndSetEnv(content);
+  }
+  
+  // Load apps/web/.env if exists
+  if (existsSync(webEnvPath)) {
+    const content = fs.readFileSync(webEnvPath, "utf-8");
+    parseAndSetEnv(content);
+  }
+}
+
+function parseAndSetEnv(content) {
+  const lines = content.split("\n");
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("#")) continue;
+    const match = trimmed.match(/^([^=]+)=(.*)$/);
+    if (match) {
+      const key = match[1].trim();
+      let value = match[2].trim();
+      // Remove quotes if present
+      if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
+        value = value.slice(1, -1);
+      }
+      process.env[key] = value;
+    }
+  }
 }
 
 function runCommandSync(cmd, args, description) {
@@ -117,11 +160,11 @@ function waitForDatabase(timeoutMs = 30000) {
     
     function check() {
       try {
-        // Try to connect to postgres on port 6432
+        // Try to connect to postgres on port 5432
         const result = spawnSync(isWin ? "powershell" : "bash", 
           isWin 
-            ? ["-Command", `Test-NetConnection -ComputerName localhost -Port 6432 -WarningLevel SilentlyContinue | Select-Object -ExpandProperty TcpTestSucceeded`]
-            : ["-c", `echo "" | nc -w 1 localhost 6432 && echo "success" || echo "fail"`],
+            ? ["-Command", `Test-NetConnection -ComputerName localhost -Port 5432 -WarningLevel SilentlyContinue | Select-Object -ExpandProperty TcpTestSucceeded`]
+            : ["-c", `echo "" | nc -w 1 localhost 5432 && echo "success" || echo "fail"`],
           { stdio: ["pipe", "pipe", "pipe"], shell: true }
         );
         const output = result.stdout.toString().trim().toLowerCase();
@@ -380,8 +423,11 @@ function findAndKillProcessOnPort(port) {
 }
 
 // Run auto-setup before starting servers
-console.log(`\n${c.cyan}${c.bold}🔍 Kiểm tra môi trường...${c.reset}`);
+console.log(`\n${c.cyan}${c.bold} Kiểm tra môi trường...${c.reset}`);
 await autoSetup();
+
+// Load env files into process.env
+loadEnvFiles();
 
 // Giải phóng ports nếu cần
 console.log(`\n${c.yellow}[PORT]${c.reset} Kiểm tra ports 4000 và 3100...`);
