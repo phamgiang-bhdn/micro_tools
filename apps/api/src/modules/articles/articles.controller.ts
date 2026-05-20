@@ -103,7 +103,31 @@ export class ArticlesController {
         })
       : [];
 
-    return { ...article, products, evidence };
+    // Bài liên quan: cùng niche, đã PUBLISHED, khác bài hiện tại, 4 bài mới nhất.
+    // Pattern blog affiliate VN — giữ user trong site, tăng pageview/session.
+    const related = article.nicheId
+      ? await this.prisma.article.findMany({
+          where: {
+            nicheId: article.nicheId,
+            status: "PUBLISHED",
+            id: { not: article.id }
+          },
+          orderBy: { publishedAt: "desc" },
+          take: 4,
+          select: {
+            id: true,
+            slug: true,
+            title: true,
+            excerpt: true,
+            type: true,
+            publishedAt: true,
+            coverImage: true,
+            niche: { select: { slug: true, name: true } }
+          }
+        })
+      : [];
+
+    return { ...article, products, evidence, related };
   }
 }
 

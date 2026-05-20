@@ -43,7 +43,8 @@ const generateArticleSchema = z.object({
   topic: z.string().min(5).max(300),
   nicheId: z.string().uuid().nullable().optional(),
   pinnedProductIds: z.array(z.string().uuid()).max(10).optional(),
-  productRef: z.string().min(1).max(500).nullable().optional()
+  productRef: z.string().min(1).max(500).nullable().optional(),
+  pauseAtOutline: z.boolean().optional()
 });
 
 const createNicheSchema = z.object({
@@ -664,9 +665,21 @@ export class AdminController {
       topic: parsed.data.topic,
       nicheId: parsed.data.nicheId ?? null,
       productRef: parsed.data.productRef ?? null,
-      pinnedProductIds: parsed.data.pinnedProductIds ?? []
+      pinnedProductIds: parsed.data.pinnedProductIds ?? [],
+      pauseAtOutline: parsed.data.pauseAtOutline ?? false
     });
     return { id, status: ArticleStatus.DRAFT_BRIEF };
+  }
+
+  @Post("articles/:id/continue-pipeline")
+  async continueArticlePipeline(
+    @Param("id") id: string,
+    @Headers("x-admin-role") role?: string,
+    @Headers("x-admin-key") apiKey?: string
+  ) {
+    this.authorize(role, apiKey, ["reviewer", "admin"]);
+    await this.articlePipeline.continuePipeline(id);
+    return { success: true };
   }
 
   @Post("articles/:id/retry-stage")
@@ -686,6 +699,17 @@ export class AdminController {
       );
     }
     await this.articlePipeline.retryStage(id, stage as PipelineStageName);
+    return { success: true };
+  }
+
+  @Post("articles/:id/refresh-evidence")
+  async refreshArticleEvidence(
+    @Param("id") id: string,
+    @Headers("x-admin-role") role?: string,
+    @Headers("x-admin-key") apiKey?: string
+  ) {
+    this.authorize(role, apiKey, ["reviewer", "admin"]);
+    await this.articlePipeline.refreshEvidence(id);
     return { success: true };
   }
 
@@ -2062,6 +2086,7 @@ export class AdminController {
         status: true,
         currentStageMessage: true,
         currentStageProgress: true,
+        currentStageStartedAt: true,
         generationError: true,
         aiRevisionCount: true,
         wordCount: true,
@@ -2098,12 +2123,197 @@ export class AdminController {
     const data: Prisma.ArticleSectionUpdateInput = {};
     if (body.heading !== undefined) data.heading = body.heading;
     if (body.summary !== undefined) data.summary = body.summary;
-    if (body.blocks !== undefined) data.blocks = body.blocks as Prisma.InputJsonValue;
+    if (body.blocks !== undefined) {
+      data.blocks = body.blocks as Prisma.InputJsonValue;
+      // Recompute wordCount khi admin sửa blocks tay — critic dùng để check thin section.
+      data.wordCount = countBlocksWords(body.blocks);
+    }
     if (body.status !== undefined) data.status = body.status;
     if (body.evidenceRefs !== undefined) data.evidenceRefs = { set: body.evidenceRefs };
     return this.prisma.articleSection.update({
       where: { id: sectionId, articleId },
       data
+    });
+  }
+
+  @Delete("articles/:id/sections/:sectionId")
+  async deleteSection(
+    @Param("id") articleId: string,
+    @Param("sectionId") sectionId: string,
+    @Headers("x-admin-role") role?: string,
+    @Headers("x-admin-key") apiKey?: string
+  ) {
+    this.authorize(role, apiKey, ["reviewer", "admin"]);
+    await this.prisma.articleSection.delete({ where: { id: sectionId, articleId } });
+    // Compact order sau khi xoá để khỏi gap (1,2,4,5 → 1,2,3,4).
+    const remaining = await this.prisma.articleSection.findMany({
+      where: { articleId },
+      orderBy: { order: "asc" },
+      select: { id: true }
+    });
+    await this.prisma.$transaction(
+      remaining.map((s, i) =>
+        this.prisma.articleSection.update({ where: { id: s.id }, data: { order: i } })
+      )
+    );
+    return { success: true };
+  }
+
+  @Put("articles/:id/sections-order")
+  async reorderSections(
+    @Param("id") articleId: string,
+    @Body() body: { orderedIds?: string[] },
+    @Headers("x-admin-role") role?: string,
+    @Headers("x-admin-key") apiKey?: string
+  ) {
+    this.authorize(role, apiKey, ["reviewer", "admin"]);
+    const ids = Array.isArray(body?.orderedIds) ? body.orderedIds.filter((v) => typeof v === "string") : [];
+    if (ids.length === 0) throw new HttpException("orderedIds required", HttpStatus.BAD_REQUEST);
+    // Validate tất cả id thuộc article (chặn cross-article tampering).
+    const owned = await this.prisma.articleSection.findMany({
+      where: { articleId, id: { in: ids } },
+      select: { id: true }
+    });
+    if (owned.length !== ids.length) {
+      throw new HttpException("Một số sectionId không thuộc article", HttpStatus.BAD_REQUEST);
+    }
+    await this.prisma.$transaction(
+      ids.map((id, i) =>
+        this.prisma.articleSection.update({ where: { id }, data: { order: i } })
+      )
+    );
+    return { success: true };
+  }
+
+  // ──────── Product Slot Matcher ────────
+  // Article topic-first: Writer sinh slot rỗng (productId undefined) với `hint` mô tả
+  // Product cần gắn. Admin sau khi review bài vào tab "Gắn sản phẩm" → search Product
+  // theo hint → assign. Endpoint dưới đây list slots + assign.
+
+  @Get("articles/:id/slots")
+  async listArticleSlots(
+    @Param("id") articleId: string,
+    @Headers("x-admin-role") role?: string,
+    @Headers("x-admin-key") apiKey?: string
+  ) {
+    this.authorize(role, apiKey, ["viewer", "reviewer", "admin"]);
+    const sections = await this.prisma.articleSection.findMany({
+      where: { articleId },
+      orderBy: { order: "asc" },
+      select: { id: true, order: true, heading: true, anchorSlug: true, blocks: true }
+    });
+    const slots: Array<{
+      sectionId: string;
+      sectionOrder: number;
+      sectionHeading: string;
+      slotKey: string;
+      hint: string;
+      angle?: string;
+      productId?: string;
+    }> = [];
+    for (const s of sections) {
+      if (!Array.isArray(s.blocks)) continue;
+      for (const b of s.blocks as Array<Record<string, unknown>>) {
+        if (b?.type !== "product_slot") continue;
+        const slotKey = typeof b.slotKey === "string" ? b.slotKey : null;
+        if (!slotKey) continue;
+        slots.push({
+          sectionId: s.id,
+          sectionOrder: s.order,
+          sectionHeading: s.heading,
+          slotKey,
+          hint: typeof b.hint === "string" ? b.hint : "",
+          angle: typeof b.angle === "string" ? b.angle : undefined,
+          productId: typeof b.productId === "string" ? b.productId : undefined
+        });
+      }
+    }
+    // Resolve assigned products để UI hiển thị card mini ngay (tránh round-trip 2 lần).
+    const assignedIds = [...new Set(slots.map((s) => s.productId).filter((v): v is string => Boolean(v)))];
+    const assignedProducts = assignedIds.length
+      ? await this.prisma.product.findMany({
+          where: { id: { in: assignedIds } },
+          select: { id: true, name: true, slug: true, scrapedData: true, affiliateUrl: true, isPublic: true }
+        })
+      : [];
+    return { slots, assignedProducts };
+  }
+
+  @Post("articles/:id/slots/assign")
+  async assignSlotProduct(
+    @Param("id") articleId: string,
+    @Body() body: { sectionId?: string; slotKey?: string; productId?: string | null },
+    @Headers("x-admin-role") role?: string,
+    @Headers("x-admin-key") apiKey?: string
+  ) {
+    this.authorize(role, apiKey, ["reviewer", "admin"]);
+    const { sectionId, slotKey, productId } = body ?? {};
+    if (!sectionId || !slotKey) {
+      throw new HttpException("sectionId + slotKey required", HttpStatus.BAD_REQUEST);
+    }
+    if (productId) {
+      const product = await this.prisma.product.findUnique({ where: { id: productId }, select: { id: true } });
+      if (!product) throw new HttpException("Product không tồn tại", HttpStatus.NOT_FOUND);
+    }
+
+    const section = await this.prisma.articleSection.findUnique({
+      where: { id: sectionId, articleId },
+      select: { id: true, blocks: true }
+    });
+    if (!section) throw new HttpException("Section không thuộc article", HttpStatus.NOT_FOUND);
+
+    const blocks = Array.isArray(section.blocks) ? [...(section.blocks as Array<Record<string, unknown>>)] : [];
+    let matched = false;
+    for (let i = 0; i < blocks.length; i += 1) {
+      const b = blocks[i];
+      if (b?.type === "product_slot" && b?.slotKey === slotKey) {
+        blocks[i] = { ...b, productId: productId || undefined };
+        matched = true;
+      }
+    }
+    if (!matched) {
+      throw new HttpException(`Không tìm thấy slot "${slotKey}" trong section`, HttpStatus.NOT_FOUND);
+    }
+
+    // Recompute article.productIds = union tất cả slot productId (đã gắn) + pinnedProductIds.
+    // Public articles.controller chỉ join Product theo article.productIds → phải sync.
+    const [updatedSection] = await this.prisma.$transaction([
+      this.prisma.articleSection.update({
+        where: { id: sectionId },
+        data: { blocks: blocks as Prisma.InputJsonValue }
+      })
+    ]);
+    await this.recomputeArticleProductIds(articleId);
+    return { section: updatedSection };
+  }
+
+  /**
+   * Sync `Article.productIds` = union(pinnedProductIds, tất cả product_slot.productId trong sections).
+   * Gọi sau mỗi lần slot được gắn/xoá để storefront load Product cho block renderer.
+   */
+  private async recomputeArticleProductIds(articleId: string): Promise<void> {
+    const article = await this.prisma.article.findUnique({
+      where: { id: articleId },
+      select: { pinnedProductIds: true }
+    });
+    if (!article) return;
+    const sections = await this.prisma.articleSection.findMany({
+      where: { articleId },
+      select: { blocks: true }
+    });
+    const slotIds = new Set<string>();
+    for (const s of sections) {
+      if (!Array.isArray(s.blocks)) continue;
+      for (const b of s.blocks as Array<Record<string, unknown>>) {
+        if (b?.type === "product_slot" && typeof b.productId === "string") {
+          slotIds.add(b.productId);
+        }
+      }
+    }
+    const merged = [...new Set([...(article.pinnedProductIds ?? []), ...slotIds])];
+    await this.prisma.article.update({
+      where: { id: articleId },
+      data: { productIds: merged }
     });
   }
 
@@ -2255,4 +2465,21 @@ export class AdminController {
     await this.prisma.author.delete({ where: { id } });
     return { success: true };
   }
+}
+
+function countBlocksWords(blocks: unknown): number {
+  if (!Array.isArray(blocks)) return 0;
+  const text = blocks
+    .map((b) => {
+      if (!b || typeof b !== "object") return "";
+      const o = b as Record<string, unknown>;
+      const parts: string[] = [];
+      for (const k of ["markdown", "body", "text", "summary", "claim"]) {
+        const v = o[k];
+        if (typeof v === "string") parts.push(v);
+      }
+      return parts.join(" ");
+    })
+    .join(" ");
+  return text.trim().split(/\s+/).filter(Boolean).length;
 }

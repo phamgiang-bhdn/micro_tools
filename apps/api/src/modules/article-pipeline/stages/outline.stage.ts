@@ -39,10 +39,13 @@ const outlineAiSchema = z.object({
         evidenceRefs: z.array(z.string()).max(20).default([]),
         blockTypeHints: z.array(z.string()).max(12).default([]),
         isRequired: z.boolean().default(true),
-        estimatedWords: z.number().int().min(50).max(3000)
+        // Section ngắn = scan-friendly. 60-300 từ thay vì 50-3000.
+        // User affiliate đọc lướt, không đọc luận văn.
+        estimatedWords: z.number().int().min(60).max(300)
       })
     )
-    .min(3)
+    // 6-12 section thay vì 3-12: chia nhỏ mối quan tâm để user scan nhanh.
+    .min(6)
     .max(12)
 });
 
@@ -141,17 +144,56 @@ export class OutlineStage implements PipelineStage {
 [evidence] (có thể gán vào section qua "evidenceRefs"; ID là string trong [...]):
 ${evidenceList}
 
+**Triết lý affiliate Việt Nam**: User đọc xong phải **MUỐN mua**. Heading = câu kết luận tích cực dẫn dắt cảm xúc, body chứng minh ngắn gọn. User scroll thấy chuỗi heading liên tiếp toàn ưu điểm cụ thể có dẫn chứng → tin tưởng → bấm CTA. Mỗi section ngắn (1 điểm cộng cụ thể, ≤300 từ). Pattern hiệu quả: heading-as-positive-conclusion → 1-2 đoạn ngắn → bullet/table → ảnh sản phẩm thật → product slot hoặc CTA.
+
+**Phân bổ cảm xúc tổng bài**:
+- ~70% section nói về **ưu điểm/giá trị nhận được** (mỗi section 1 lợi ích cụ thể có số liệu).
+- ~20% section nói về **nhược/tradeoff** — luôn kèm work-around hoặc context "không phải vấn đề với phần đông user".
+- ~10% verdict cuối nghiêng **"đáng mua nếu…"** thay vì "có nên mua không?".
+
 Quy tắc:
-1. 4-8 sections, mỗi section có "anchorSlug" (kebab-case, unique), "heading", "summary" (1-2 câu — sẽ hiển thị trên TOC khi user hover/jump), "intent", "estimatedWords", "evidenceRefs" (chỉ dùng ID có trong [evidence]), "blockTypeHints" (gợi ý block types: prose, criteria_grid, product_spotlight, comparison, callout, pros_cons, faq, verdict, review_quote, image, image_gallery, price_history, citation, section_tldr).
-2. Order tự do — KHÔNG bắt buộc FAQ cuối. Section "Hook" hoặc tương đương luôn đầu tiên (intent="hook"). Section "Verdict/Kết luận" cuối cùng cho transactional/comparison.
-3. Mỗi section trừ "hook" và "verdict" PHẢI có ≥1 evidenceRef (nếu evidence list rỗng → tạm để [] và Sprint sau bổ sung).
-4. Tổng estimatedWords = ${targetDepthBand} (cộng các section vừa khít band).
-5. Section heading hấp dẫn, KHÔNG generic kiểu "Giới thiệu" / "Kết luận" — phải bám sát thesis.
-6. blockTypeHints đa dạng — KHÔNG section nào chỉ "prose". Xen "criteria_grid", "callout", "review_quote", "image" để chống wall-of-text.
+1. **6-12 section** (nhiều, ngắn, mỗi section 1 mối quan tâm cụ thể), mỗi section có "anchorSlug" (kebab-case, unique), "heading", "summary" (1-2 câu — TOC hover/jump, KHÔNG hiển thị trong bài), "intent", "estimatedWords" (60-300 từ), "evidenceRefs" (chỉ dùng ID có trong [evidence]), "blockTypeHints", "isRequired".
+
+2. Cấu trúc khuyến nghị (xem 1 ví dụ điện thoại — adapt cho ngách của bạn):
+   - Section 1 (hook, ~80 từ): mở bài, set context, intent="hook"
+   - Section 2 (~150 từ): Mở hộp / Phụ kiện / Cấu hình tổng quan
+   - Section 3 (~200 từ): Thiết kế (1 mối quan tâm)
+   - Section 4 (~200 từ): Màn hình
+   - Section 5 (~200 từ): Camera
+   - Section 6 (~200 từ): Hiệu năng
+   - Section 7 (~150 từ): Pin & sạc
+   - Section 8 (~150 từ): Phần mềm / Hệ điều hành
+   - Section 9 (~120 từ): Kết luận + Ai nên mua + Có nên đợi không (intent="verdict")
+   Hoặc với buying guide / so sánh: 1 section / sản phẩm + 1 section "Cách chọn" + 1 section verdict.
+
+3. Mỗi section trừ "hook" và "verdict" PHẢI có ≥1 evidenceRef (evidence list rỗng → tạm []).
+
+4. Tổng estimatedWords ≈ ${targetDepthBand} từ. Chia đều với phân bổ trên.
+
+5. **Heading style = KẾT LUẬN TÍCH CỰC có dẫn chứng**:
+   - DÙNG dạng "ưu điểm cụ thể + số liệu/use case": "Pin 5500mAh dùng 2 ngày không sạc", "Camera 200MP chụp đêm cực sáng", "Hiệu năng dư sức cân Genshin max setting", "Sạc 90W đầy pin trong 30 phút", "Màn hình 144Hz mượt cho game thủ", "Thiết kế nhẹ 188g cầm thoải mái cả ngày".
+   - Với section nhược điểm (1-2 section trong toàn bài) → framework thành **tradeoff có context**, KHÔNG nguyên dạng tiêu cực: "Camera tele yếu hơn flagship — nhưng selfie + main cam vẫn xuất sắc", "Không sạc không dây — đổi lại sạc nhanh 90W bù lại", "Loa mono đủ nghe, audiophile nên sắm tai nghe rời".
+   - KHÔNG dùng question form: TRÁNH "Hiệu năng game thực tế ra sao?", "Camera có đẹp không?".
+   - Ngoại lệ verdict cuối: "Đáng mua nếu bạn là…", "[Sản phẩm] phù hợp ai?", "Kết luận: deal tầm X triệu này có gì đáng giá" — KHÔNG dùng "Có nên mua không?" (lửng lơ → giảm conversion).
+   - CẤM tiêu cực: "Đốt tiền", "Con dao hai lưỡi", "Cái giá phải trả", "Cỗ máy hủy diệt ví", "Cảnh báo", "Sai lầm tỷ đồng", "Đánh đổi tàn khốc", "Có nên tránh".
+   - CẤM nịnh rỗng: "Siêu phẩm", "Đỉnh cao", "Không đối thủ", "Vô địch", "Thần thánh", "Bá đạo" (không có số liệu kèm theo = nịnh).
+   - CẤM generic: "Giới thiệu", "Tổng quan", "Đôi nét", "Lời kết", "Tóm lại".
+
+6. **blockTypeHints**: mỗi section BẮT BUỘC có ≥2 type non-prose. Pattern khuyến nghị:
+   - Section mở hộp/phụ kiện: ["prose", "image"] + LIST trong prose (markdown bullet)
+   - Section thông số: ["prose", "criteria_grid", "image"]
+   - Section thiết kế/màn hình/camera: ["prose", "image", "callout"] (callout cho 1 điểm nổi bật)
+   - Section hiệu năng: ["prose", "criteria_grid", "callout", "image"]
+   - Section pin: ["prose", "criteria_grid", "image"]
+   - Section pros/cons: ["pros_cons"]
+   - Section verdict: ["verdict", "product_spotlight"]
 
 Trả JSON thuần, schema: { "sections": [...] }`;
 
-    const raw = await this.ai.generateJson<unknown>(prompt);
+    const raw = await this.ai.generateJson<unknown>(prompt, {
+      label: "outline",
+      timeoutMs: Number(process.env.AI_OUTLINE_TIMEOUT_MS ?? 60_000)
+    });
     const parsed = outlineAiSchema.safeParse(raw);
     if (!parsed.success) {
       throw new Error(`Outline AI output invalid: ${parsed.error.message}`);

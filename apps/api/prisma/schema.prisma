@@ -429,6 +429,10 @@ model Article {
   coverImageAttribution Json?   @db.JsonB
   currentStageMessage String?
   currentStageProgress Int?
+  currentStageStartedAt DateTime?
+  /// Khi true: pipeline dừng sau OUTLINE (status=IMAGES_READY) để admin duyệt/sửa outline
+  /// trước khi tốn 5-10 phút Writer chạy. Admin bấm "Tiếp tục viết" → set false + tiếp tục.
+  pauseAtOutline   Boolean       @default(false)
   topic           String?
   productRef      String?
   createdAt       DateTime      @default(now())

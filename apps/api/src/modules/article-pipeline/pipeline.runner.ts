@@ -89,12 +89,14 @@ export class PipelineRunner {
       }
     });
 
-    // Báo cho admin UI: stage đang chạy.
+    // Báo cho admin UI: stage đang chạy. `currentStageStartedAt` để UI tính elapsed
+    // (không cần heartbeat ghi DB lặp).
     await this.prisma.article.update({
       where: { id: ctx.articleId },
       data: {
         currentStageMessage: `Đang chạy bước "${stageName}"…`,
-        currentStageProgress: 0
+        currentStageProgress: 0,
+        currentStageStartedAt: new Date()
       }
     });
 
@@ -148,7 +150,8 @@ export class PipelineRunner {
             status: nextStatus,
             generationError: null,
             currentStageMessage: null,
-            currentStageProgress: null
+            currentStageProgress: null,
+            currentStageStartedAt: null
           }
         })
       ]);
@@ -181,7 +184,8 @@ export class PipelineRunner {
             status: ArticleStatus.FAILED,
             generationError: message.slice(0, 1000),
             currentStageMessage: null,
-            currentStageProgress: null
+            currentStageProgress: null,
+            currentStageStartedAt: null
           }
         })
       ]);
@@ -205,10 +209,26 @@ export class PipelineRunner {
     for (let i = 0; i < maxIterations; i += 1) {
       const article = await this.prisma.article.findUnique({
         where: { id: ctx.articleId },
-        select: { status: true }
-      });
+        select: { status: true, pauseAtOutline: true } as Record<string, true>
+      }) as { status: ArticleStatus; pauseAtOutline?: boolean } | null;
       if (!article) return;
       if (TERMINAL_STATUSES.includes(article.status)) return;
+
+      // Pause-at-outline gate: nếu admin chọn dừng sau OUTLINE → halt ở IMAGES_READY (status
+      // ngay sau khi outline complete). Admin review/edit outline → bấm "Tiếp tục viết bài"
+      // ArticlePipelineService.continuePipeline sẽ unset flag + re-trigger runUntilHitl.
+      if (article.pauseAtOutline && article.status === ArticleStatus.IMAGES_READY) {
+        await this.prisma.article.update({
+          where: { id: ctx.articleId },
+          data: {
+            currentStageMessage: "Đang chờ duyệt dàn ý — bấm 'Tiếp tục viết bài' để chạy tiếp",
+            currentStageProgress: 100,
+            currentStageStartedAt: null
+          }
+        });
+        this.logger.log(`Pipeline paused at outline review (article=${ctx.articleId})`);
+        return;
+      }
 
       const stage = STATUS_TO_STAGE[article.status];
       if (!stage) {

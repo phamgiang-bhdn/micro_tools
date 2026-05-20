@@ -62,7 +62,9 @@ const TONE: Record<
   }
 };
 
-export function CalloutBlock({ tone, title, body }: Props): React.ReactElement {
+export function CalloutBlock({ tone, title, body }: Props): React.ReactElement | null {
+  // AI hay trả callout rỗng title="" body="" → đừng render box trống tuếch.
+  if (!title.trim() && !body.trim()) return null;
   // AI có thể trả tone lạ (vd "note", "caution") → fallback info để không crash.
   const t = TONE[tone] ?? TONE.info;
   return (

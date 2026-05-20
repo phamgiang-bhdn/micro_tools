@@ -78,6 +78,7 @@ export async function generateArticleAction(formData: FormData): Promise<void> {
   const pinnedProductIdsRaw = formData.getAll("pinnedProductIds");
   const pinnedProductIds = pinnedProductIdsRaw.map((v) => String(v)).filter(Boolean);
   const productRef = String(formData.get("productRef") ?? "").trim() || undefined;
+  const pauseAtOutline = formData.get("pauseAtOutline") === "on" || formData.get("pauseAtOutline") === "true";
 
   if (!topic || topic.length < 5) {
     throw new Error("Vui lòng nhập chủ đề (≥ 5 ký tự).");
@@ -94,7 +95,8 @@ export async function generateArticleAction(formData: FormData): Promise<void> {
     topic,
     nicheId,
     pinnedProductIds,
-    productRef
+    productRef,
+    pauseAtOutline
   }));
 
   revalidatePath("/admin/articles");
@@ -148,6 +150,16 @@ export async function retryArticleStageAction(articleId: string, stage: string):
   revalidatePath(`/admin/articles/${articleId}`);
 }
 
+export async function refreshArticleEvidenceAction(articleId: string): Promise<void> {
+  await post(`/admin/articles/${articleId}/refresh-evidence`, {});
+  revalidatePath(`/admin/articles/${articleId}`);
+}
+
+export async function continueArticlePipelineAction(articleId: string): Promise<void> {
+  await post(`/admin/articles/${articleId}/continue-pipeline`, {});
+  revalidatePath(`/admin/articles/${articleId}`);
+}
+
 export async function requestArticleRevisionAction(articleId: string, reason: string, reviewer = "admin"): Promise<void> {
   await post(`/admin/articles/${articleId}/request-revision`, { reason, reviewer });
   revalidatePath(`/admin/articles/${articleId}`);
@@ -169,12 +181,96 @@ export async function updateSectionAction(
   revalidatePath(`/admin/articles/${articleId}`);
 }
 
+export async function deleteSectionAction(articleId: string, sectionId: string): Promise<void> {
+  await adminFetch(`/admin/articles/${articleId}/sections/${sectionId}`, "DELETE");
+  revalidatePath(`/admin/articles/${articleId}`);
+}
+
+export async function reorderSectionsAction(articleId: string, orderedIds: string[]): Promise<void> {
+  await adminFetch(`/admin/articles/${articleId}/sections-order`, "PUT", { orderedIds });
+  revalidatePath(`/admin/articles/${articleId}`);
+}
+
+// ──────── Product Slot Matcher ────────
+
+export interface ArticleSlotDto {
+  sectionId: string;
+  sectionOrder: number;
+  sectionHeading: string;
+  slotKey: string;
+  hint: string;
+  angle?: string;
+  productId?: string;
+}
+
+export interface SlotProductDto {
+  id: string;
+  name: string;
+  slug: string | null;
+  scrapedData: Record<string, unknown>;
+  affiliateUrl: string;
+  isPublic: boolean;
+}
+
+export async function listArticleSlotsAction(
+  articleId: string
+): Promise<{ slots: ArticleSlotDto[]; assignedProducts: SlotProductDto[] }> {
+  const res = await fetch(`${API_BASE_URL}/admin/articles/${articleId}/slots`, {
+    method: "GET",
+    headers: { "x-admin-role": ADMIN_ROLE, "x-admin-key": ADMIN_API_KEY },
+    cache: "no-store"
+  });
+  if (!res.ok) throw new Error(`listArticleSlots failed: ${await res.text()}`);
+  return (await res.json()) as { slots: ArticleSlotDto[]; assignedProducts: SlotProductDto[] };
+}
+
+export async function assignArticleSlotAction(
+  articleId: string,
+  sectionId: string,
+  slotKey: string,
+  productId: string | null
+): Promise<void> {
+  await post(`/admin/articles/${articleId}/slots/assign`, { sectionId, slotKey, productId });
+  revalidatePath(`/admin/articles/${articleId}`);
+  revalidatePath(`/blog/[slug]`, "page");
+}
+
+export interface SlotProductSearchHit {
+  id: string;
+  name: string;
+  slug: string | null;
+  isPublic: boolean;
+  scrapedData: Record<string, unknown>;
+  affiliateUrl: string;
+  niche: { id: string; slug: string; name: string } | null;
+}
+
+export async function searchProductsForSlotAction(opts: {
+  search?: string;
+  nicheId?: string | null;
+  limit?: number;
+}): Promise<SlotProductSearchHit[]> {
+  const params = new URLSearchParams();
+  if (opts.search) params.set("search", opts.search);
+  if (opts.nicheId) params.set("nicheId", opts.nicheId);
+  params.set("isPublic", "true");
+  params.set("limit", String(opts.limit ?? 40));
+  const res = await fetch(`${API_BASE_URL}/admin/products?${params.toString()}`, {
+    method: "GET",
+    headers: { "x-admin-role": ADMIN_ROLE, "x-admin-key": ADMIN_API_KEY },
+    cache: "no-store"
+  });
+  if (!res.ok) throw new Error(`searchProducts failed: ${await res.text()}`);
+  return (await res.json()) as SlotProductSearchHit[];
+}
+
 export interface ArticleProgressDto {
   article: {
     id: string;
     status: string;
     currentStageMessage: string | null;
     currentStageProgress: number | null;
+    currentStageStartedAt: string | null;
     generationError: string | null;
     aiRevisionCount: number;
     wordCount: number | null;

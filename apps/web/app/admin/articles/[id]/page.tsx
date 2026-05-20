@@ -42,6 +42,7 @@ interface V2DetailDto {
   evidenceFreshAt: string | null;
   slug: string;
   type: "BUYING_GUIDE" | "REVIEW";
+  nicheId: string | null;
   author: { id: string; name: string; slug: string } | null;
   sections: Array<{
     id: string;

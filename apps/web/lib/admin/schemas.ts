@@ -185,7 +185,8 @@ export const articleGenerateSchema = z
     topic: z.string().trim().min(5, "Chủ đề ≥ 5 ký tự").max(300),
     nicheId: z.string().trim().min(1).optional(),
     productRef: z.string().trim().min(1).optional(),
-    pinnedProductIds: z.array(z.string().min(1)).default([])
+    pinnedProductIds: z.array(z.string().min(1)).default([]),
+    pauseAtOutline: z.boolean().default(false)
   })
   .superRefine((data, ctx) => {
     if (data.type === "BUYING_GUIDE" && !data.nicheId) {

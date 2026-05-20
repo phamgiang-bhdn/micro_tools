@@ -72,52 +72,62 @@ export default async function ArticlePreviewPage({ params }: PageProps): Promise
         </div>
       </div>
 
-      <header className="bg-gradient-to-br from-brand-500 to-accent-500 text-white">
-        <div className="mx-auto max-w-6xl px-4 py-12 sm:px-6 sm:py-16">
+      {/* Thin brand accent ở top — giữ identity nhẹ, không choáng */}
+      <div className="h-1 bg-gradient-to-r from-brand-500 via-brand-600 to-accent-500" />
+
+      <header className="border-b border-line bg-canvas">
+        <div className="mx-auto max-w-6xl px-4 py-7 sm:px-6 sm:py-10">
           {article.niche ? (
-            <span className="inline-flex items-center rounded-full bg-white/15 px-3 py-1 text-[11px] font-semibold uppercase tracking-wider backdrop-blur-sm">
+            <span className="inline-flex items-center rounded-full bg-card-soft px-2 py-0.5 text-[10.5px] font-medium uppercase tracking-wider text-ink-soft">
               {article.niche.name}
             </span>
           ) : null}
-          <h1 className="mt-4 text-3xl font-bold leading-tight tracking-tight sm:text-4xl md:text-[2.75rem]">
+          <h1 className="mt-3 text-[22px] font-bold leading-tight tracking-tight text-ink sm:text-[26px]">
             {article.title}
           </h1>
           {article.excerpt ? (
-            <p className="mt-4 max-w-2xl text-lg leading-relaxed text-white/90">{article.excerpt}</p>
+            <p className="mt-2 max-w-3xl text-[14px] leading-relaxed text-ink-soft">{article.excerpt}</p>
           ) : null}
           {article.author ? (
-            <div className="mt-6 flex items-center gap-3 text-sm">
+            <div className="mt-4 flex items-center gap-2 text-[12.5px] text-ink-soft">
               {article.author.avatarUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={article.author.avatarUrl} alt={article.author.name} className="size-10 rounded-full object-cover" />
+                <img src={article.author.avatarUrl} alt={article.author.name} className="size-7 rounded-full object-cover" />
               ) : (
-                <span className="grid size-10 place-items-center rounded-full bg-white text-sm font-bold text-ink shadow">
+                <span className="grid size-7 place-items-center rounded-full bg-brand-50 text-[11px] font-bold text-brand-700">
                   {article.author.name.slice(0, 1)}
                 </span>
               )}
-              <div>
-                <p className="font-semibold">{article.author.name}</p>
-                <p className="text-xs text-white/70">Tác giả</p>
-              </div>
+              <span className="font-medium text-ink">{article.author.name}</span>
+              <span className="text-ink-mute">· Tác giả</span>
             </div>
           ) : null}
         </div>
       </header>
 
-      <main className="mx-auto max-w-6xl px-4 pb-20 sm:px-6">
-        <div className="grid grid-cols-1 gap-8 lg:grid-cols-[240px_1fr]">
+      <main className="mx-auto max-w-6xl px-4 pb-20 pt-10 sm:px-6 sm:pt-14">
+        <div className="grid grid-cols-1 gap-10 lg:grid-cols-[220px_1fr] lg:gap-14">
           <aside className="hidden lg:block">
             {hasSections ? <ArticleToc sections={article.sections} /> : null}
           </aside>
-          <div>
+          <div className="max-w-[760px]">
             {hasSections ? (
-              article.sections.map((section) => (
-                <section key={section.id} id={section.anchorSlug} className="mb-12 scroll-mt-24">
-                  <h2 className="text-2xl font-bold tracking-tight text-ink">{section.heading}</h2>
-                  {section.summary ? (
-                    <p className="mt-1.5 text-sm leading-relaxed text-ink-soft">{section.summary}</p>
-                  ) : null}
-                  <div className="mt-5">
+              article.sections.map((section, idx) => (
+                <section
+                  key={section.id}
+                  id={section.anchorSlug}
+                  className="mb-14 scroll-mt-24 first:mt-0"
+                >
+                  <div className="flex items-baseline gap-3">
+                    <span className="text-[12px] font-semibold tabular-nums text-brand-600">
+                      {String(idx + 1).padStart(2, "0")}
+                    </span>
+                    <span className="h-px flex-1 bg-line" />
+                  </div>
+                  <h2 className="mt-2 text-[24px] font-bold leading-tight tracking-tight text-ink sm:text-[26px]">
+                    {section.heading}
+                  </h2>
+                  <div className="mt-6">
                     {section.blocks.length > 0 ? (
                       <BlockRenderer blocks={section.blocks as ArticleBlock[]} products={[]} />
                     ) : (

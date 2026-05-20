@@ -118,7 +118,20 @@ export type ArticleBlock =
   | { type: "comparison"; productIds: string[] }
   | { type: "pros_cons"; pros: string[]; cons: string[] }
   | { type: "faq"; items: { q: string; a: string }[] }
-  | { type: "verdict"; summary: string; bestFor?: string[]; notFor?: string[] };
+  | { type: "verdict"; summary: string; bestFor?: string[]; notFor?: string[] }
+  | {
+      /**
+       * Slot do AI Writer chèn vào sections phù hợp. Lúc viết bài chưa có Product gắn
+       * (productId undefined) → storefront ẩn block. Admin vào tab "Gắn sản phẩm" pick
+       * Product từ DB → storefront render mini-card có giá + nút "Xem deal".
+       * `slotKey` unique trong scope article — admin matcher dùng để target chính xác.
+       */
+      type: "product_slot";
+      slotKey: string;
+      hint: string;
+      productId?: string;
+      angle?: string;
+    };
 
 export interface ArticleDetail extends ArticleSummary {
   body: string;
@@ -126,12 +139,15 @@ export interface ArticleDetail extends ArticleSummary {
   metaTitle: string | null;
   metaDescription: string | null;
   productIds: string[];
+  pinnedProductIds?: string[];
   products: ProductItem[];
+  updatedAt: string;
   // V2 fields (null if article còn legacy v1)
   sections?: ArticleSectionPublic[];
   author?: { id: string; slug: string; name: string; bio: string | null; avatarUrl: string | null } | null;
   layoutVariant?: string | null;
   evidence?: ArticleEvidencePublic[];
+  related?: ArticleSummary[];
 }
 
 export interface ArticleSectionPublic {

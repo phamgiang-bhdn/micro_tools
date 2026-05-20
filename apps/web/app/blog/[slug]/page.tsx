@@ -6,6 +6,9 @@ import { fetchArticleBySlug, fetchNicheBySlug } from "../../../lib/api";
 import { articleVisual, readingTime } from "../../../lib/article-format";
 import { BlockRenderer } from "../../../components/article/blocks/block-renderer";
 import { ArticleToc } from "../../../components/article/article-toc";
+import { StickyProductCta } from "../../../components/article/sticky-product-cta";
+import { ProductCardEnd } from "../../../components/article/product-card-end";
+import { RelatedArticles } from "../../../components/article/related-articles";
 
 export const revalidate = 300;
 
@@ -56,6 +59,27 @@ export default async function ArticleDetailPage({ params }: PageProps): Promise<
   const fullText = (article.sections ?? []).map((s) => s.heading + "\n" + s.summary).join("\n") || article.body;
   const mins = readingTime(fullText);
   const dateStr = article.publishedAt ? dateFmt.format(new Date(article.publishedAt)) : "";
+  // Hiện "Cập nhật: ..." nếu updatedAt khác publishedAt > 1 ngày. Pattern cellphones/sforum:
+  // "Ngày cập nhật" là trust signal cho user biết bài còn fresh.
+  const updatedAtRaw = (article as { updatedAt?: string }).updatedAt;
+  const showUpdated = updatedAtRaw && article.publishedAt
+    ? Math.abs(new Date(updatedAtRaw).getTime() - new Date(article.publishedAt).getTime()) > 24 * 60 * 60 * 1000
+    : false;
+  const updatedStr = showUpdated && updatedAtRaw ? dateFmt.format(new Date(updatedAtRaw)) : null;
+  const related = ((article as { related?: typeof article[] }).related ?? []) as Array<{
+    id: string;
+    slug: string;
+    title: string;
+    excerpt: string | null;
+    type: "BUYING_GUIDE" | "REVIEW";
+    publishedAt: string | null;
+    niche: { slug: string; name: string } | null;
+    coverImage: string | null;
+  }>;
+  const pinnedIds = ((article as { pinnedProductIds?: string[] }).pinnedProductIds ?? []);
+  const featuredProducts = pinnedIds.length > 0
+    ? article.products.filter((p) => pinnedIds.includes(p.id))
+    : article.products.slice(0, 3);
 
   const isReview = article.type === "REVIEW";
   const productImages = article.products.slice(0, 3).map((p) => {
@@ -183,6 +207,11 @@ export default async function ArticleDetailPage({ params }: PageProps): Promise<
               {dateStr ? (
                 <span className="inline-flex items-center gap-1.5"><CalendarIcon />{dateStr}</span>
               ) : null}
+              {updatedStr ? (
+                <span className="inline-flex items-center gap-1.5 text-white/70">
+                  · Cập nhật {updatedStr}
+                </span>
+              ) : null}
               <span className="inline-flex items-center gap-1.5"><ClockIcon />Đọc ~{mins} phút</span>
             </div>
           </div>
@@ -206,9 +235,6 @@ export default async function ArticleDetailPage({ params }: PageProps): Promise<
                   className="mb-12 scroll-mt-24"
                 >
                   <h2 className="text-2xl font-bold tracking-tight text-ink">{section.heading}</h2>
-                  {section.summary ? (
-                    <p className="mt-1.5 text-sm leading-relaxed text-ink-soft">{section.summary}</p>
-                  ) : null}
                   <div className="mt-5">
                     <BlockRenderer
                       blocks={section.blocks}
@@ -223,6 +249,9 @@ export default async function ArticleDetailPage({ params }: PageProps): Promise<
                 Bài này chưa có nội dung sections — vui lòng quay lại sau.
               </div>
             )}
+
+            {/* Product card end — pattern cellphones: chốt deal cuối bài với giá + nút Xem deal */}
+            <ProductCardEnd products={featuredProducts} />
 
             {article.author ? (
               <aside className="mt-12 flex items-start gap-4 rounded-2xl border border-line bg-card/60 p-5">
@@ -253,6 +282,9 @@ export default async function ArticleDetailPage({ params }: PageProps): Promise<
               </div>
             </aside>
 
+            {/* Bài liên quan cùng niche — giữ user trong site, tăng pageview/session */}
+            <RelatedArticles articles={related} currentNicheName={article.niche?.name} />
+
             <div className="mt-10 flex justify-center">
               <Link
                 href="/blog"
@@ -264,6 +296,9 @@ export default async function ArticleDetailPage({ params }: PageProps): Promise<
           </div>
         </div>
       </main>
+
+      {/* Floating CTA "Sản phẩm có trong bài" — hiển thị khi user scroll qua hero */}
+      <StickyProductCta products={featuredProducts} articleId={article.id} />
     </article>
   );
 }

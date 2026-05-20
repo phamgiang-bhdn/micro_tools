@@ -21,6 +21,7 @@ import {
   Tooltip,
   ControlledTextField,
   ControlledSelectField,
+  ControlledCheckboxField,
   type ColumnDef
 } from "../../../components/admin/ui";
 import {
@@ -85,7 +86,8 @@ const EMPTY_GENERATE: ArticleGenerateInput = {
   topic: "",
   nicheId: undefined,
   productRef: undefined,
-  pinnedProductIds: []
+  pinnedProductIds: [],
+  pauseAtOutline: false
 };
 
 export function ArticlesTable({
@@ -156,6 +158,7 @@ export function ArticlesTable({
     if (data.nicheId) fd.set("nicheId", data.nicheId);
     if (data.productRef) fd.set("productRef", data.productRef);
     for (const id of data.pinnedProductIds) fd.append("pinnedProductIds", id);
+    if (data.pauseAtOutline) fd.set("pauseAtOutline", "on");
     // generateArticleAction redirects → trang sẽ tự navigate. Dialog không cần đóng tay.
     await generateArticleAction(fd);
     return { ok: true };
@@ -442,6 +445,12 @@ function NicheProductFields({
           hint="AI sẽ tìm match trong DB. Cần exact để khớp sản phẩm publish."
         />
       ) : null}
+      <ControlledCheckboxField<ArticleGenerateInput>
+        name="pauseAtOutline"
+        label="Tạm dừng sau khi sinh dàn ý để duyệt thủ công"
+        hint="Pipeline dừng sau bước 4 (dàn ý). Admin sửa/thêm/xoá section trước khi AI viết chi tiết — tiết kiệm thời gian khi outline cần điều chỉnh."
+        fullRow
+      />
     </>
   );
 }

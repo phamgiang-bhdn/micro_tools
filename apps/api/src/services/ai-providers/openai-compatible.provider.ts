@@ -1,4 +1,4 @@
-import { LLMProvider, LLMTransientError } from "./types";
+import { GenerateOptions, LLMProvider, LLMTransientError } from "./types";
 
 /**
  * Provider cho mọi API tương thích OpenAI Chat Completions:
@@ -21,8 +21,10 @@ export class OpenAICompatibleProvider implements LLMProvider {
     private readonly forceJson = true
   ) {}
 
-  async generateText(prompt: string): Promise<string> {
+  async generateText(prompt: string, opts: GenerateOptions = {}): Promise<string> {
     const url = `${this.baseUrl.replace(/\/+$/, "")}/chat/completions`;
+    const timeoutMs = opts.timeoutMs ?? 60_000;
+    const label = opts.label ?? "openai-compatible";
     const body: Record<string, unknown> = {
       model: this.modelId,
       messages: [
@@ -39,6 +41,10 @@ export class OpenAICompatibleProvider implements LLMProvider {
       body.response_format = { type: "json_object" };
     }
 
+    // timeoutMs <= 0 → tắt timeout (admin chấp nhận đợi). Khi đó không setup AbortController.
+    const useTimeout = timeoutMs > 0;
+    const controller = useTimeout ? new AbortController() : null;
+    const timer = useTimeout ? setTimeout(() => controller!.abort(), timeoutMs) : null;
     let res: Response;
     try {
       res = await fetch(url, {
@@ -47,11 +53,17 @@ export class OpenAICompatibleProvider implements LLMProvider {
           "Content-Type": "application/json",
           Authorization: `Bearer ${this.apiKey}`
         },
-        body: JSON.stringify(body)
+        body: JSON.stringify(body),
+        signal: controller?.signal
       });
     } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : String(error);
+      if (controller?.signal.aborted) {
+        throw new LLMTransientError(`${label} timeout sau ${timeoutMs}ms`, "transient");
+      }
       throw new LLMTransientError(`Network error: ${msg}`, "transient");
+    } finally {
+      if (timer) clearTimeout(timer);
     }
 
     if (!res.ok) {

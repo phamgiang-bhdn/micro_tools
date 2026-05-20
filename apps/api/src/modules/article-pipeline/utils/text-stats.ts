@@ -70,6 +70,7 @@ export function ngramOverlapRatio(text: string, corpus: string[], size = 4): num
  * hoặc fallback default dưới đây.
  */
 export const DEFAULT_PHRASE_BLACKLIST = [
+  // Cliché nịnh
   "trong thời đại công nghệ 4.0",
   "không thể phủ nhận",
   "không thể phủ nhận rằng",
@@ -87,7 +88,37 @@ export const DEFAULT_PHRASE_BLACKLIST = [
   "đồng hành cùng bạn",
   "cuộc sống hiện đại",
   "ngày càng phổ biến",
-  "ngày càng được ưa chuộng"
+  "ngày càng được ưa chuộng",
+  "đỉnh cao",
+  "không có đối thủ",
+  "vô địch",
+  "thần thánh",
+  "bá đạo",
+  // Tiêu cực gay gắt (phá tính affiliate-friendly)
+  "đốt tiền",
+  "con dao hai lưỡi",
+  "cái giá phải trả",
+  "cỗ máy hủy diệt",
+  "hủy diệt ví",
+  "sai lầm tỷ đồng",
+  "trò lừa",
+  "đánh đổi tàn khốc",
+  "lừa đảo trắng trợn",
+  // Vinglish lai căng (writer prompt đã cấm — critic catch khi writer vẫn lọt).
+  // Chỉ liệt kê những từ có tiếng Việt phổ thông thay thế và writer hay lạm dụng.
+  // "refresh rate" / "benchmark" giữ được vì giới tech VN dùng rộng — không list ở đây.
+  "clock speed",
+  "peak load",
+  "voltage fluctuation",
+  "thermal interface material",
+  "operating temperature",
+  "multitasking",
+  "foreground application",
+  "background process",
+  "raw performance",
+  "thermal throttling",
+  "particle effect",
+  "critical threshold"
 ];
 
 export function findBlacklistedPhrases(text: string, blacklist: string[]): string[] {

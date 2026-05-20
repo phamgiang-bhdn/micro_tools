@@ -9,6 +9,9 @@ import { ComparisonBlock } from "./comparison";
 import { ProsConsBlock } from "./pros-cons";
 import { FaqBlock } from "./faq";
 import { VerdictBlock } from "./verdict";
+import { ImageBlock } from "./image";
+import { ReviewQuoteBlock } from "./review-quote";
+import { ProductSlotBlock } from "./product-slot";
 
 interface Props {
   blocks: ArticleBlock[];
@@ -23,7 +26,7 @@ export function BlockRenderer({ blocks, products, schemaConfig }: Props): React.
   const productMap = new Map(safeProducts.map((p) => [p.id, p]));
 
   return (
-    <div className="space-y-10">
+    <div className="space-y-8">
       {safeBlocks.map((block, i) => {
         if (!block || typeof block !== "object") return null;
         return (
@@ -49,11 +52,19 @@ function BlockSwitch({
   schemaConfig?: Record<string, unknown>;
 }): React.ReactElement | null {
   // AI có thể trả block thiếu field. Mọi access vào array đều dùng ?? [] để khỏi crash.
+  // Quy tắc: AI hay sinh block với field rỗng → đừng render UI trống tuếch.
+  // Mỗi case dưới đây bỏ qua sớm nếu data không đủ ý nghĩa.
   switch (block.type) {
-    case "hero_quote":
-      return <HeroQuoteBlock text={block.text ?? ""} attribution={block.attribution} />;
-    case "criteria_grid":
-      return <CriteriaGridBlock title={block.title ?? ""} items={block.items ?? []} />;
+    case "hero_quote": {
+      const text = block.text ?? "";
+      if (!text.trim()) return null;
+      return <HeroQuoteBlock text={text} attribution={block.attribution} />;
+    }
+    case "criteria_grid": {
+      const items = block.items ?? [];
+      if (items.length === 0) return null;
+      return <CriteriaGridBlock title={block.title ?? ""} items={items} />;
+    }
     case "product_spotlight": {
       if (!block.productId) return renderFallback(block);
       const product = productMap.get(block.productId);
@@ -70,26 +81,88 @@ function BlockSwitch({
     }
     case "callout":
       return <CalloutBlock tone={block.tone} title={block.title ?? ""} body={block.body ?? ""} />;
-    case "prose":
-      return <ProseBlock markdown={block.markdown ?? ""} />;
+    case "prose": {
+      const md = block.markdown ?? "";
+      if (!md.trim()) return null;
+      return <ProseBlock markdown={md} />;
+    }
     case "comparison": {
       const ids = Array.isArray(block.productIds) ? block.productIds : [];
       const ps = ids.map((id) => productMap.get(id)).filter((p): p is ProductItem => Boolean(p));
       if (ps.length < 2) return null;
       return <ComparisonBlock products={ps} schemaConfig={schemaConfig} />;
     }
-    case "pros_cons":
-      return <ProsConsBlock pros={block.pros ?? []} cons={block.cons ?? []} />;
-    case "faq":
-      return <FaqBlock items={block.items ?? []} />;
-    case "verdict":
+    case "pros_cons": {
+      const pros = block.pros ?? [];
+      const cons = block.cons ?? [];
+      if (pros.length === 0 && cons.length === 0) return null;
+      return <ProsConsBlock pros={pros} cons={cons} />;
+    }
+    case "faq": {
+      const items = block.items ?? [];
+      if (items.length === 0) return null;
+      return <FaqBlock items={items} />;
+    }
+    case "verdict": {
+      const summary = block.summary ?? "";
+      const bestFor = block.bestFor ?? [];
+      const notFor = block.notFor ?? [];
+      if (!summary.trim() && bestFor.length === 0 && notFor.length === 0) return null;
+      return <VerdictBlock summary={summary} bestFor={bestFor} notFor={notFor} />;
+    }
+    case "image": {
+      const b = block as unknown as {
+        src?: string;
+        alt?: string;
+        caption?: string;
+        attribution?: string;
+        attributionUrl?: string;
+        width?: number;
+        height?: number;
+      };
+      if (!b.src) return null;
       return (
-        <VerdictBlock
-          summary={block.summary ?? ""}
-          bestFor={block.bestFor ?? []}
-          notFor={block.notFor ?? []}
+        <ImageBlock
+          src={b.src}
+          alt={b.alt}
+          caption={b.caption}
+          attribution={b.attribution}
+          attributionUrl={b.attributionUrl}
+          width={b.width}
+          height={b.height}
         />
       );
+    }
+    case "product_slot": {
+      // Slot AI sinh khi viết bài — chỉ render khi admin đã gắn product.
+      // Slot chưa gắn → ẩn hoàn toàn (không hiển thị placeholder rác cho user).
+      const b = block as unknown as { productId?: string; angle?: string };
+      if (!b.productId) return null;
+      const product = productMap.get(b.productId);
+      if (!product) return null;
+      return <ProductSlotBlock product={product} angle={b.angle} />;
+    }
+    case "review_quote": {
+      const b = block as unknown as {
+        body?: string;
+        author?: string;
+        rating?: number;
+        sourceUrl?: string;
+        sourceName?: string;
+        verifiedBuyer?: boolean;
+      };
+      if (!b.body || !b.body.trim()) return null;
+      return (
+        <ReviewQuoteBlock
+          body={b.body}
+          author={b.author}
+          rating={b.rating}
+          sourceUrl={b.sourceUrl}
+          sourceName={b.sourceName}
+          verifiedBuyer={b.verifiedBuyer}
+        />
+      );
+    }
     default:
       return renderFallback(block);
   }

@@ -28,6 +28,8 @@ const expertiseCoerce = z.preprocess((v) => {
 }, z.enum(["novice", "intermediate", "expert"]));
 
 const briefAiSchema = z.object({
+  title: z.string().min(10).max(160),
+  excerpt: z.string().min(40).max(300),
   thesis: z.string().min(20).max(500),
   targetKeywords: z.array(z.string()).min(1).max(15),
   competitorUrls: z.array(z.string().url()).max(10).optional().default([]),
@@ -116,6 +118,10 @@ export class BriefBuilderStage implements PipelineStage {
     await this.prisma.article.update({
       where: { id: ctx.articleId },
       data: {
+        title: aiBrief.title.slice(0, 200),
+        excerpt: aiBrief.excerpt.slice(0, 300),
+        metaTitle: aiBrief.title.slice(0, 200),
+        metaDescription: aiBrief.excerpt.slice(0, 300),
         briefJson: brief as unknown as Prisma.InputJsonValue,
         authorId: author?.id ?? null,
         layoutVariant,
@@ -147,21 +153,46 @@ export class BriefBuilderStage implements PipelineStage {
     const avoidLine = avoidThesis
       ? `\n[avoid] thesis sau ĐÃ CÓ bài tương tự, đề xuất góc nhìn KHÁC HOÀN TOÀN:\n${avoidThesis}`
       : "";
-    const prompt = `Bạn là biên tập trưởng. Sinh "brief" cho bài ${type} về chủ đề sau:
+    const prompt = `Bạn là biên tập trưởng của 1 blog affiliate Việt Nam. Sinh "brief" cho bài ${type} về:
 
 [topic]: ${topic}
 [niche]: ${nicheName || "(không cụ thể)"}
 [market]: Việt Nam, ${new Date().getFullYear()}${avoidLine}
 
-Yêu cầu:
-1. "thesis": 1 câu khẳng định độc nhất (không chung chung). Góc nhìn cụ thể, có thể tranh luận.
-2. "targetKeywords": 3-10 keyword SEO (tiếng Việt).
-3. "persona": name (vd "Mẹ bỉm 30 tuổi"), painPoint (≤300 ký tự), budget (optional), expertise ("novice" | "intermediate" | "expert").
-4. "targetDepth": "shallow" (800-1200) | "medium" (1500-2200) | "deep-dive" (2500+).
+**Triết lý nội dung**: Bài này là affiliate — mục tiêu user đọc xong **MUỐN mua**. Đứng về phía user-sắp-móc-ví:
+- Tone **tích cực nghiêng-mua**: highlight giá trị họ nhận được, framework nhược điểm thành "tradeoff đáng giá" có context.
+- Phân bổ cảm xúc: **~70% ưu điểm, ~20% nhược (kèm work-around), ~10% verdict nghiêng "đáng mua nếu…"**.
+- Góc nhìn **giúp user yên tâm chốt đơn**, KHÔNG đứng giữa "tùy bạn quyết định", KHÔNG đập sản phẩm.
+- CẤM angle tiêu cực: "đốt tiền", "con dao hai lưỡi", "cái giá phải trả", "cỗ máy hủy diệt ví", "cảnh báo người dùng", "có nên tránh".
+- CẤM nịnh trắng trợn: "đỉnh cao", "không đối thủ", "siêu phẩm", "thần thánh", "vô địch" — đây là cliché phá tin cậy, KHÁC với tích cực có dẫn chứng.
 
-JSON thuần: { "thesis", "targetKeywords": [...], "persona": {...}, "targetDepth" }`;
+Yêu cầu output JSON các field:
 
-    const raw = await this.ai.generateJson<unknown>(prompt);
+1. "title": Tiêu đề bài viết hấp dẫn người mua, 50-120 ký tự, có ít nhất 1 trong: con số / năm / keyword "mua-đánh giá-so sánh" / đối thủ. KHÔNG viết hoa kiểu Title Case. Mẫu đúng:
+   - "Redmi Turbo 5 có đáng mua trong tầm 8 triệu? Đánh giá thực tế sau 2 tuần"
+   - "Top 5 robot hút bụi dưới 10 triệu 2026 cho nhà có thú cưng"
+   - "Nên mua iPhone 16 Pro lúc này hay đợi 17 Pro?"
+   Mẫu SAI: "Điện thoại xiaomi redmi turbo 5" (raw, vô hồn), "Cỗ Máy Đốt Tiền" (tiêu cực), "Siêu Phẩm Đỉnh Cao 2026" (nịnh).
+
+2. "excerpt": Mô tả ngắn 1-2 câu (80-200 ký tự) hiển thị ở blog list + meta description. Nêu rõ user nhận được gì khi đọc.
+
+3. "thesis": 1 câu khẳng định **tích cực nghiêng-mua**, có dẫn chứng cụ thể, gợi cảm giác "đúng đang tìm món này". VD đúng:
+   - "Redmi Turbo 5 là deal tầm 8 triệu đáng móc ví nhất 2026: chip Dimensity 9500s + pin 5500mAh + sạc 90W mà giá rẻ hơn Poco F7 gần 2 triệu."
+   - "Robot Roborock Q8 Max+ giải quyết gọn ghẽ nhà có 2 con chó: hút bụi mạnh, tự đổ rác 7 tuần, giá đang khuyến mãi dưới 10 triệu."
+   VD sai: "Redmi Turbo 5 là con dao hai lưỡi đốt tiền." (tiêu cực) / "Siêu phẩm đỉnh cao không đối thủ." (nịnh rỗng).
+
+4. "targetKeywords": 3-10 keyword SEO tiếng Việt (mua/đánh giá/so sánh/giá/2026 mix).
+
+5. "persona": người mua tiềm năng. name (vd "Sinh viên IT 22 tuổi"), painPoint (≤300 ký tự — vấn đề user đang giải quyết khi tìm mua), budget (optional), expertise ("novice" | "intermediate" | "expert").
+
+6. "targetDepth": "shallow" (800-1200) | "medium" (1500-2200) | "deep-dive" (2500+).
+
+JSON thuần (không markdown fence): { "title", "excerpt", "thesis", "targetKeywords": [...], "persona": {...}, "targetDepth" }`;
+
+    const raw = await this.ai.generateJson<unknown>(prompt, {
+      label: "brief-builder",
+      timeoutMs: Number(process.env.AI_BRIEF_TIMEOUT_MS ?? 60_000)
+    });
     const parsed = briefAiSchema.safeParse(raw);
     if (!parsed.success) {
       this.logger.error(`Brief AI raw output: ${JSON.stringify(raw).slice(0, 1500)}`);
@@ -230,19 +261,26 @@ JSON thuần: { "thesis", "targetKeywords": [...], "persona": {...}, "targetDept
     return fresh[0] ?? candidates[Math.floor(Math.random() * candidates.length)];
   }
 
+  /**
+   * Bias hookPattern về 2 dạng "phù hợp affiliate review": scenario (set context người mua đang gặp)
+   * + stat (số liệu / fact ấn tượng). Bỏ dramatic patterns (anecdote / contrarian / myth-bust /
+   * vivid / news / question) — chúng làm bài cảm giác giả tạo và mất tin cậy cho affiliate.
+   * User cellphones/genk/sforum không bao giờ mở bài kiểu "Đêm khuya 23h tại ký túc xá tôi..."
+   */
   private async pickHookPattern(nicheId: string | null): Promise<HookPattern> {
-    if (!nicheId) return randomFrom(HOOK_PATTERNS);
+    const AFFILIATE_HOOKS: HookPattern[] = ["scenario", "stat"];
+    if (!nicheId) return randomFrom(AFFILIATE_HOOKS);
     const recent = await this.prisma.article.findMany({
       where: { nicheId, briefJson: { not: Prisma.JsonNull } },
       orderBy: { createdAt: "desc" },
-      take: 3,
+      take: 2,
       select: { briefJson: true }
     });
     const used = new Set<string>(
       recent.map((r) => extractField(r.briefJson, "hookPattern")).filter((v): v is string => Boolean(v))
     );
-    const fresh = HOOK_PATTERNS.filter((p) => !used.has(p));
-    return fresh.length > 0 ? randomFrom(fresh) : randomFrom(HOOK_PATTERNS);
+    const fresh = AFFILIATE_HOOKS.filter((p) => !used.has(p));
+    return fresh.length > 0 ? randomFrom(fresh) : randomFrom(AFFILIATE_HOOKS);
   }
 
   private pickLayoutVariant(type: string): LayoutVariant {

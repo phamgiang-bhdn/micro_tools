@@ -53,17 +53,19 @@ export class AiService {
       `Schema: ${JSON.stringify(schema)}`,
       `Content: ${scrapedText.slice(0, 15000)}`
     ].join("\n\n");
-    return this.callJsonModel<T>(prompt);
+    return this.callJsonModel<T>(prompt, { label: "parse-by-schema" });
   }
 
-  async generateJson<T>(fullPrompt: string): Promise<T> {
-    return this.callJsonModel<T>(fullPrompt);
+  async generateJson<T>(fullPrompt: string, opts?: AiCallOptions): Promise<T> {
+    return this.callJsonModel<T>(fullPrompt, opts);
   }
 
-  private async callJsonModel<T>(prompt: string): Promise<T> {
+  private async callJsonModel<T>(prompt: string, opts: AiCallOptions = {}): Promise<T> {
     const provider = this.buildProvider();
+    const timeoutMs = opts.timeoutMs ?? Number(process.env.AI_DEFAULT_TIMEOUT_MS ?? 60_000);
+    const label = opts.label ?? provider.name;
     try {
-      const rawText = await provider.generateText(prompt);
+      const rawText = await provider.generateText(prompt, { timeoutMs, label });
       const cleaned = extractJsonPayload(rawText);
       if (cleaned === undefined) {
         throw new Error(`Provider ${provider.name} trả response trống / không phải JSON`);
@@ -72,7 +74,7 @@ export class AiService {
     } catch (error: unknown) {
       const transient = error instanceof LLMTransientError ? error : null;
       const message = error instanceof Error ? error.message : String(error);
-      this.logger.error(`${provider.name} call failed (no retry): ${message}`);
+      this.logger.error(`${provider.name}[${label}] call failed (no retry): ${message}`);
       if (transient?.kind === "rate-limit") {
         throw new HttpException(`${provider.name} rate limit`, HttpStatus.TOO_MANY_REQUESTS);
       }
@@ -82,6 +84,13 @@ export class AiService {
       throw new Error(`AI call failed (${provider.name}): ${message}`);
     }
   }
+}
+
+export interface AiCallOptions {
+  /** Per-call timeout (ms). Mặc định lấy env AI_DEFAULT_TIMEOUT_MS hoặc 60s. */
+  timeoutMs?: number;
+  /** Nhãn ngắn (vd "outline", "writer:section-3") để log/biết stage nào timeout. */
+  label?: string;
 }
 
 /** Parse JSON từ raw text. Strip markdown fence nếu có. Tìm `{...}` hoặc `[...]` bao ngoài. */
