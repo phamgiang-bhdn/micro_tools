@@ -2060,11 +2060,20 @@ export class AdminController {
         author: true,
         sections: { orderBy: { order: "asc" } },
         evidence: { orderBy: { fetchedAt: "desc" } },
-        runs: { orderBy: { startedAt: "desc" }, take: 30 }
+        runs: { orderBy: { startedAt: "desc" }, take: 50 }
       }
     });
     if (!article) throw new HttpException("Article not found", HttpStatus.NOT_FOUND);
-    return article;
+    // Dedupe runs server-side: keep latest per stage. Tránh overflow take=N khi nhiều retry
+    // → stage cũ bị cắt → UI thấy "pending" cho stage thực ra đã success.
+    const seen = new Set<string>();
+    const dedupedRuns: typeof article.runs = [];
+    for (const r of article.runs) {
+      if (seen.has(r.stage)) continue;
+      seen.add(r.stage);
+      dedupedRuns.push(r);
+    }
+    return { ...article, runs: dedupedRuns };
   }
 
   /**
@@ -2094,10 +2103,12 @@ export class AdminController {
       }
     });
     if (!article) throw new HttpException("Article not found", HttpStatus.NOT_FOUND);
-    const runs = await this.prisma.articleGenerationRun.findMany({
+    // Dedupe server-side: lấy latest run per stage (8 stages × N retries → vượt take=8 → mất state).
+    // Take 50 đủ cover 8 stage × 6 retry mỗi cái, rồi keep first-seen per stage ở memory.
+    const recentRuns = await this.prisma.articleGenerationRun.findMany({
       where: { articleId: id },
       orderBy: { startedAt: "desc" },
-      take: 8,
+      take: 50,
       select: {
         id: true,
         stage: true,
@@ -2108,6 +2119,13 @@ export class AdminController {
         finishedAt: true
       }
     });
+    const seenStages = new Set<string>();
+    const runs: typeof recentRuns = [];
+    for (const r of recentRuns) {
+      if (seenStages.has(r.stage)) continue;
+      seenStages.add(r.stage);
+      runs.push(r);
+    }
     return { article, runs };
   }
 

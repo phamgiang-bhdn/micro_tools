@@ -9,6 +9,7 @@ import { ArticleToc } from "../../../components/article/article-toc";
 import { StickyProductCta } from "../../../components/article/sticky-product-cta";
 import { ProductCardEnd } from "../../../components/article/product-card-end";
 import { RelatedArticles } from "../../../components/article/related-articles";
+import { ReadingProgress } from "../../../components/article/reading-progress";
 
 export const revalidate = 300;
 
@@ -81,7 +82,6 @@ export default async function ArticleDetailPage({ params }: PageProps): Promise<
     ? article.products.filter((p) => pinnedIds.includes(p.id))
     : article.products.slice(0, 3);
 
-  const isReview = article.type === "REVIEW";
   const productImages = article.products.slice(0, 3).map((p) => {
     const sd = (p.scrapedData ?? {}) as Record<string, unknown>;
     return typeof sd.image === "string" ? sd.image : null;
@@ -153,89 +153,117 @@ export default async function ArticleDetailPage({ params }: PageProps): Promise<
         <script key={i} type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(j) }} />
       ))}
 
-      {/* ───── HERO ───── */}
-      <header className={`relative overflow-hidden bg-gradient-to-br ${visual.gradient} text-white`}>
-        <span
-          aria-hidden
-          className="absolute inset-0 bg-[radial-gradient(circle_at_20%_30%,rgba(255,255,255,0.25),transparent_55%),radial-gradient(circle_at_85%_70%,rgba(255,255,255,0.18),transparent_50%)]"
-        />
-        <div className="relative mx-auto grid max-w-6xl gap-8 px-4 py-12 sm:px-6 sm:py-16 lg:grid-cols-[3fr_2fr] lg:items-center lg:gap-12">
+      <ReadingProgress />
+
+      {/* Thin brand stripe — giữ identity nhẹ, không choáng */}
+      <div className="h-1 bg-gradient-to-r from-brand-500 via-brand-600 to-accent-500" />
+
+      {/* ───── HERO compact ───── */}
+      <header className="border-b border-line bg-canvas">
+        <div className="mx-auto grid max-w-6xl gap-6 px-4 py-7 sm:px-6 sm:py-10 lg:grid-cols-[1fr_280px] lg:items-center lg:gap-10">
           <div>
-            <nav className="mb-5 flex items-center gap-1.5 text-xs text-white/80">
-              <Link href="/" className="hover:text-white">Trang chủ</Link>
-              <span>›</span>
-              <Link href="/blog" className="hover:text-white">Cẩm nang</Link>
+            <nav className="flex items-center gap-1.5 text-[11.5px] text-ink-mute">
+              <Link href="/" className="hover:text-ink">Trang chủ</Link>
+              <span aria-hidden>›</span>
+              <Link href="/blog" className="hover:text-ink">Cẩm nang</Link>
               {article.niche ? (
                 <>
-                  <span>›</span>
-                  <Link href={`/blog?category=${article.niche.slug}`} className="hover:text-white">
+                  <span aria-hidden>›</span>
+                  <Link href={`/blog?category=${article.niche.slug}`} className="hover:text-ink">
                     {article.niche.name}
                   </Link>
                 </>
               ) : null}
             </nav>
 
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-white/15 px-3 py-1 text-[11px] font-semibold uppercase tracking-wider text-white backdrop-blur-sm">
+            <div className="mt-3 flex flex-wrap items-center gap-1.5">
+              <span className={`inline-flex items-center gap-1 rounded-full ${visual.softBg} px-2 py-0.5 text-[10.5px] font-medium uppercase tracking-wider ${visual.accent}`}>
                 <span aria-hidden>{visual.icon}</span>
                 {visual.label}
               </span>
               {article.niche ? (
-                <span className="inline-flex items-center rounded-full bg-white/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-wider text-white backdrop-blur-sm">
+                <span className="inline-flex items-center rounded-full bg-card-soft px-2 py-0.5 text-[10.5px] font-medium uppercase tracking-wider text-ink-soft">
                   {article.niche.name}
                 </span>
               ) : null}
             </div>
 
-            <h1 className="mt-5 text-3xl font-bold leading-tight tracking-tight sm:text-4xl md:text-[2.75rem]">
+            <h1 className="mt-3 text-[22px] font-bold leading-tight tracking-tight text-ink sm:text-[28px] md:text-[30px]">
               {article.title}
             </h1>
 
             {article.excerpt ? (
-              <p className="mt-4 max-w-2xl text-lg leading-relaxed text-white/90">{article.excerpt}</p>
+              <p className="mt-2 max-w-3xl text-[14px] leading-relaxed text-ink-soft sm:text-[15px]">{article.excerpt}</p>
             ) : null}
 
-            <div className="mt-8 flex flex-wrap items-center gap-4 text-sm text-white/85">
-              <div className="flex items-center gap-2.5">
-                <span className="grid size-10 place-items-center rounded-full bg-white text-sm font-bold text-ink shadow-md">dv</span>
-                <div>
-                  <p className="font-semibold text-white">dealvault Team</p>
-                  <p className="text-xs text-white/70">Biên tập viên</p>
-                </div>
+            <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-2 text-[12.5px] text-ink-soft">
+              <div className="flex items-center gap-2">
+                {article.author?.avatarUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={article.author.avatarUrl} alt={article.author.name} className="size-7 rounded-full object-cover" />
+                ) : (
+                  <span className="grid size-7 place-items-center rounded-full bg-brand-50 text-[11px] font-bold text-brand-700">
+                    {article.author ? article.author.name.slice(0, 1) : "dv"}
+                  </span>
+                )}
+                <span className="font-medium text-ink">{article.author?.name ?? "dealvault Team"}</span>
               </div>
-              <span aria-hidden className="h-6 w-px bg-white/30" />
               {dateStr ? (
-                <span className="inline-flex items-center gap-1.5"><CalendarIcon />{dateStr}</span>
+                <>
+                  <span aria-hidden className="text-ink-mute">·</span>
+                  <span className="inline-flex items-center gap-1 text-ink-mute"><CalendarIcon />{dateStr}</span>
+                </>
               ) : null}
               {updatedStr ? (
-                <span className="inline-flex items-center gap-1.5 text-white/70">
-                  · Cập nhật {updatedStr}
-                </span>
+                <>
+                  <span aria-hidden className="text-ink-mute">·</span>
+                  <span className="text-ink-mute">Cập nhật {updatedStr}</span>
+                </>
               ) : null}
-              <span className="inline-flex items-center gap-1.5"><ClockIcon />Đọc ~{mins} phút</span>
+              <span aria-hidden className="text-ink-mute">·</span>
+              <span className="inline-flex items-center gap-1 text-ink-mute"><ClockIcon />~{mins} phút đọc</span>
+              {hasSections ? (
+                <>
+                  <span aria-hidden className="text-ink-mute">·</span>
+                  <span className="text-ink-mute">{article.sections!.length} phần</span>
+                </>
+              ) : null}
             </div>
           </div>
 
-          {/* Hero visual: ảnh sản phẩm thật */}
-          <HeroVisual images={heroImages} isReview={isReview} fallbackIcon={visual.icon} />
+          {/* Hero image nhỏ — 1 ảnh main, không collage. Mobile: hide. */}
+          {heroImages.length > 0 ? (
+            <div className="hidden overflow-hidden rounded-xl border border-line bg-card-soft lg:block">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={heroImages[0]} alt="" className="aspect-[5/4] w-full object-cover" />
+            </div>
+          ) : null}
         </div>
       </header>
 
-      <main className="mx-auto max-w-6xl px-4 pb-20 sm:px-6">
-        <div className="grid grid-cols-1 gap-8 lg:grid-cols-[240px_1fr]">
+      <main className="mx-auto max-w-6xl px-4 pb-20 pt-10 sm:px-6 sm:pt-14">
+        <div className="grid grid-cols-1 gap-10 lg:grid-cols-[220px_1fr] lg:gap-14">
           <aside className="hidden lg:block">
             {hasSections ? <ArticleToc sections={article.sections!} /> : null}
           </aside>
-          <div>
+          <div className="max-w-[760px]">
             {hasSections ? (
-              article.sections!.map((section) => (
+              article.sections!.map((section, idx) => (
                 <section
                   key={section.id}
                   id={section.anchorSlug}
-                  className="mb-12 scroll-mt-24"
+                  className="mb-14 scroll-mt-24"
                 >
-                  <h2 className="text-2xl font-bold tracking-tight text-ink">{section.heading}</h2>
-                  <div className="mt-5">
+                  <div className="flex items-baseline gap-3">
+                    <span className="text-[12px] font-semibold tabular-nums text-brand-600">
+                      {String(idx + 1).padStart(2, "0")}
+                    </span>
+                    <span className="h-px flex-1 bg-line" />
+                  </div>
+                  <h2 className="mt-2 text-[24px] font-bold leading-tight tracking-tight text-ink sm:text-[26px]">
+                    {section.heading}
+                  </h2>
+                  <div className="mt-6">
                     <BlockRenderer
                       blocks={section.blocks}
                       products={article.products}
@@ -300,57 +328,6 @@ export default async function ArticleDetailPage({ params }: PageProps): Promise<
       {/* Floating CTA "Sản phẩm có trong bài" — hiển thị khi user scroll qua hero */}
       <StickyProductCta products={featuredProducts} articleId={article.id} />
     </article>
-  );
-}
-
-function HeroVisual({
-  images,
-  isReview,
-  fallbackIcon
-}: {
-  images: string[];
-  isReview: boolean;
-  fallbackIcon: string;
-}): React.ReactElement {
-  if (images.length === 0) {
-    return (
-      <div className="hidden aspect-[4/5] place-items-center self-center rounded-3xl bg-white/15 backdrop-blur-sm lg:grid">
-        <span aria-hidden className="select-none text-[160px] font-bold leading-none text-white/40">
-          {fallbackIcon}
-        </span>
-      </div>
-    );
-  }
-
-  if (isReview) {
-    return (
-      <div className="relative overflow-hidden rounded-3xl bg-white/15 shadow-2xl shadow-black/20 backdrop-blur-sm">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={images[0]} alt="" className="aspect-square w-full object-cover lg:aspect-[4/5]" />
-      </div>
-    );
-  }
-
-  // BUYING_GUIDE — collage 3 ảnh xếp xen kẽ
-  return (
-    <div className="grid grid-cols-2 gap-3 sm:gap-4">
-      <div className="col-span-2 overflow-hidden rounded-2xl bg-white/15 shadow-xl shadow-black/20 backdrop-blur-sm">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={images[0]} alt="" className="aspect-[16/10] w-full object-cover" />
-      </div>
-      {images[1] ? (
-        <div className="overflow-hidden rounded-2xl bg-white/15 shadow-lg shadow-black/15 backdrop-blur-sm">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={images[1]} alt="" className="aspect-square w-full object-cover" />
-        </div>
-      ) : null}
-      {images[2] ? (
-        <div className="overflow-hidden rounded-2xl bg-white/15 shadow-lg shadow-black/15 backdrop-blur-sm">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={images[2]} alt="" className="aspect-square w-full object-cover" />
-        </div>
-      ) : null}
-    </div>
   );
 }
 

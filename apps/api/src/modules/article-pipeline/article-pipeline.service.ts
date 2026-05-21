@@ -99,27 +99,15 @@ export class ArticlePipelineService {
           : {})
       }
     });
-    // Fire-and-forget: chạy stage rồi continue tới HITL nếu vẫn non-terminal.
-    // Admin polling sẽ thấy progress live thay vì đợi response 1-2 phút.
+    // Fire-and-forget: chạy ĐÚNG 1 stage rồi dừng. KHÔNG cascade tự động.
+    // Trước đây có cascade `runUntilHitl` sau khi stage xong → admin click retry B3 thì B4-B8
+    // chạy theo, gây bất ngờ. Giờ retry = surgical, chỉ 1 stage. Admin muốn chạy tiếp pipeline
+    // → bấm nút "Tiếp tục pipeline" (gọi `continuePipeline` riêng).
     void (async () => {
       try {
         await this.runner.runStage(stage, { articleId, type: article.type });
-        const after = await this.prisma.article.findUnique({
-          where: { id: articleId },
-          select: { status: true }
-        });
-        const terminal: ArticleStatus[] = [
-          ArticleStatus.PENDING_REVIEW,
-          ArticleStatus.NEEDS_REVISION,
-          ArticleStatus.FAILED,
-          ArticleStatus.PUBLISHED,
-          ArticleStatus.ARCHIVED
-        ];
-        if (after && !terminal.includes(after.status)) {
-          await this.runner.runUntilHitl({ articleId, type: article.type });
-        }
       } catch (err) {
-        this.logger.error(`Retry-stage pipeline failed: ${(err as Error).message}`);
+        this.logger.error(`Retry-stage failed: ${(err as Error).message}`);
       }
     })();
   }

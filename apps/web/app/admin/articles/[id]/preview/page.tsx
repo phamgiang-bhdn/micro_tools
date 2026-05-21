@@ -1,9 +1,11 @@
 import type React from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, ExternalLink } from "lucide-react";
+import { ArrowLeft, ExternalLink, Clock } from "lucide-react";
 import { BlockRenderer } from "../../../../../components/article/blocks/block-renderer";
 import { ArticleToc } from "../../../../../components/article/article-toc";
+import { ReadingProgress } from "../../../../../components/article/reading-progress";
+import { readingTime } from "../../../../../lib/article-format";
 import type { ArticleBlock, ArticleSectionPublic } from "../../../../../lib/types";
 
 export const dynamic = "force-dynamic";
@@ -45,8 +47,29 @@ export default async function ArticlePreviewPage({ params }: PageProps): Promise
 
   const hasSections = article.sections.length > 0;
 
+  // Reading time: gộp text từ heading + summary + plain text trong blocks
+  // (chỉ approx — đủ chính xác để hiển thị "~7 phút đọc").
+  const fullText = article.sections
+    .map((s) => {
+      const blockText = (s.blocks ?? [])
+        .map((b) => {
+          if (!b || typeof b !== "object") return "";
+          const obj = b as Record<string, unknown>;
+          if (typeof obj.markdown === "string") return obj.markdown;
+          if (typeof obj.body === "string") return obj.body;
+          if (typeof obj.text === "string") return obj.text;
+          if (typeof obj.summary === "string") return obj.summary;
+          return "";
+        })
+        .join("\n");
+      return `${s.heading}\n${s.summary}\n${blockText}`;
+    })
+    .join("\n");
+  const mins = readingTime(fullText);
+
   return (
     <article className="bg-canvas">
+      <ReadingProgress />
       <div className="sticky top-0 z-50 border-b border-admin-line bg-amber-50 px-4 py-2 text-[12px] text-amber-900">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-3">
           <span className="font-semibold">
@@ -88,20 +111,27 @@ export default async function ArticlePreviewPage({ params }: PageProps): Promise
           {article.excerpt ? (
             <p className="mt-2 max-w-3xl text-[14px] leading-relaxed text-ink-soft">{article.excerpt}</p>
           ) : null}
-          {article.author ? (
-            <div className="mt-4 flex items-center gap-2 text-[12.5px] text-ink-soft">
-              {article.author.avatarUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={article.author.avatarUrl} alt={article.author.name} className="size-7 rounded-full object-cover" />
-              ) : (
-                <span className="grid size-7 place-items-center rounded-full bg-brand-50 text-[11px] font-bold text-brand-700">
-                  {article.author.name.slice(0, 1)}
-                </span>
-              )}
-              <span className="font-medium text-ink">{article.author.name}</span>
-              <span className="text-ink-mute">· Tác giả</span>
-            </div>
-          ) : null}
+          <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-2 text-[12.5px] text-ink-soft">
+            {article.author ? (
+              <div className="flex items-center gap-2">
+                {article.author.avatarUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={article.author.avatarUrl} alt={article.author.name} className="size-7 rounded-full object-cover" />
+                ) : (
+                  <span className="grid size-7 place-items-center rounded-full bg-brand-50 text-[11px] font-bold text-brand-700">
+                    {article.author.name.slice(0, 1)}
+                  </span>
+                )}
+                <span className="font-medium text-ink">{article.author.name}</span>
+              </div>
+            ) : null}
+            {article.author ? <span aria-hidden className="text-ink-mute">·</span> : null}
+            <span className="inline-flex items-center gap-1 text-ink-mute">
+              <Clock className="size-3.5" /> ~{mins} phút đọc
+            </span>
+            <span aria-hidden className="text-ink-mute">·</span>
+            <span className="text-ink-mute">{article.sections.length} phần</span>
+          </div>
         </div>
       </header>
 

@@ -3,6 +3,8 @@ import ReactMarkdown from "react-markdown";
 
 interface Props {
   markdown: string;
+  /** Section đầu tiên hoặc đoạn mở section → font hơi lớn + medium weight để dẫn mắt. */
+  lead?: boolean;
 }
 
 /**
@@ -24,14 +26,39 @@ function reflowParagraphs(md: string): string {
   return groups.join("\n\n");
 }
 
-export function ProseBlock({ markdown }: Props): React.ReactElement {
-  const reflowed = reflowParagraphs(markdown);
-  // Typography tối ưu cho đọc dài: cỡ 17px (tiếng Việt cần nhỉnh hơn Anh), line-height 1.75,
-  // paragraph spacing rộng hơn, max-width ~700 char cho mỗi dòng (qua wrapper bên ngoài đã cap),
-  // chỉ tô đậm + heading dùng màu đậm; body dùng ink-soft cho mắt đỡ mỏi.
+/**
+ * Tự bold giá tiền + spec quan trọng để user scan-friendly. Pattern affiliate VN:
+ * con số kèm đơn vị (8 triệu, 5500mAh, 90W) phải đập vào mắt → bold.
+ * Negative lookbehind/ahead để khỏi double-bold khi writer đã ** sẵn.
+ *
+ * Không match trong code fence ```...``` (split theo backtick fence trước khi xử lý).
+ */
+const SPEC_PATTERN =
+  /(?<!\*)(\b\d+(?:[.,]\d+)?\s*(?:triệu|tr|nghìn|đ|VND|mAh|Wh|GHz|MHz|W|MP|inch|fps|Hz|kg|°C|GB|TB|MB|RPM|cm|mm|nits|lumens|BTU|lít|L|ml|km|m²)\b)(?!\*)/gi;
+
+function autoBoldSpecs(md: string): string {
+  if (!md) return md;
+  // Split theo code fence; chỉ apply replace ngoài fence.
+  const segments = md.split(/(```[\s\S]*?```)/g);
+  return segments
+    .map((seg) => (seg.startsWith("```") ? seg : seg.replace(SPEC_PATTERN, "**$1**")))
+    .join("");
+}
+
+export function ProseBlock({ markdown, lead }: Props): React.ReactElement {
+  const transformed = autoBoldSpecs(reflowParagraphs(markdown));
+
+  // Lead-in: font 18.5px, medium weight, màu ink (đậm hơn body) — dẫn mắt vào section.
+  // Body thường: 17px desktop, leading 1.78, tracking nhẹ +0.005em cho TV (TV cần thoáng hơn EN).
+  const sizeCls = lead
+    ? "text-[18.5px] sm:text-[19px] font-medium text-ink leading-[1.7]"
+    : "text-[16.5px] sm:text-[17px] leading-[1.78] tracking-[0.005em] text-ink-soft";
+
   return (
-    <div className="prose prose-slate max-w-none text-[17px] leading-[1.78] tracking-[0.005em] text-ink-soft prose-headings:mt-8 prose-headings:font-semibold prose-headings:text-ink prose-h2:text-[22px] prose-h2:tracking-tight prose-h3:text-[19px] prose-h3:mt-7 prose-p:my-5 prose-p:leading-[1.78] prose-a:text-brand-700 prose-a:font-medium prose-a:no-underline hover:prose-a:underline prose-strong:text-ink prose-strong:font-semibold prose-ul:my-5 prose-ul:space-y-2 prose-ol:my-5 prose-ol:space-y-2 prose-li:leading-[1.7] prose-li:marker:text-brand-500 prose-blockquote:border-l-4 prose-blockquote:border-brand-300 prose-blockquote:bg-card prose-blockquote:px-5 prose-blockquote:py-3 prose-blockquote:my-6 prose-blockquote:not-italic prose-blockquote:text-ink-soft prose-blockquote:rounded-r-lg">
-      <ReactMarkdown>{reflowed}</ReactMarkdown>
+    <div
+      className={`prose prose-slate max-w-none ${sizeCls} prose-headings:mt-8 prose-headings:font-semibold prose-headings:text-ink prose-h2:text-[22px] prose-h2:tracking-tight prose-h3:text-[19px] prose-h3:mt-7 prose-p:my-5 prose-p:leading-[inherit] prose-a:text-brand-700 prose-a:font-medium prose-a:no-underline hover:prose-a:underline prose-strong:text-ink prose-strong:font-semibold prose-ul:my-5 prose-ul:space-y-2 prose-ol:my-5 prose-ol:space-y-2 prose-li:leading-[1.7] prose-li:marker:text-brand-500 prose-blockquote:border-l-4 prose-blockquote:border-brand-300 prose-blockquote:bg-card prose-blockquote:px-5 prose-blockquote:py-3 prose-blockquote:my-6 prose-blockquote:not-italic prose-blockquote:text-ink-soft prose-blockquote:rounded-r-lg`}
+    >
+      <ReactMarkdown>{transformed}</ReactMarkdown>
     </div>
   );
 }

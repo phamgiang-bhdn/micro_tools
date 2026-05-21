@@ -25,6 +25,12 @@ export function BlockRenderer({ blocks, products, schemaConfig }: Props): React.
   const safeProducts = Array.isArray(products) ? products : [];
   const productMap = new Map(safeProducts.map((p) => [p.id, p]));
 
+  // Index của prose block đầu tiên → render dạng "lead-in" (font 18.5px, medium weight)
+  // để dẫn mắt vào section. Pattern editorial NYT/cellphones — đoạn mở luôn nổi hơn body.
+  const firstProseIdx = safeBlocks.findIndex(
+    (b) => b && typeof b === "object" && (b as ArticleBlock).type === "prose"
+  );
+
   return (
     <div className="space-y-8">
       {safeBlocks.map((block, i) => {
@@ -35,6 +41,7 @@ export function BlockRenderer({ blocks, products, schemaConfig }: Props): React.
             block={block}
             productMap={productMap}
             schemaConfig={schemaConfig}
+            isLeadProse={i === firstProseIdx}
           />
         );
       })}
@@ -45,11 +52,13 @@ export function BlockRenderer({ blocks, products, schemaConfig }: Props): React.
 function BlockSwitch({
   block,
   productMap,
-  schemaConfig
+  schemaConfig,
+  isLeadProse
 }: {
   block: ArticleBlock;
   productMap: Map<string, ProductItem>;
   schemaConfig?: Record<string, unknown>;
+  isLeadProse?: boolean;
 }): React.ReactElement | null {
   // AI có thể trả block thiếu field. Mọi access vào array đều dùng ?? [] để khỏi crash.
   // Quy tắc: AI hay sinh block với field rỗng → đừng render UI trống tuếch.
@@ -84,7 +93,7 @@ function BlockSwitch({
     case "prose": {
       const md = block.markdown ?? "";
       if (!md.trim()) return null;
-      return <ProseBlock markdown={md} />;
+      return <ProseBlock markdown={md} lead={isLeadProse} />;
     }
     case "comparison": {
       const ids = Array.isArray(block.productIds) ? block.productIds : [];

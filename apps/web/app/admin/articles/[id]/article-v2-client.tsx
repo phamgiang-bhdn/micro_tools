@@ -4,6 +4,7 @@ import { useState, useTransition, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import {
   Check,
+  CheckCircle2,
   ChevronRight,
   ChevronUp,
   ChevronDown,
@@ -29,6 +30,8 @@ import { BlockRenderer } from "../../../../components/article/blocks/block-rende
 import type { ArticleBlock, ProductItem } from "../../../../lib/types";
 import { ProductMatcher } from "./product-matcher";
 import { SectionImageManager } from "./section-image-manager";
+import { BriefPanel } from "./brief-panel";
+import { BlockFormDispatcher } from "./block-editors";
 import {
   approveArticleV2Action,
   retryArticleStageAction,
@@ -360,8 +363,8 @@ export function ArticleV2Client({ article }: { article: ArticleV2 }) {
               <AdminButton variant="outline" size="sm" onClick={onRequestRevision} disabled={pending}>
                 Cần sửa thủ công
               </AdminButton>
-              <AdminButton variant="primary" size="sm" onClick={onApprove} disabled={pending}>
-                <Check className="size-3.5" /> Duyệt &amp; Đăng bài
+              <AdminButton variant="primary" size="sm" iconLeft={<Check />} onClick={onApprove} disabled={pending}>
+                Duyệt &amp; Đăng bài
               </AdminButton>
             </>
           ) : (
@@ -383,8 +386,30 @@ export function ArticleV2Client({ article }: { article: ArticleV2 }) {
               Khi xong, bấm <strong>&quot;Tiếp tục viết bài&quot;</strong> — AI sẽ chạy Image + Writer + Critic theo dàn ý đã chốt.
             </p>
           </div>
-          <AdminButton size="sm" variant="primary" onClick={onContinuePipeline} disabled={pending}>
-            <Check className="size-3.5" /> Tiếp tục viết bài
+          <AdminButton size="sm" variant="primary" iconLeft={<Check />} onClick={onContinuePipeline} disabled={pending}>
+            Tiếp tục viết bài
+          </AdminButton>
+        </div>
+      ) : null}
+
+      {/* ────── MID-PIPELINE PAUSED (sau khi retry 1 stage) ──────
+          Retry-stage giờ chỉ chạy 1 bước rồi dừng (không cascade). Khi status ở giữa
+          pipeline (không terminal, không running, không pauseAtOutline), hiện CTA
+          "Tiếp tục pipeline" để admin chủ động chạy đến PENDING_REVIEW. */}
+      {!isRunning &&
+      !TERMINAL_STATUSES.has(liveStatus) &&
+      liveStatus !== "DRAFT_BRIEF" &&
+      !(article.pauseAtOutline && liveStatus === "IMAGES_READY") ? (
+        <div className="admin-card flex flex-wrap items-center gap-3 border-l-4 border-l-admin-accent px-4 py-3">
+          <ChevronRight className="size-5 shrink-0 text-admin-accent" />
+          <div className="flex-1 min-w-0">
+            <div className="text-[13px] font-semibold text-admin-ink">Pipeline đang tạm dừng giữa chừng</div>
+            <p className="mt-0.5 text-[12px] text-admin-mute">
+              Bước vừa chạy đã xong. Bấm để AI chạy tiếp các bước còn lại đến khi sẵn sàng đăng.
+            </p>
+          </div>
+          <AdminButton size="sm" variant="primary" iconLeft={<ChevronRight />} onClick={onContinuePipeline} disabled={pending}>
+            Tiếp tục pipeline
           </AdminButton>
         </div>
       ) : null}
@@ -397,73 +422,36 @@ export function ArticleV2Client({ article }: { article: ArticleV2 }) {
             Nguồn dẫn đã cũ ({daysAgo(article.evidenceFreshAt)} ngày). Nếu chạy lại Writer, bài có thể vẫn dựa trên data lỗi thời —
             khuyến nghị refresh evidence trước.
           </div>
-          <AdminButton size="xs" variant="outline" onClick={onRefreshEvidence} disabled={pending}>
-            <RefreshCw className="size-3" /> Refresh trước
+          <AdminButton size="xs" variant="outline" iconLeft={<RefreshCw />} onClick={onRefreshEvidence} disabled={pending}>
+            Refresh trước
           </AdminButton>
         </div>
       ) : null}
 
-      {/* ────── QUY TRÌNH 8 BƯỚC ────── */}
-      <div className="admin-card p-5">
-        <div className="mb-4 flex items-center justify-between gap-3">
-          <div>
-            <div className="admin-section-title">Quy trình 8 bước</div>
-            <p className="mt-0.5 text-[12px] text-admin-mute">
-              Bấm vào ô để chạy lại bước đó. Vàng = đang chạy, xanh = thành công, đỏ = lỗi.
-            </p>
-          </div>
-          <div className="flex items-center gap-3 text-[12px] text-admin-mute">
-            <Stat label="Lần sửa" value={article.revisionCount} />
-            <Stat label="Số từ" value={article.wordCount ?? "—"} />
-            <Stat label="Độ dễ đọc" value={article.readabilityScore ?? "—"} />
-          </div>
-        </div>
-        <ol className="flex flex-wrap items-stretch gap-2">
-          {PIPELINE_STAGES.map((stage, i) => {
-            const state = stageState(stage.key);
-            const run = latestRun.get(stage.key);
-            return (
-              <li key={stage.key} className="flex items-stretch gap-2">
-                <button
-                  type="button"
-                  disabled={pending}
-                  onClick={() => onRetryStage(stage.key)}
-                  className={`group flex min-w-[120px] flex-col items-start gap-1 rounded-lg border bg-admin-surface px-3 py-2 text-left transition hover:border-admin-accent disabled:opacity-50 ${stateBorder(state)}`}
-                  title={
-                    run
-                      ? `${stateLabel(state)}${run.durationMs ? ` · ${run.durationMs}ms` : ""}${run.errorReason ? `\n${run.errorReason}` : ""}`
-                      : "Chưa chạy"
-                  }
-                >
-                  <div className="flex w-full items-center justify-between">
-                    <span className="text-[11px] uppercase tracking-wide text-admin-mute">Bước {i + 1}</span>
-                    <StageDot state={state} />
-                  </div>
-                  <span className="text-[13px] font-semibold text-admin-ink">{stage.label}</span>
-                  <span className="text-[11px] text-admin-mute">
-                    {run
-                      ? state === "running"
-                        ? "Đang chạy…"
-                        : run.durationMs
-                        ? `${run.durationMs}ms`
-                        : stateLabel(state)
-                      : "—"}
-                  </span>
-                  <span className="invisible flex items-center gap-1 text-[10.5px] text-admin-accent group-hover:visible">
-                    <RefreshCw className="size-2.5" /> Chạy lại
-                  </span>
-                </button>
-                {i < PIPELINE_STAGES.length - 1 ? <ChevronRight className="my-auto size-4 shrink-0 text-admin-mute" /> : null}
-              </li>
-            );
-          })}
-        </ol>
-      </div>
+      {/* ────── PRE-PUBLISH CHECKLIST ────── */}
+      {liveStatus === "PENDING_REVIEW" ? (
+        <PrePublishChecklist
+          sections={article.sections}
+          onApprove={onApprove}
+          pending={pending}
+        />
+      ) : null}
 
-      {/* ────── TABS ────── */}
-      <Tabs defaultValue="overview">
+      {/* ────── PIPELINE STRIP ────── */}
+      <PipelineStrip
+        stageState={stageState}
+        latestRun={latestRun}
+        pending={pending}
+        onRetryStage={onRetryStage}
+        wordCount={article.wordCount}
+        revisionCount={article.revisionCount}
+        sectionsWritten={sectionsWritten}
+        sectionsTotal={article.sections.length}
+      />
+
+      {/* ────── TABS ────── default = sections (workspace chính) ────── */}
+      <Tabs defaultValue="sections">
         <TabsList variant="underline" className="w-full">
-          <TabsTrigger value="overview"><Sparkles className="size-3.5" /> Tổng quan</TabsTrigger>
           <TabsTrigger value="sections" badge={article.sections.length || undefined}>
             <Layers className="size-3.5" /> Các phần
           </TabsTrigger>
@@ -473,6 +461,7 @@ export function ArticleV2Client({ article }: { article: ArticleV2 }) {
           <TabsTrigger value="evidence" badge={article.evidence.length || undefined}>
             <Database className="size-3.5" /> Nguồn dẫn
           </TabsTrigger>
+          <TabsTrigger value="overview"><Sparkles className="size-3.5" /> Chi tiết bài</TabsTrigger>
           <TabsTrigger value="runs" badge={article.runs.length || undefined}>
             <Activity className="size-3.5" /> Nhật ký
           </TabsTrigger>
@@ -551,7 +540,13 @@ export function ArticleV2Client({ article }: { article: ArticleV2 }) {
         </TabsContent>
 
         {/* ===== CÁC PHẦN ===== */}
-        <TabsContent value="sections">
+        <TabsContent value="sections" className="space-y-4">
+          {/* Brief panel — định hướng bài, visual hierarchy: label bold + value normal */}
+          <BriefPanel
+            brief={brief as Parameters<typeof BriefPanel>[0]["brief"]}
+            authorName={article.author?.name}
+          />
+
           {article.sections.length === 0 ? (
             <div className="admin-card p-6">
               <EmptyHint icon={<AlertTriangle className="size-4" />} text="Chưa có phần nào. Vui lòng chạy bước 4 (Dàn ý)." />
@@ -576,13 +571,13 @@ export function ArticleV2Client({ article }: { article: ArticleV2 }) {
                         <span className="line-clamp-2 font-semibold leading-snug">
                           {s.order + 1}. {s.heading}
                         </span>
-                        <div className="flex items-center gap-2 text-[10.5px]">
+                        <div className="flex items-center gap-2 text-[10.5px] text-admin-ink">
                           <SectionStatusPill status={s.status} />
-                          <span className="text-admin-mute">
+                          <span>
                             {s.wordCount}/{s.estimatedWords} từ
                           </span>
                           {s.evidenceRefs.length > 0 ? (
-                            <span className="text-admin-mute">· {s.evidenceRefs.length} nguồn</span>
+                            <span>· {s.evidenceRefs.length} nguồn</span>
                           ) : null}
                         </div>
                       </button>
@@ -669,8 +664,8 @@ export function ArticleV2Client({ article }: { article: ArticleV2 }) {
                 )}
               </p>
             </div>
-            <AdminButton size="sm" variant="outline" onClick={onRefreshEvidence} disabled={pending || isRunning}>
-              <RefreshCw className="size-3.5" /> Refresh nguồn dẫn
+            <AdminButton size="sm" variant="outline" iconLeft={<RefreshCw />} onClick={onRefreshEvidence} disabled={pending || isRunning}>
+              Refresh nguồn dẫn
             </AdminButton>
           </div>
           {article.evidence.length === 0 ? (
@@ -1001,7 +996,7 @@ function KpiCard({
 function Field({ label, value, full }: { label: string; value: string; full?: boolean }) {
   return (
     <div className={full ? "sm:col-span-2" : ""}>
-      <dt className="text-[11px] uppercase tracking-wide text-admin-mute">{label}</dt>
+      <dt className="text-[11px] font-bold uppercase tracking-wide text-admin-ink">{label}</dt>
       <dd className="mt-0.5 leading-relaxed text-admin-ink">
         {value || <span className="text-admin-mute">—</span>}
       </dd>
@@ -1069,8 +1064,8 @@ function FailedBanner({
           ) : null}
           <div className="mt-3 flex flex-wrap gap-2">
             {onRetry && failedStage ? (
-              <AdminButton size="sm" variant="primary" onClick={onRetry} disabled={disabled}>
-                <RefreshCw className="size-3.5" /> Chạy lại &quot;{stageLbl}&quot;
+              <AdminButton size="sm" variant="primary" iconLeft={<RefreshCw />} onClick={onRetry} disabled={disabled}>
+                Chạy lại &quot;{stageLbl}&quot;
               </AdminButton>
             ) : null}
             <AdminButton size="sm" variant="outline" onClick={onRestart} disabled={disabled}>
@@ -1112,11 +1107,11 @@ function NeedsRevisionBanner({
               Bạn có thể sửa section trực tiếp ở tab &quot;Các phần&quot;, hoặc chạy lại AI:
             </p>
           )}
-          <div className="mt-3 flex flex-wrap gap-2">
-            <AdminButton size="sm" variant="primary" onClick={onRetryWriter} disabled={disabled}>
-              <RefreshCw className="size-3.5" /> Bảo AI viết lại
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <AdminButton size="sm" variant="primary" iconLeft={<RefreshCw />} onClick={onRetryWriter} disabled={disabled}>
+              Bảo AI viết lại
             </AdminButton>
-            <AdminButton size="sm" variant="outline" onClick={onRetryCritic} disabled={disabled}>
+            <AdminButton size="sm" variant="outline" iconLeft={<RefreshCw />} onClick={onRetryCritic} disabled={disabled}>
               Chạy lại Critic
             </AdminButton>
           </div>
@@ -1193,13 +1188,7 @@ function LiveProgressBanner({
 
 // ────────── Section editor ──────────
 
-type ProseBlock = { type: "prose"; markdown: string };
-type OtherBlock = { type: string } & Record<string, unknown>;
-type AnyBlock = ProseBlock | OtherBlock;
-
-function isProseBlock(b: unknown): b is ProseBlock {
-  return !!b && typeof b === "object" && (b as Record<string, unknown>).type === "prose";
-}
+type AnyBlock = { type: string } & Record<string, unknown>;
 
 function SectionDetailPane({
   section,
@@ -1315,13 +1304,13 @@ function SectionDetailPane({
         </div>
         <div className="ml-auto flex gap-2">
           {viewMode === "edit" && dirty ? (
-            <AdminButton size="xs" variant="primary" onClick={handleSave} disabled={pending}>
-              <Check className="size-3" /> Lưu thay đổi
+            <AdminButton size="xs" variant="primary" iconLeft={<Check />} onClick={handleSave} disabled={pending}>
+              Lưu thay đổi
             </AdminButton>
           ) : null}
           {section.status === "WRITTEN" && viewMode !== "edit" ? (
-            <AdminButton size="xs" variant="primary" onClick={onApprove} disabled={pending}>
-              <Check className="size-3" /> Duyệt phần này
+            <AdminButton size="xs" variant="primary" iconLeft={<Check />} onClick={onApprove} disabled={pending}>
+              Duyệt phần này
             </AdminButton>
           ) : null}
           {section.status === "APPROVED" || section.blocks.length === 0 ? (
@@ -1403,95 +1392,68 @@ function BlockEditor({
   onRemove: () => void;
   onMove: (dir: -1 | 1) => void;
 }) {
-  const proseMode = isProseBlock(block);
-  const [jsonText, setJsonText] = useState<string>(() =>
-    proseMode ? "" : JSON.stringify(block, null, 2)
-  );
-  const [jsonErr, setJsonErr] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!proseMode) setJsonText(JSON.stringify(block, null, 2));
-  }, [block, proseMode]);
-
-  const handleJsonChange = (txt: string) => {
-    setJsonText(txt);
-    try {
-      const parsed = JSON.parse(txt);
-      if (!parsed || typeof parsed !== "object" || typeof (parsed as { type?: unknown }).type !== "string") {
-        throw new Error('Block phải có field "type" (string)');
-      }
-      setJsonErr(null);
-      onChange(parsed as Partial<AnyBlock>);
-    } catch (err) {
-      setJsonErr((err as Error).message);
-    }
-  };
-
   return (
     <div className="rounded-md border border-admin-line bg-admin-surface">
-      <div className="flex items-center gap-2 border-b border-admin-line px-3 py-1.5 text-[11.5px]">
-        <span className="rounded bg-admin-subtle px-1.5 py-0.5 font-mono text-[10.5px] text-admin-mute">
-          {block.type}
-        </span>
-        <span className="text-admin-mute">
-          {proseMode ? "Đoạn văn markdown" : "Block phức hợp — sửa JSON"}
+      <div className="flex items-center gap-2 border-b border-admin-line px-3 py-1.5 text-[12px]">
+        <span className="rounded bg-admin-subtle px-1.5 py-0.5 font-mono text-[10.5px] font-semibold text-admin-ink">
+          {blockTypeLabel(block.type)}
         </span>
         <div className="ml-auto flex gap-0.5">
           <button
             type="button"
             onClick={() => onMove(-1)}
             disabled={isFirst}
-            className="rounded p-1 text-admin-mute hover:bg-admin-subtle hover:text-admin-ink disabled:opacity-30"
+            className="rounded p-1 text-admin-ink hover:bg-admin-subtle disabled:opacity-30"
             title="Đưa lên"
           >
-            <ChevronUp className="size-3" />
+            <ChevronUp className="size-3.5" />
           </button>
           <button
             type="button"
             onClick={() => onMove(1)}
             disabled={isLast}
-            className="rounded p-1 text-admin-mute hover:bg-admin-subtle hover:text-admin-ink disabled:opacity-30"
+            className="rounded p-1 text-admin-ink hover:bg-admin-subtle disabled:opacity-30"
             title="Đưa xuống"
           >
-            <ChevronDown className="size-3" />
+            <ChevronDown className="size-3.5" />
           </button>
           <button
             type="button"
             onClick={onRemove}
-            className="rounded p-1 text-admin-mute hover:bg-admin-danger-soft hover:text-admin-danger"
+            className="rounded p-1 text-admin-ink hover:bg-admin-danger-soft hover:text-admin-danger"
             title="Xoá block"
           >
-            <X className="size-3" />
+            <X className="size-3.5" />
           </button>
         </div>
       </div>
       <div className="p-3">
-        {proseMode ? (
-          <textarea
-            value={(block as ProseBlock).markdown}
-            onChange={(e) => onChange({ type: "prose", markdown: e.target.value } as ProseBlock)}
-            rows={Math.min(20, Math.max(4, (block as ProseBlock).markdown.split("\n").length + 1))}
-            className="w-full rounded-md border border-admin-line bg-white px-3 py-2 font-mono text-[12.5px] leading-relaxed text-admin-ink focus:border-admin-accent focus:outline-none"
-            placeholder="Viết markdown ở đây — **đậm**, *nghiêng*, [link](url), - bullet…"
-          />
-        ) : (
-          <>
-            <textarea
-              value={jsonText}
-              onChange={(e) => handleJsonChange(e.target.value)}
-              rows={Math.min(20, Math.max(6, jsonText.split("\n").length + 1))}
-              className={`w-full rounded-md border bg-white px-3 py-2 font-mono text-[11.5px] leading-relaxed focus:outline-none ${
-                jsonErr ? "border-admin-danger" : "border-admin-line focus:border-admin-accent"
-              }`}
-            />
-            {jsonErr ? (
-              <p className="mt-1 text-[11px] text-admin-danger">JSON lỗi: {jsonErr}</p>
-            ) : null}
-          </>
-        )}
+        <BlockFormDispatcher
+          block={block as { type: string } & Record<string, unknown>}
+          onChange={(next) => onChange(next as Partial<AnyBlock>)}
+        />
       </div>
     </div>
   );
+}
+
+const BLOCK_TYPE_LABELS: Record<string, string> = {
+  prose: "Đoạn văn",
+  image: "Ảnh",
+  callout: "Callout",
+  pros_cons: "Ưu / nhược",
+  verdict: "Kết luận",
+  faq: "FAQ",
+  hero_quote: "Quote mở bài",
+  review_quote: "Review",
+  citation: "Trích nguồn",
+  criteria_grid: "Bảng tiêu chí",
+  product_slot: "Slot sản phẩm",
+  product_spotlight: "Spotlight sản phẩm",
+  comparison: "So sánh"
+};
+function blockTypeLabel(t: string): string {
+  return BLOCK_TYPE_LABELS[t] ?? t;
 }
 
 /** Đếm tổng product_slot block trong tất cả sections để hiển thị badge tab "Gắn sản phẩm". */
@@ -1520,4 +1482,241 @@ function formatElapsed(sec: number): string {
   const m = Math.floor(sec / 60);
   const s = sec % 60;
   return `${m}p${s.toString().padStart(2, "0")}`;
+}
+
+/**
+ * Pipeline strip compact — 1 row 8 pips thay vì cards to. Highlight stage hiện tại
+ * (running > fail > "stage cuối ok + 1"). Bấm pip → retry stage. Meta inline trên đầu
+ * (số phần đã viết / số từ / lần sửa).
+ */
+function PipelineStrip({
+  stageState,
+  latestRun,
+  pending,
+  onRetryStage,
+  wordCount,
+  revisionCount,
+  sectionsWritten,
+  sectionsTotal
+}: {
+  stageState: (key: string) => StageState;
+  latestRun: Map<string, RunLite>;
+  pending: boolean;
+  onRetryStage: (stage: string) => void;
+  wordCount: number | null;
+  revisionCount: number;
+  sectionsWritten: number;
+  sectionsTotal: number;
+}) {
+  const stages = PIPELINE_STAGES;
+  const runningIdx = stages.findIndex((s) => stageState(s.key) === "running");
+  const failedIdx = stages.findIndex((s) => stageState(s.key) === "fail");
+  const okCount = stages.filter((s) => stageState(s.key) === "ok").length;
+  const highlightIdx =
+    runningIdx >= 0 ? runningIdx : failedIdx >= 0 ? failedIdx : Math.min(okCount, stages.length - 1);
+
+  return (
+    <div className="admin-card p-4">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[12px]">
+        <span className="text-admin-mute">
+          Quy trình:{" "}
+          <strong className="text-admin-ink">
+            {okCount}/{stages.length}
+          </strong>{" "}
+          bước
+        </span>
+        <span aria-hidden className="text-admin-mute">·</span>
+        <span className="text-admin-mute">
+          Phần đã viết:{" "}
+          <strong className="text-admin-ink">
+            {sectionsWritten}/{sectionsTotal}
+          </strong>
+        </span>
+        <span aria-hidden className="text-admin-mute">·</span>
+        <span className="text-admin-mute">
+          Số từ: <strong className="text-admin-ink">{wordCount ?? "—"}</strong>
+        </span>
+        <span aria-hidden className="text-admin-mute">·</span>
+        <span className="text-admin-mute">
+          Lần sửa: <strong className="text-admin-ink">{revisionCount}</strong>
+        </span>
+        <span className="ml-auto text-[10.5px] text-admin-mute">
+          Bấm pip để chạy lại bước đó
+        </span>
+      </div>
+
+      <ol className="mt-3 grid grid-cols-4 gap-1.5 sm:grid-cols-8">
+        {stages.map((s, i) => {
+          const state = stageState(s.key);
+          const isActive = i === highlightIdx;
+          const run = latestRun.get(s.key);
+          return (
+            <li key={s.key}>
+              <button
+                type="button"
+                disabled={pending}
+                onClick={() => onRetryStage(s.key)}
+                className={`group block w-full rounded-md border bg-admin-surface px-2 py-1.5 text-left transition hover:border-admin-accent disabled:opacity-50 ${stateBorder(state)} ${isActive ? "ring-2 ring-admin-accent/30" : ""}`}
+                title={
+                  run
+                    ? `${stateLabel(state)}${run.durationMs ? ` · ${run.durationMs}ms` : ""}${run.errorReason ? `\n${run.errorReason}` : ""}`
+                    : "Chưa chạy"
+                }
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-[9.5px] font-semibold uppercase tracking-wider text-admin-mute">
+                    B{i + 1}
+                  </span>
+                  <StageDot state={state} />
+                </div>
+                <div className="mt-0.5 line-clamp-1 text-[11.5px] font-medium text-admin-ink">
+                  {s.label}
+                </div>
+              </button>
+            </li>
+          );
+        })}
+      </ol>
+    </div>
+  );
+}
+
+/**
+ * Checklist tự động khi article ở status PENDING_REVIEW. Quét sections + blocks để
+ * báo admin biết bài còn thiếu gì trước khi đăng (ảnh, slot sản phẩm, verdict).
+ * Pattern: admin không phải click 3 tab mới biết hiện trạng → quyết nhanh.
+ */
+function PrePublishChecklist({
+  sections,
+  onApprove,
+  pending
+}: {
+  sections: SectionLite[];
+  onApprove: () => void;
+  pending: boolean;
+}) {
+  const totalSections = sections.length;
+  const writtenSections = sections.filter((s) => s.status === "WRITTEN" || s.status === "APPROVED").length;
+
+  // Section cần ảnh (theo blockTypeHints) vs section đã có image block với src
+  const sectionsNeedingImage = sections.filter((s) => {
+    const hints = (s as { blockTypeHints?: string[] }).blockTypeHints ?? [];
+    return hints.some((t) => t === "image" || t === "image_gallery");
+  }).length;
+  const sectionsWithImage = sections.filter((s) => {
+    const blocks = Array.isArray(s.blocks) ? s.blocks : [];
+    return blocks.some((b) => {
+      if (!b || typeof b !== "object") return false;
+      const obj = b as Record<string, unknown>;
+      return obj.type === "image" && typeof obj.src === "string" && obj.src.length > 0;
+    });
+  }).length;
+
+  // Product slot tổng / đã gắn
+  let totalSlots = 0;
+  let filledSlots = 0;
+  for (const s of sections) {
+    const blocks = Array.isArray(s.blocks) ? s.blocks : [];
+    for (const b of blocks) {
+      if (!b || typeof b !== "object") continue;
+      const obj = b as Record<string, unknown>;
+      if (obj.type === "product_slot") {
+        totalSlots += 1;
+        if (typeof obj.productId === "string" && obj.productId.length > 0) filledSlots += 1;
+      }
+    }
+  }
+
+  // Có verdict block?
+  const hasVerdict = sections.some((s) => {
+    const blocks = Array.isArray(s.blocks) ? s.blocks : [];
+    return blocks.some((b) => b && typeof b === "object" && (b as Record<string, unknown>).type === "verdict");
+  });
+
+  const items: Array<{ ok: boolean; label: string; hint?: string }> = [
+    {
+      ok: writtenSections === totalSections && totalSections > 0,
+      label:
+        writtenSections === totalSections
+          ? `Tất cả ${totalSections} phần đã viết`
+          : `${writtenSections}/${totalSections} phần đã viết`,
+      hint: writtenSections < totalSections ? "Còn phần chưa viết — mở tab Các phần" : undefined
+    },
+    {
+      ok: sectionsNeedingImage === 0 || sectionsWithImage >= sectionsNeedingImage,
+      label:
+        sectionsNeedingImage === 0
+          ? "Không có section nào cần ảnh"
+          : `${sectionsWithImage}/${sectionsNeedingImage} section có ảnh`,
+      hint:
+        sectionsNeedingImage > 0 && sectionsWithImage < sectionsNeedingImage
+          ? "Mở Các phần → Chỉnh sửa → Quản lý ảnh để gắn"
+          : undefined
+    },
+    {
+      ok: totalSlots === 0 || filledSlots === totalSlots,
+      label:
+        totalSlots === 0
+          ? "Không có slot sản phẩm cần gắn"
+          : `${filledSlots}/${totalSlots} slot sản phẩm đã gắn`,
+      hint:
+        totalSlots > filledSlots ? "Mở tab Gắn sản phẩm để chọn product cho slot" : undefined
+    },
+    {
+      ok: hasVerdict,
+      label: hasVerdict ? "Có block kết luận (verdict)" : "Chưa có block kết luận",
+      hint: !hasVerdict
+        ? "Khuyến nghị thêm verdict ở section cuối — tăng conversion"
+        : undefined
+    }
+  ];
+
+  const allOk = items.every((i) => i.ok);
+
+  return (
+    <div
+      className={`admin-card overflow-hidden border-l-4 ${allOk ? "border-l-admin-success" : "border-l-admin-warning"}`}
+    >
+      <div className="flex items-start gap-3 p-4">
+        <div
+          className={`grid size-10 shrink-0 place-items-center rounded-full ${allOk ? "bg-admin-success-soft text-admin-success" : "bg-admin-warning-soft text-admin-warning"}`}
+        >
+          {allOk ? <CheckCircle2 className="size-5" /> : <AlertTriangle className="size-5" />}
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="text-[14px] font-semibold text-admin-ink">
+            {allOk ? "Bài sẵn sàng đăng" : "Cần kiểm tra trước khi đăng"}
+          </div>
+          <ul className="mt-2 space-y-1.5">
+            {items.map((it, i) => (
+              <li key={i} className="flex items-start gap-2 text-[12.5px]">
+                {it.ok ? (
+                  <CheckCircle2 className="mt-0.5 size-3.5 shrink-0 text-admin-success" />
+                ) : (
+                  <AlertTriangle className="mt-0.5 size-3.5 shrink-0 text-admin-warning" />
+                )}
+                <div className="min-w-0 flex-1">
+                  <span className={it.ok ? "text-admin-ink/80" : "font-medium text-admin-ink"}>
+                    {it.label}
+                  </span>
+                  {it.hint && !it.ok ? (
+                    <span className="ml-1 text-admin-mute">— {it.hint}</span>
+                  ) : null}
+                </div>
+              </li>
+            ))}
+          </ul>
+        </div>
+        <AdminButton
+          size="sm"
+          variant={allOk ? "primary" : "outline"}
+          iconLeft={<Check />}
+          onClick={onApprove}
+          disabled={pending}
+        >
+          Đăng bài
+        </AdminButton>
+      </div>
+    </div>
+  );
 }
