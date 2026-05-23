@@ -1,9 +1,7 @@
 import { Test } from "@nestjs/testing";
 import { PrismaService } from "../../prisma/prisma.service";
+import { SyncStatusService } from "../../services/sync-status.service";
 import { AccesstradeClient, FetchProductsOpts } from "./clients/accesstrade.client";
-import { LazadaAffiliateClient } from "./clients/lazada.client";
-import { ShopeeAffiliateClient } from "./clients/shopee.client";
-import { TiktokAffiliateClient } from "./clients/tiktok.client";
 import { CrawlerService, offerPassesFilter, rulesToFetchOpts } from "./crawler.service";
 import { DEFAULT_FILTER_RULES, FilterRules } from "./dto/filter-rules.dto";
 import { NormalizedOffer } from "./dto/normalized-offer.dto";
@@ -71,16 +69,16 @@ async function buildService(): Promise<{
   const accesstrade = new FakeAccesstrade();
   const importer = new FakeImporter();
   const enrichment = new FakeEnrichment();
+  // SyncStatusService.wrap just runs the fn — test doesn't care about persistence.
+  const fakeSyncStatus = { wrap: async <T,>(_name: string, fn: () => Promise<T>) => fn() };
   const moduleRef = await Test.createTestingModule({
     providers: [
       CrawlerService,
       { provide: AccesstradeClient, useValue: accesstrade },
-      { provide: ShopeeAffiliateClient, useValue: {} },
-      { provide: TiktokAffiliateClient, useValue: {} },
-      { provide: LazadaAffiliateClient, useValue: {} },
       { provide: EnrichmentService, useValue: enrichment },
       { provide: ImportService, useValue: importer },
-      { provide: PrismaService, useValue: prisma }
+      { provide: PrismaService, useValue: prisma },
+      { provide: SyncStatusService, useValue: fakeSyncStatus }
     ]
   }).compile();
   const service = moduleRef.get(CrawlerService);

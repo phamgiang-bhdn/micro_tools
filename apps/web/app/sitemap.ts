@@ -37,19 +37,20 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.7
   }));
 
+  const staticEntries: MetadataRoute.Sitemap = [
+    { url: `${base}/`, lastModified: now, changeFrequency: "hourly", priority: 1 },
+    { url: `${base}/blog`, lastModified: now, changeFrequency: "daily", priority: 0.7 },
+    { url: `${base}/khuyen-mai`, lastModified: now, changeFrequency: "daily", priority: 0.7 },
+    { url: `${base}/deal-hot`, lastModified: now, changeFrequency: "hourly", priority: 0.8 },
+    { url: `${base}/ve-chung-toi`, lastModified: now, changeFrequency: "monthly", priority: 0.7 },
+    { url: `${base}/tuyen-bo-affiliate`, lastModified: now, changeFrequency: "yearly", priority: 0.4 },
+    { url: `${base}/chinh-sach-bao-mat`, lastModified: now, changeFrequency: "yearly", priority: 0.4 },
+    { url: `${base}/dieu-khoan`, lastModified: now, changeFrequency: "yearly", priority: 0.4 },
+    { url: `${base}/lien-he`, lastModified: now, changeFrequency: "monthly", priority: 0.5 }
+  ];
+
   return [
-    {
-      url: `${base}/`,
-      lastModified: now,
-      changeFrequency: "hourly",
-      priority: 1
-    },
-    {
-      url: `${base}/blog`,
-      lastModified: now,
-      changeFrequency: "daily",
-      priority: 0.7
-    },
+    ...staticEntries,
     ...nicheEntries,
     ...productEntries,
     ...articleEntries

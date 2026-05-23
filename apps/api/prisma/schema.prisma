@@ -70,18 +70,18 @@ enum CampaignStatus {
 }
 
 model CrawlerLog {
-  id            String   @id @default(uuid()) @db.Uuid
-  startedAt     DateTime @default(now())
-  finishedAt    DateTime?
-  fetched       Int      @default(0)
-  passedFilter  Int      @default(0)
-  created       Int      @default(0)
-  updated       Int      @default(0)
-  skipped       Int      @default(0)
-  success       Boolean  @default(false)
-  errorReason   String?
-  durationMs    Int?
-  triggeredBy   String?
+  id           String    @id @default(uuid()) @db.Uuid
+  startedAt    DateTime  @default(now())
+  finishedAt   DateTime?
+  fetched      Int       @default(0)
+  passedFilter Int       @default(0)
+  created      Int       @default(0)
+  updated      Int       @default(0)
+  skipped      Int       @default(0)
+  success      Boolean   @default(false)
+  errorReason  String?
+  durationMs   Int?
+  triggeredBy  String?
 
   @@index([startedAt])
 }
@@ -90,20 +90,20 @@ model CrawlerLog {
 /// Cron crawler tự upsert khi gặp campaign mới trong datafeed (status = APPLIED mặc định).
 /// Admin sync tay status APPROVED/REJECTED/PAUSED dựa trên dashboard publisher của network.
 model Campaign {
-  id              String              @id @default(uuid()) @db.Uuid
-  network         AffiliateNetwork
+  id                  String              @id @default(uuid()) @db.Uuid
+  network             AffiliateNetwork
   /// @deprecated dùng atCampaignId thay thế (sprint at-source-of-truth STORY-02).
   /// Giữ để backward compat với row legacy (campaign tạo trước sprint, externalId = slugify(name)).
   /// Khi tất cả campaign đã backfill atCampaignId → cân nhắc drop (xem docs/sprints/at-source-of-truth/FUTURE-DROPS.md).
-  externalId      String
-  name            String
-  merchantName    String?
-  status          CampaignStatus      @default(APPLIED)
-  appliedAt       DateTime?
-  approvedAt      DateTime?
-  commissionNote  String?
-  notes           String?
-  atCampaignId        String?    @unique
+  externalId          String
+  name                String
+  merchantName        String?
+  status              CampaignStatus      @default(APPLIED)
+  appliedAt           DateTime?
+  approvedAt          DateTime?
+  commissionNote      String?
+  notes               String?
+  atCampaignId        String?             @unique
   atCategoryName      String?
   atSubCategory       String?
   atLogo              String?
@@ -112,16 +112,16 @@ model Campaign {
   atCookieDurationSec Int?
   atStartTime         DateTime?
   atEndTime           DateTime?
-  atRawData           Json?      @db.JsonB
+  atRawData           Json?               @db.JsonB
   atLastSyncedAt      DateTime?
   /// Per-campaign filter rules. Validate qua `filterRulesSchema`.
   /// Khi null/empty → crawler dùng DEFAULT_FILTER_RULES.
-  filterRules     Json?               @db.JsonB
-  createdAt       DateTime            @default(now())
-  updatedAt       DateTime            @updatedAt
-  products        Product[]
-  conversions     ConversionWebhook[]
-  coupons         Coupon[]
+  filterRules         Json?               @db.JsonB
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+  products            Product[]
+  conversions         ConversionWebhook[]
+  coupons             Coupon[]
 
   @@unique([network, externalId])
   @@index([status])
@@ -130,20 +130,20 @@ model Campaign {
 }
 
 model Coupon {
-  id              String          @id @default(uuid()) @db.Uuid
-  code            String          @unique
+  id              String            @id @default(uuid()) @db.Uuid
+  code            String            @unique
   description     String?
   discountPercent Int?
-  discountAmount  Decimal?        @db.Decimal(10, 2)
+  discountAmount  Decimal?          @db.Decimal(10, 2)
   network         AffiliateNetwork?
-  productId       String?         @db.Uuid
-  nicheId         String?         @db.Uuid
-  campaignId      String?         @db.Uuid
+  productId       String?           @db.Uuid
+  nicheId         String?           @db.Uuid
+  campaignId      String?           @db.Uuid
   affiliateUrl    String?
   startsAt        DateTime?
   expiresAt       DateTime?
-  isActive        Boolean         @default(true)
-  atCouponId      String?         @unique
+  isActive        Boolean           @default(true)
+  atCouponId      String?           @unique
   merchantSlug    String?
   merchantDisplay String?
   merchantLogo    String?
@@ -151,19 +151,19 @@ model Coupon {
   iconTextId      String?
   contentHtml     String?
   imageUrl        String?
-  bannersJson     Json?           @db.JsonB
+  bannersJson     Json?             @db.JsonB
   domain          String?
   prodLink        String?
-  coinCap         Decimal?        @db.Decimal(15, 2)
-  coinPercentage  Decimal?        @db.Decimal(5, 2)
-  percentageUsed  Decimal?        @db.Decimal(5, 2)
-  atRawData       Json?           @db.JsonB
+  coinCap         Decimal?          @db.Decimal(15, 2)
+  coinPercentage  Decimal?          @db.Decimal(5, 2)
+  percentageUsed  Decimal?          @db.Decimal(5, 2)
+  atRawData       Json?             @db.JsonB
   atLastSyncedAt  DateTime?
-  createdAt       DateTime        @default(now())
-  updatedAt       DateTime        @updatedAt
-  product         Product?        @relation(fields: [productId], references: [id], onDelete: SetNull)
-  niche           Niche?          @relation(fields: [nicheId], references: [id], onDelete: SetNull)
-  campaign        Campaign?       @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  product         Product?          @relation(fields: [productId], references: [id], onDelete: SetNull)
+  niche           Niche?            @relation(fields: [nicheId], references: [id], onDelete: SetNull)
+  campaign        Campaign?         @relation(fields: [campaignId], references: [id], onDelete: SetNull)
 
   @@index([isActive, expiresAt])
   @@index([nicheId, isActive])
@@ -174,18 +174,20 @@ model Coupon {
 }
 
 model Niche {
-  id              String      @id @default(uuid()) @db.Uuid
-  slug            String      @unique
-  name            String
-  status          NicheStatus @default(ACTIVE)
-  schemaConfig    Json
-  seoTitle        String?
-  seoDescription  String?
-  createdAt       DateTime    @default(now())
-  updatedAt       DateTime    @updatedAt
-  products        Product[]
-  articles        Article[]
-  coupons         Coupon[]
+  id             String              @id @default(uuid()) @db.Uuid
+  slug           String              @unique
+  name           String
+  status         NicheStatus         @default(ACTIVE)
+  schemaConfig   Json
+  seoTitle       String?
+  seoDescription String?
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+  products       Product[]
+  articles       Article[]
+  coupons        Coupon[]
+  /// STORY-04: keyword cross-ref cho "Cơ hội tuần" widget.
+  keywordMatches KeywordNicheMatch[]
 }
 
 /// AT taxonomy bucket — auto-populated từ `offer.atCategorySlug` (raw AT `cate`).
@@ -193,12 +195,12 @@ model Niche {
 /// `displayName` admin tự điền sau — storefront chỉ filter theo Category có displayName.
 /// KHÔNG phải Niche (Niche = SEO/curate layer, Category = AT raw taxonomy để admin lọc sản phẩm).
 model Category {
-  id          String   @id @default(uuid()) @db.Uuid
-  slug        String   @unique
+  id          String    @id @default(uuid()) @db.Uuid
+  slug        String    @unique
   rawValue    String
   displayName String?
-  source      String   @default("accesstrade")
-  createdAt   DateTime @default(now())
+  source      String    @default("accesstrade")
+  createdAt   DateTime  @default(now())
   products    Product[]
 }
 
@@ -206,12 +208,12 @@ model Category {
 /// Mỗi domain unique → 1 row Source. Admin điền `displayName` ("Shopee VN", "Lazada VN") sau.
 /// Storefront chỉ hiện Source có displayName trong filter (hide khi null).
 model Source {
-  id          String   @id @default(uuid()) @db.Uuid
-  slug        String   @unique
+  id          String    @id @default(uuid()) @db.Uuid
+  slug        String    @unique
   rawValue    String
   displayName String?
-  source      String   @default("accesstrade")
-  createdAt   DateTime @default(now())
+  source      String    @default("accesstrade")
+  createdAt   DateTime  @default(now())
   products    Product[]
 }
 
@@ -220,12 +222,12 @@ model Source {
 /// Storefront chỉ hiện row có displayName trong filter (hide khi null).
 /// **Lưu ý**: model name vẫn là `Brand` để tránh refactor lớn; ngữ nghĩa hiện tại là Domain.
 model Brand {
-  id          String   @id @default(uuid()) @db.Uuid
-  slug        String   @unique
+  id          String    @id @default(uuid()) @db.Uuid
+  slug        String    @unique
   rawValue    String
   displayName String?
-  source      String   @default("accesstrade")
-  createdAt   DateTime @default(now())
+  source      String    @default("accesstrade")
+  createdAt   DateTime  @default(now())
   products    Product[]
 }
 
@@ -233,49 +235,52 @@ model Brand {
 /// Khác Domain (Brand): Domain là technical (auto từ offer.domain); Shop là cửa hàng cụ thể admin quản lý.
 /// Hiển thị trên storefront thay cho campaign info.
 model Shop {
-  id          String   @id @default(uuid()) @db.Uuid
-  slug        String   @unique
+  id          String    @id @default(uuid()) @db.Uuid
+  slug        String    @unique
   name        String
   description String?
   logoUrl     String?
   websiteUrl  String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
   products    Product[]
 }
 
 model Product {
-  id           String     @id @default(uuid()) @db.Uuid
+  id            String              @id @default(uuid()) @db.Uuid
   /// Niche assigned by admin (PR4 — manual gán tay). NULL = chưa gán → ẩn khỏi storefront.
   /// Crawler KHÔNG tự gán nicheId; admin assign trong /admin/products (bulk hoặc per-row).
-  nicheId      String?    @db.Uuid
+  nicheId       String?             @db.Uuid
   /// AT taxonomy bucket (PR2). Auto-populated từ `offer.atCategorySlug`. Khác `nicheId` (SEO layer).
-  categoryId   String?    @db.Uuid
+  categoryId    String?             @db.Uuid
   /// Nơi bán (PR3). Auto-populated từ hostname của `affiliateUrl`.
-  sourceId     String?    @db.Uuid
+  sourceId      String?             @db.Uuid
   /// Domain (model name `Brand` legacy). Auto-populated từ `offer.domain` (vd "shopee.vn").
-  brandId      String?    @db.Uuid
+  brandId       String?             @db.Uuid
   /// Shop — admin gán tay (AT không trả). NULL = chưa gán.
-  shopId       String?    @db.Uuid
-  network      AffiliateNetwork @default(ACCESSTRADE)
-  campaignId   String?    @db.Uuid
-  name         String
-  slug         String?
-  affiliateUrl String
-  scrapedData  Json       @db.JsonB
-  isPublic     Boolean    @default(true)
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
-  niche        Niche?     @relation(fields: [nicheId], references: [id], onDelete: SetNull)
-  category     Category?  @relation(fields: [categoryId], references: [id], onDelete: SetNull)
-  source       Source?    @relation(fields: [sourceId], references: [id], onDelete: SetNull)
-  brand        Brand?     @relation(fields: [brandId], references: [id], onDelete: SetNull)
-  shop         Shop?      @relation(fields: [shopId], references: [id], onDelete: SetNull)
-  campaign     Campaign?  @relation(fields: [campaignId], references: [id], onDelete: SetNull)
-  clickLogs    ClickLog[]
-  extractions  ProductExtraction[]
-  coupons      Coupon[]
-  reviews      ProductReview[]
+  shopId        String?             @db.Uuid
+  network       AffiliateNetwork    @default(ACCESSTRADE)
+  campaignId    String?             @db.Uuid
+  name          String
+  slug          String?
+  affiliateUrl  String
+  scrapedData   Json                @db.JsonB
+  isPublic      Boolean             @default(true)
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+  niche         Niche?              @relation(fields: [nicheId], references: [id], onDelete: SetNull)
+  category      Category?           @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  source        Source?             @relation(fields: [sourceId], references: [id], onDelete: SetNull)
+  brand         Brand?              @relation(fields: [brandId], references: [id], onDelete: SetNull)
+  shop          Shop?               @relation(fields: [shopId], references: [id], onDelete: SetNull)
+  campaign      Campaign?           @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+  clickLogs     ClickLog[]
+  extractions   ProductExtraction[]
+  coupons       Coupon[]
+  reviews       ProductReview[]
+  priceWatches  PriceWatch[]
+  /// STORY-05: matched order-product lines.
+  orderProducts OrderProduct[]
 
   @@unique([nicheId, slug])
   @@index([nicheId])
@@ -287,16 +292,25 @@ model Product {
 }
 
 model ClickLog {
-  id              String              @id @default(uuid()) @db.Uuid
-  productId       String              @db.Uuid
-  trackingCode    String              @unique
-  ipHash          String
-  userAgent       String?
-  createdAt       DateTime            @default(now())
-  product         Product             @relation(fields: [productId], references: [id], onDelete: Cascade)
-  conversionHooks ConversionWebhook[]
+  id                String              @id @default(uuid()) @db.Uuid
+  productId         String              @db.Uuid
+  trackingCode      String              @unique
+  ipHash            String
+  userAgent         String?
+  /// STORY-06: channel attribution gắn lúc click. "organic" | "fb" | "zalo" | "email" | "direct" | "other".
+  channel           String?             @default("direct")
+  subId1            String?
+  subId2            String?
+  attributionSource String?
+  /// STORY-07: A/B uplift signal — true nếu card render coupon inline pill khi click.
+  hasInlineCoupon   Boolean             @default(false)
+  createdAt         DateTime            @default(now())
+  product           Product             @relation(fields: [productId], references: [id], onDelete: Cascade)
+  conversionHooks   ConversionWebhook[]
 
   @@index([productId, createdAt])
+  @@index([channel])
+  @@index([createdAt, channel])
 }
 
 model ConversionWebhook {
@@ -312,15 +326,21 @@ model ConversionWebhook {
   atOrderId        String?
   atCommission     Decimal?         @db.Decimal(10, 2)
   reconcileNotes   String?
+  /// STORY-06: channel attributed from ClickLog (first-touch). Mặc định "direct".
+  channel          String?
   receivedAt       DateTime         @default(now())
   clickLog         ClickLog         @relation(fields: [trackingCode], references: [trackingCode], onDelete: Restrict)
   campaign         Campaign?        @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+  /// STORY-05: per-order product lines pulled from AT /v1/order-products.
+  orderProducts    OrderProduct[]
 
   @@index([trackingCode, receivedAt])
   @@index([network, receivedAt])
   @@index([campaignId, receivedAt])
   @@index([atOrderId])
   @@index([lastReconciledAt])
+  @@index([channel])
+  @@index([receivedAt, channel])
 }
 
 model TopProductSnapshot {
@@ -335,12 +355,12 @@ model TopProductSnapshot {
   affLink         String
   categoryName    String?
   productCategory String?
-  price           Decimal?  @db.Decimal(15, 2)
-  discount        Decimal?  @db.Decimal(15, 2)
+  price           Decimal? @db.Decimal(15, 2)
+  discount        Decimal? @db.Decimal(15, 2)
   merchant        String?
   shortDesc       String?
-  atRawData       Json?     @db.JsonB
-  createdAt       DateTime  @default(now())
+  atRawData       Json?    @db.JsonB
+  createdAt       DateTime @default(now())
 
   @@unique([snapshotDate, position, atProductId])
   @@index([snapshotDate])
@@ -348,17 +368,17 @@ model TopProductSnapshot {
 }
 
 model ReconciliationLog {
-  id              String   @id @default(uuid()) @db.Uuid
+  id              String    @id @default(uuid()) @db.Uuid
   triggeredBy     String
-  startedAt       DateTime @default(now())
+  startedAt       DateTime  @default(now())
   finishedAt      DateTime?
   syncWindowStart DateTime
   syncWindowEnd   DateTime
-  fetched         Int      @default(0)
-  matched         Int      @default(0)
-  updated         Int      @default(0)
-  unmatched       Int      @default(0)
-  success         Boolean  @default(false)
+  fetched         Int       @default(0)
+  matched         Int       @default(0)
+  updated         Int       @default(0)
+  unmatched       Int       @default(0)
+  success         Boolean   @default(false)
   errorReason     String?
   durationMs      Int?
 
@@ -366,82 +386,91 @@ model ReconciliationLog {
 }
 
 model ProductExtraction {
-  id              String      @id @default(uuid()) @db.Uuid
-  productId       String      @db.Uuid
-  rawContent      String
-  aiOutput        Json?       @db.JsonB
-  status          ParseStatus @default(DRAFT_RAW)
-  errorReason     String?
-  reviewedBy      String?
-  reviewedAt      DateTime?
-  sourceUrl       String?
-  createdAt       DateTime    @default(now())
-  updatedAt       DateTime    @updatedAt
-  product         Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
+  id                String      @id @default(uuid()) @db.Uuid
+  productId         String      @db.Uuid
+  rawContent        String
+  aiOutput          Json?       @db.JsonB
+  status            ParseStatus @default(DRAFT_RAW)
+  errorReason       String?
+  reviewedBy        String?
+  reviewedAt        DateTime?
+  sourceUrl         String?
+  /// STORY-09: confidence score 0-100 + lý do. Auto-approve khi >= REFINERY_AUTO_APPROVE_THRESHOLD (default 80).
+  confidenceScore   Int?
+  confidenceReasons Json?       @db.JsonB
+  autoApproved      Boolean     @default(false)
+  autoApprovedAt    DateTime?
+  /// Operator un-approve trong 24h sau auto-approve. NULL = chưa un-approve.
+  unapprovedAt      DateTime?
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+  product           Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
 
   @@index([productId, status, createdAt])
+  @@index([confidenceScore])
+  @@index([autoApproved])
 }
 
 model PromptTemplate {
-  id          String   @id @default(uuid()) @db.Uuid
-  name        String   @unique
+  id          String    @id @default(uuid()) @db.Uuid
+  name        String    @unique
   content     String
-  isActive    Boolean  @default(false)
-  version     Int      @default(1)
+  isActive    Boolean   @default(false)
+  version     Int       @default(1)
   createdBy   String?
-  createdAt   DateTime @default(now())
+  createdAt   DateTime  @default(now())
   activatedAt DateTime?
 }
 
 model Article {
-  id              String        @id @default(uuid()) @db.Uuid
-  slug            String        @unique
-  title           String
-  excerpt         String?
-  body            String
-  blocks          Json?         @db.JsonB
-  coverImage      String?
-  type            ArticleType
-  status          ArticleStatus @default(DRAFT)
-  nicheId         String?       @db.Uuid
-  productIds      String[]      @db.Uuid
-  pinnedProductIds String[]     @db.Uuid
-  metaTitle       String?
-  metaDescription String?
-  aiModel         String?
-  aiPromptName    String?
-  generationError String?
-  reviewedBy      String?
-  reviewedAt      DateTime?
-  scheduledAt     DateTime?
-  publishedAt     DateTime?
+  id                    String                 @id @default(uuid()) @db.Uuid
+  slug                  String                 @unique
+  title                 String
+  excerpt               String?
+  body                  String
+  blocks                Json?                  @db.JsonB
+  coverImage            String?
+  type                  ArticleType
+  status                ArticleStatus          @default(DRAFT)
+  nicheId               String?                @db.Uuid
+  productIds            String[]               @db.Uuid
+  pinnedProductIds      String[]               @db.Uuid
+  metaTitle             String?
+  metaDescription       String?
+  aiModel               String?
+  aiPromptName          String?
+  generationError       String?
+  reviewedBy            String?
+  reviewedAt            DateTime?
+  scheduledAt           DateTime?
+  publishedAt           DateTime?
   // V2 pipeline fields
-  briefJson       Json?         @db.JsonB
-  outlineJson     Json?         @db.JsonB
-  authorId        String?       @db.Uuid
-  layoutVariant   String?
-  wordCount       Int?
-  readabilityScore Float?
-  evidenceFreshAt DateTime?
-  revisionCount   Int           @default(0)
-  aiRevisionCount Int           @default(0)
-  thesisEmbedding Float[]
-  coverImageAttribution Json?   @db.JsonB
-  currentStageMessage String?
-  currentStageProgress Int?
+  briefJson             Json?                  @db.JsonB
+  outlineJson           Json?                  @db.JsonB
+  authorId              String?                @db.Uuid
+  layoutVariant         String?
+  wordCount             Int?
+  readabilityScore      Float?
+  evidenceFreshAt       DateTime?
+  revisionCount         Int                    @default(0)
+  aiRevisionCount       Int                    @default(0)
+  thesisEmbedding       Float[]
+  coverImageAttribution Json?                  @db.JsonB
+  currentStageMessage   String?
+  currentStageProgress  Int?
   currentStageStartedAt DateTime?
   /// Khi true: pipeline dừng sau OUTLINE (status=IMAGES_READY) để admin duyệt/sửa outline
   /// trước khi tốn 5-10 phút Writer chạy. Admin bấm "Tiếp tục viết" → set false + tiếp tục.
-  pauseAtOutline   Boolean       @default(false)
-  topic           String?
-  productRef      String?
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
-  niche           Niche?        @relation(fields: [nicheId], references: [id], onDelete: SetNull)
-  author          Author?       @relation(fields: [authorId], references: [id], onDelete: SetNull)
-  sections        ArticleSection[]
-  evidence        ArticleEvidence[]
-  runs            ArticleGenerationRun[]
+  pauseAtOutline        Boolean                @default(false)
+  topic                 String?
+  productRef            String?
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
+  niche                 Niche?                 @relation(fields: [nicheId], references: [id], onDelete: SetNull)
+  author                Author?                @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  sections              ArticleSection[]
+  evidence              ArticleEvidence[]
+  runs                  ArticleGenerationRun[]
 
   @@index([status, publishedAt])
   @@index([nicheId, status])
@@ -454,16 +483,16 @@ model Article {
 /// Author — định danh tác giả của Article V2. voiceProfile (Json) inject vào Writer prompt
 /// để chống mono-voice. expertiseNiches dùng cho round-robin rotation.
 model Author {
-  id              String   @id @default(uuid()) @db.Uuid
-  slug            String   @unique
+  id              String    @id @default(uuid()) @db.Uuid
+  slug            String    @unique
   name            String
   bio             String?
   avatarUrl       String?
-  voiceProfile    Json     @db.JsonB
-  expertiseNiches String[] @db.Uuid
-  isActive        Boolean  @default(true)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  voiceProfile    Json      @db.JsonB
+  expertiseNiches String[]  @db.Uuid
+  isActive        Boolean   @default(true)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
   articles        Article[]
 
   @@index([isActive])
@@ -473,23 +502,23 @@ model Author {
 /// blocks (giống schema cũ) + summary cho TOC + evidence refs. Render storefront chia section
 /// có anchor để TOC nhảy. Status per-section cho HITL approve granular.
 model ArticleSection {
-  id              String   @id @default(uuid()) @db.Uuid
-  articleId       String   @db.Uuid
-  anchorSlug      String
-  heading         String
-  summary         String
-  intent          String?
-  order           Int
-  blocks          Json     @db.JsonB
-  blockTypeHints  String[]
-  evidenceRefs    String[] @db.Uuid
-  wordCount       Int      @default(0)
-  estimatedWords  Int      @default(0)
-  isRequired      Boolean  @default(true)
-  status          String   @default("DRAFTING")
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-  article         Article  @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  id             String   @id @default(uuid()) @db.Uuid
+  articleId      String   @db.Uuid
+  anchorSlug     String
+  heading        String
+  summary        String
+  intent         String?
+  order          Int
+  blocks         Json     @db.JsonB
+  blockTypeHints String[]
+  evidenceRefs   String[] @db.Uuid
+  wordCount      Int      @default(0)
+  estimatedWords Int      @default(0)
+  isRequired     Boolean  @default(true)
+  status         String   @default("DRAFTING")
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  article        Article  @relation(fields: [articleId], references: [id], onDelete: Cascade)
 
   @@unique([articleId, anchorSlug])
   @@index([articleId, order])
@@ -522,21 +551,21 @@ model ArticleEvidence {
 /// ProductReview — user review thật cào từ Accesstrade / Shopee / Tiki / Lazada.
 /// Đây là "original research signal" cho EEAT. Article có thể cite vào block review_quote.
 model ProductReview {
-  id              String    @id @default(uuid()) @db.Uuid
-  productId       String    @db.Uuid
-  source          String
-  sourceUrl       String?
-  author          String?
-  rating          Decimal?  @db.Decimal(3, 2)
-  title           String?
-  body            String
-  verifiedBuyer   Boolean   @default(false)
-  reviewDate      DateTime?
-  scrapedAt       DateTime  @default(now())
-  sentiment       String?
-  topicTags       String[]
-  raw             Json?     @db.JsonB
-  product         Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+  id            String    @id @default(uuid()) @db.Uuid
+  productId     String    @db.Uuid
+  source        String
+  sourceUrl     String?
+  author        String?
+  rating        Decimal?  @db.Decimal(3, 2)
+  title         String?
+  body          String
+  verifiedBuyer Boolean   @default(false)
+  reviewDate    DateTime?
+  scrapedAt     DateTime  @default(now())
+  sentiment     String?
+  topicTags     String[]
+  raw           Json?     @db.JsonB
+  product       Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
 
   @@index([productId, source])
   @@index([productId, rating])
@@ -546,24 +575,214 @@ model ProductReview {
 /// ArticleGenerationRun — observability log per stage execution. Cho phép retry stage lẻ,
 /// debug cost, track duration. Inspect qua admin dashboard.
 model ArticleGenerationRun {
-  id            String   @id @default(uuid()) @db.Uuid
-  articleId     String   @db.Uuid
-  stage         String
-  agent         String
-  model         String?
-  promptName    String?
-  inputHash     String?
-  inputSize     Int?
-  outputSize    Int?
-  output        Json?     @db.JsonB
-  durationMs    Int?
-  costEstimate  Decimal?  @db.Decimal(10, 6)
-  success       Boolean   @default(false)
-  errorReason   String?
-  startedAt     DateTime  @default(now())
-  finishedAt    DateTime?
-  article       Article   @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  id           String    @id @default(uuid()) @db.Uuid
+  articleId    String    @db.Uuid
+  stage        String
+  agent        String
+  model        String?
+  promptName   String?
+  inputHash    String?
+  inputSize    Int?
+  outputSize   Int?
+  output       Json?     @db.JsonB
+  durationMs   Int?
+  costEstimate Decimal?  @db.Decimal(10, 6)
+  success      Boolean   @default(false)
+  errorReason  String?
+  startedAt    DateTime  @default(now())
+  finishedAt   DateTime?
+  article      Article   @relation(fields: [articleId], references: [id], onDelete: Cascade)
 
   @@index([articleId, startedAt])
   @@index([stage, success])
+}
+
+enum SubscriberStatus {
+  PENDING
+  ACTIVE
+  UNSUBSCRIBED
+  BOUNCED
+}
+
+model Subscriber {
+  id              String           @id @default(uuid()) @db.Uuid
+  email           String?          @unique
+  pushEndpoint    String?          @unique
+  pushP256dh      String?
+  pushAuth        String?
+  zaloUserId      String?          @unique
+  source          String
+  preferredNiches String[]         @default([])
+  status          SubscriberStatus @default(PENDING)
+  confirmedAt     DateTime?
+  unsubscribedAt  DateTime?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  watches         PriceWatch[]
+
+  @@index([source])
+  @@index([status])
+}
+
+model PriceWatch {
+  id                String     @id @default(uuid()) @db.Uuid
+  subscriberId      String     @db.Uuid
+  subscriber        Subscriber @relation(fields: [subscriberId], references: [id], onDelete: Cascade)
+  productId         String     @db.Uuid
+  product           Product    @relation(fields: [productId], references: [id], onDelete: Cascade)
+  basePrice         Int
+  notifyDropPercent Int        @default(5)
+  lastNotifiedAt    DateTime?
+  lastNotifiedPrice Int?
+  status            String     @default("ACTIVE")
+  createdAt         DateTime   @default(now())
+
+  @@unique([subscriberId, productId])
+  @@index([productId, status])
+}
+
+// === STORY-02: Manual sync mode tracking ===
+/// LastSyncStatus — 1 row per backbone sync job. `wrap()` ở SyncStatusService update mỗi run.
+/// `expectedFrequencySec` dùng để compute `isStale` runtime trong widget admin.
+/// Seeded 6 row (4 backbone + 2 money loop sync) ở seed.js.
+model LastSyncStatus {
+  name                 String    @id
+  lastRunAt            DateTime?
+  lastSuccessAt        DateTime?
+  lastError            String?
+  lastDurationMs       Int?
+  lastResult           Json?     @db.JsonB
+  expectedFrequencySec Int
+  isStale              Boolean   @default(false)
+  updatedAt            DateTime  @updatedAt
+
+  @@index([isStale])
+}
+
+// === STORY-04: Commission rank + Keyword radar (Loop 1 "Cơ hội tuần") ===
+/// Cashback campaign rank pulled từ AT `/v1/cashback/campaigns`. Purge old batch on refresh.
+model CommissionRank {
+  id                String   @id @default(uuid()) @db.Uuid
+  atCampaignId      String
+  campaignName      String
+  merchant          String
+  atCategoryName    String?
+  atSubCategoryName String?
+  minCommission     Float
+  maxCommission     Float
+  commissionType    String
+  allCommissions    Json     @db.JsonB
+  fetchedAt         DateTime @default(now())
+  syncBatchId       String
+
+  @@index([syncBatchId])
+  @@index([maxCommission])
+  @@index([atCampaignId])
+}
+
+/// Trending keyword pulled từ AT `/v1/offers_informations/keyword_list`.
+model KeywordTrend {
+  id          String              @id @default(uuid()) @db.Uuid
+  atKeywordId String              @unique
+  iconText    String
+  merchant    String
+  totalOffer  Int
+  fetchedAt   DateTime            @default(now())
+  syncBatchId String
+  matches     KeywordNicheMatch[]
+
+  @@index([syncBatchId])
+  @@index([totalOffer])
+}
+
+/// Cross-ref keyword × niche (computed). matchScore 0-1 + reason để debug.
+model KeywordNicheMatch {
+  id             String       @id @default(uuid()) @db.Uuid
+  keywordTrendId String       @db.Uuid
+  keyword        KeywordTrend @relation(fields: [keywordTrendId], references: [id], onDelete: Cascade)
+  nicheId        String?      @db.Uuid
+  niche          Niche?       @relation(fields: [nicheId], references: [id], onDelete: SetNull)
+  matchScore     Float
+  matchReason    String?
+
+  @@index([nicheId])
+  @@index([keywordTrendId])
+}
+
+// === STORY-05: Real-bestseller per-order product lines (Loop 2) ===
+/// OrderProduct — pulled từ AT `/v1/order-products` cho mỗi ConversionWebhook reconciled.
+/// matchedProductId set khi product nội bộ có scrapedData.sourceId khớp atProductId.
+model OrderProduct {
+  id                  String            @id @default(uuid()) @db.Uuid
+  conversionWebhookId String            @db.Uuid
+  conversionWebhook   ConversionWebhook @relation(fields: [conversionWebhookId], references: [id], onDelete: Cascade)
+  atOrderProductId    String
+  atCampaignId        String?
+  merchant            String
+  atProductId         String?
+  productName         String?
+  productImage        String?
+  productPrice        Float?
+  productQuantity     Int?
+  approvedQuantity    Int               @default(0)
+  pendingQuantity     Int               @default(0)
+  rejectQuantity      Int               @default(0)
+  approvedBilling     Float             @default(0)
+  approvedCommission  Float             @default(0)
+  salesTime           DateTime?
+  fetchedAt           DateTime          @default(now())
+  matchedProductId    String?           @db.Uuid
+  matchedProduct      Product?          @relation(fields: [matchedProductId], references: [id], onDelete: SetNull)
+
+  @@unique([conversionWebhookId, atOrderProductId])
+  @@index([matchedProductId])
+  @@index([salesTime])
+}
+
+// === STORY-06: Ad spend per channel × week (Loop 3 ROAS calc) ===
+/// AdSpend — operator nhập tay weekly. ROAS = revenue / spend.
+model AdSpend {
+  id            String   @id @default(uuid()) @db.Uuid
+  channel       String
+  weekStartDate DateTime @db.Date
+  amount        Int
+  notes         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([channel, weekStartDate])
+  @@index([weekStartDate])
+}
+
+// === STORY-08: TrackedLink for off-site post (Loop 5) ===
+/// TrackedLink — AT-generated short link cho URL bất kỳ. Operator post FB/Zalo/email.
+/// conversionCount + revenue update qua reconciler khi sub2 match.
+model TrackedLink {
+  id               String    @id @default(uuid()) @db.Uuid
+  title            String
+  originUrl        String
+  atCampaignId     String
+  atAffLink        String
+  atShortLink      String
+  channel          String
+  sub1             String?
+  sub2             String?
+  sub3             String?
+  sub4             String?
+  utmSource        String?
+  utmMedium        String?
+  utmCampaign      String?
+  utmContent       String?
+  notes            String?
+  isActive         Boolean   @default(true)
+  createdAt        DateTime  @default(now())
+  createdBy        String?
+  clickCount       Int       @default(0)
+  conversionCount  Int       @default(0)
+  revenue          Float     @default(0)
+  lastConversionAt DateTime?
+
+  @@index([channel])
+  @@index([createdAt])
+  @@index([atCampaignId])
 }

@@ -1,6 +1,7 @@
 import { Test } from "@nestjs/testing";
 import { Prisma } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
+import { SyncStatusService } from "../../services/sync-status.service";
 import { AccesstradeClient, AtTopProduct } from "./clients/accesstrade.client";
 import { TopProductsSyncService } from "./top-products-sync.service";
 
@@ -124,7 +125,11 @@ async function buildService(): Promise<{
     providers: [
       TopProductsSyncService,
       { provide: PrismaService, useValue: prisma },
-      { provide: AccesstradeClient, useValue: accesstrade }
+      { provide: AccesstradeClient, useValue: accesstrade },
+      {
+        provide: SyncStatusService,
+        useValue: { wrap: async <T,>(_name: string, fn: () => Promise<T>) => fn() }
+      }
     ]
   }).compile();
   return { service: moduleRef.get(TopProductsSyncService), prisma, accesstrade };

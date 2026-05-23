@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { ShoppingCart, X } from "lucide-react";
 import type { ProductItem } from "../../lib/types";
 import { normalizeProduct, formatMoney } from "../../lib/format";
+import { trackAndRedirectAction } from "../../app/actions/tracking";
 
 interface Props {
   products: ProductItem[];
@@ -12,9 +13,9 @@ interface Props {
 
 /**
  * Floating CTA góc phải dưới — pattern cellphones/sforum. Chỉ hiện sau khi user
- * scroll > 600px (đã đọc qua hero). Click → mở list product với affiliate link.
- * Không tự tracking ở component này — Link target là affiliate URL trực tiếp,
- * tracking sẽ làm ở server action giống button "Xem deal" khác.
+ * scroll > 600px (đã đọc qua hero). Click → submit form action tracking → redirect
+ * affiliate URL. Form submit hoạt động trong client component; trade off animation
+ * feel để giữ attribution chuẩn (ClickLog row mỗi click).
  */
 export function StickyProductCta({ products, articleId }: Props) {
   const [visible, setVisible] = useState(false);
@@ -75,42 +76,43 @@ export function StickyProductCta({ products, articleId }: Props) {
                 const pv = normalizeProduct(p);
                 return (
                   <li key={p.id} className="overflow-hidden rounded-xl border border-line bg-card">
-                    <a
-                      href={p.affiliateUrl ?? "#"}
-                      target="_blank"
-                      rel="nofollow sponsored noopener"
-                      className="flex gap-3 p-3 transition hover:bg-card-soft"
-                      data-article-id={articleId}
-                    >
-                      {pv.image ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          src={pv.image}
-                          alt={p.name}
-                          loading="lazy"
-                          className="size-20 shrink-0 rounded-md object-cover"
-                        />
-                      ) : (
-                        <div className="size-20 shrink-0 rounded-md bg-line" />
-                      )}
-                      <div className="min-w-0 flex-1">
-                        <p className="line-clamp-2 text-[13.5px] font-semibold leading-snug text-ink">{p.name}</p>
-                        <div className="mt-1 flex items-baseline gap-2">
-                          {typeof pv.price === "number" && pv.price > 0 ? (
-                            <span className="text-[15px] font-bold text-brand-700">{formatMoney(pv.price)}</span>
-                          ) : null}
-                          {typeof pv.originalPrice === "number" && pv.originalPrice > (pv.price ?? 0) ? (
-                            <span className="text-[11.5px] text-ink-mute line-through">{formatMoney(pv.originalPrice)}</span>
-                          ) : null}
-                          {typeof pv.discountPercent === "number" && pv.discountPercent > 0 ? (
-                            <span className="rounded bg-red-100 px-1.5 py-0.5 text-[10.5px] font-bold text-red-700">
-                              -{pv.discountPercent}%
-                            </span>
-                          ) : null}
+                    <form action={trackAndRedirectAction} data-article-id={articleId}>
+                      <input type="hidden" name="productId" value={p.id} />
+                      <input type="hidden" name="affiliateUrl" value={p.affiliateUrl ?? ""} />
+                      <button
+                        type="submit"
+                        className="flex w-full gap-3 p-3 text-left transition hover:bg-card-soft"
+                      >
+                        {pv.image ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={pv.image}
+                            alt={p.name}
+                            loading="lazy"
+                            className="size-20 shrink-0 rounded-md object-cover"
+                          />
+                        ) : (
+                          <div className="size-20 shrink-0 rounded-md bg-line" />
+                        )}
+                        <div className="min-w-0 flex-1">
+                          <p className="line-clamp-2 text-[13.5px] font-semibold leading-snug text-ink">{p.name}</p>
+                          <div className="mt-1 flex items-baseline gap-2">
+                            {typeof pv.price === "number" && pv.price > 0 ? (
+                              <span className="text-[15px] font-bold text-brand-700">{formatMoney(pv.price)}</span>
+                            ) : null}
+                            {typeof pv.originalPrice === "number" && pv.originalPrice > (pv.price ?? 0) ? (
+                              <span className="text-[11.5px] text-ink-mute line-through">{formatMoney(pv.originalPrice)}</span>
+                            ) : null}
+                            {typeof pv.discountPercent === "number" && pv.discountPercent > 0 ? (
+                              <span className="rounded bg-red-100 px-1.5 py-0.5 text-[10.5px] font-bold text-red-700">
+                                -{pv.discountPercent}%
+                              </span>
+                            ) : null}
+                          </div>
+                          <span className="mt-1 inline-block text-[11px] font-medium text-brand-700">Xem deal ↗</span>
                         </div>
-                        <span className="mt-1 inline-block text-[11px] font-medium text-brand-700">Xem deal ↗</span>
-                      </div>
-                    </a>
+                      </button>
+                    </form>
                   </li>
                 );
               })}

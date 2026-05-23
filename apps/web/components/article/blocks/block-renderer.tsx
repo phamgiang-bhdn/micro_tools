@@ -120,55 +120,37 @@ function BlockSwitch({
       return <VerdictBlock summary={summary} bestFor={bestFor} notFor={notFor} />;
     }
     case "image": {
-      const b = block as unknown as {
-        src?: string;
-        alt?: string;
-        caption?: string;
-        attribution?: string;
-        attributionUrl?: string;
-        width?: number;
-        height?: number;
-      };
-      if (!b.src) return null;
+      if (!block.src) return null;
       return (
         <ImageBlock
-          src={b.src}
-          alt={b.alt}
-          caption={b.caption}
-          attribution={b.attribution}
-          attributionUrl={b.attributionUrl}
-          width={b.width}
-          height={b.height}
+          src={block.src}
+          alt={block.alt}
+          caption={block.caption}
+          attribution={block.attribution}
+          attributionUrl={block.attributionUrl}
+          width={block.width}
+          height={block.height}
         />
       );
     }
     case "product_slot": {
       // Slot AI sinh khi viết bài — chỉ render khi admin đã gắn product.
       // Slot chưa gắn → ẩn hoàn toàn (không hiển thị placeholder rác cho user).
-      const b = block as unknown as { productId?: string; angle?: string };
-      if (!b.productId) return null;
-      const product = productMap.get(b.productId);
+      if (!block.productId) return null;
+      const product = productMap.get(block.productId);
       if (!product) return null;
-      return <ProductSlotBlock product={product} angle={b.angle} />;
+      return <ProductSlotBlock product={product} angle={block.angle} />;
     }
     case "review_quote": {
-      const b = block as unknown as {
-        body?: string;
-        author?: string;
-        rating?: number;
-        sourceUrl?: string;
-        sourceName?: string;
-        verifiedBuyer?: boolean;
-      };
-      if (!b.body || !b.body.trim()) return null;
+      if (!block.body || !block.body.trim()) return null;
       return (
         <ReviewQuoteBlock
-          body={b.body}
-          author={b.author}
-          rating={b.rating}
-          sourceUrl={b.sourceUrl}
-          sourceName={b.sourceName}
-          verifiedBuyer={b.verifiedBuyer}
+          body={block.body}
+          author={block.author}
+          rating={block.rating}
+          sourceUrl={block.sourceUrl}
+          sourceName={block.sourceName}
+          verifiedBuyer={block.verifiedBuyer}
         />
       );
     }

@@ -20,10 +20,48 @@ import { PipelineStageName } from "../article-pipeline/pipeline.types";
 import { PrismaService } from "../../prisma/prisma.service";
 import { CampaignSyncService } from "../crawler/campaign-sync.service";
 import { CouponSyncService } from "../crawler/coupon-sync.service";
+import { CrawlerService } from "../crawler/crawler.service";
 import { filterRulesSchema } from "../crawler/dto/filter-rules.dto";
 import { TopProductsSyncService } from "../crawler/top-products-sync.service";
+import { CommissionRankService } from "../insights/commission-rank.service";
+import { KeywordRadarService } from "../insights/keyword-radar.service";
+import { MoneyTrailService } from "../insights/money-trail.service";
+import { OpportunityService } from "../insights/opportunity.service";
+import { RealBestsellerService } from "../insights/real-bestseller.service";
+import { TrackedLinkService } from "../insights/tracked-link.service";
 import { ReconciliationService } from "../reconciliation/reconciliation.service";
+import { RefineryService } from "../refinery/refinery.service";
 import { slugify, uniqueSlugWithin } from "../../utils/slug.util";
+
+// === at-money-flows-v1 schemas ===
+const bulkApproveSchema = z.object({
+  ids: z.array(z.string().uuid()).min(1).max(100)
+});
+
+const adSpendSchema = z.object({
+  channel: z.string().min(1).max(40),
+  weekStartDate: z.string(),
+  amount: z.number().int().nonnegative(),
+  notes: z.string().max(500).optional().nullable()
+});
+
+const createTrackedLinkSchema = z.object({
+  title: z.string().min(1).max(200),
+  originUrl: z.string().url(),
+  channel: z.enum(["fb", "zalo", "email", "tiktok", "other"]),
+  atCampaignId: z.string().optional().nullable(),
+  sub2: z.string().max(80).optional().nullable(),
+  sub3: z.string().max(80).optional().nullable(),
+  sub4: z.string().max(80).optional().nullable(),
+  utmSource: z.string().max(80).optional().nullable(),
+  utmMedium: z.string().max(80).optional().nullable(),
+  utmCampaign: z.string().max(80).optional().nullable(),
+  utmContent: z.string().max(80).optional().nullable(),
+  notes: z.string().max(1000).optional().nullable()
+});
+
+const SYNC_NAMES = ["crawler", "reconcile", "coupon", "top_products", "commission_rank", "keyword_radar"] as const;
+type SyncName = (typeof SYNC_NAMES)[number];
 
 const promptTestSchema = z.object({
   prompt: z.string().min(10),
@@ -230,7 +268,15 @@ export class AdminController {
     private readonly campaignSync: CampaignSyncService,
     private readonly reconciliation: ReconciliationService,
     private readonly couponSync: CouponSyncService,
-    private readonly topProducts: TopProductsSyncService
+    private readonly topProducts: TopProductsSyncService,
+    private readonly crawler: CrawlerService,
+    private readonly commissionRank: CommissionRankService,
+    private readonly keywordRadar: KeywordRadarService,
+    private readonly opportunity: OpportunityService,
+    private readonly realBestseller: RealBestsellerService,
+    private readonly moneyTrail: MoneyTrailService,
+    private readonly trackedLinks: TrackedLinkService,
+    private readonly refinery: RefineryService
   ) {}
 
   private authorize(
@@ -2112,6 +2158,7 @@ export class AdminController {
       select: {
         id: true,
         stage: true,
+        agent: true,
         success: true,
         errorReason: true,
         durationMs: true,
@@ -2482,6 +2529,407 @@ export class AdminController {
     this.authorize(role, apiKey, ["admin"]);
     await this.prisma.author.delete({ where: { id } });
     return { success: true };
+  }
+
+  // ==========================================================================
+  // at-money-flows-v1 endpoints
+  // ==========================================================================
+
+  // --- STORY-02: sync status + manual orchestration ---
+
+  @Get("sync/status")
+  async getSyncStatus(
+    @Headers("x-admin-role") role?: string,
+    @Headers("x-admin-key") apiKey?: string
+  ) {
+    this.authorize(role, apiKey, ["viewer", "reviewer", "admin"]);
+    const rows = await this.prisma.lastSyncStatus.findMany({ orderBy: { name: "asc" } });
+    const now = Date.now();
+    return rows.map((r) => {
+      const lastSuccess = r.lastSuccessAt?.getTime() ?? 0;
+      const threshold = r.expectedFrequencySec * 2 * 1000;
+      const isStale = lastSuccess === 0 || now - lastSuccess > threshold;
+      const ageSec = lastSuccess > 0 ? Math.floor((now - lastSuccess) / 1000) : null;
+      return {
+        name: r.name,
+        lastRunAt: r.lastRunAt,
+        lastSuccessAt: r.lastSuccessAt,
+        lastError: r.lastError,
+        lastDurationMs: r.lastDurationMs,
+        lastResult: r.lastResult,
+        expectedFrequencySec: r.expectedFrequencySec,
+        isStale,
+        ageSec
+      };
+    });
+  }
+
+  @Post("sync/all")
+  async syncAll(
+    @Headers("x-admin-role") role?: string,
+    @Headers("x-admin-key") apiKey?: string
+  ) {
+    this.authorize(role, apiKey, ["reviewer", "admin"]);
+
+    const runners: Array<[SyncName, () => Promise<unknown>]> = [
+      ["crawler", () => this.crawler.runFullCycle("manual")],
+      ["reconcile", () => this.reconciliation.runReconcileCycle("manual")],
+      ["coupon", () => this.couponSync.syncFromAccesstrade()],
+      ["top_products", () => this.topProducts.syncDailySnapshot()],
+      ["commission_rank", () => this.commissionRank.refresh()],
+      ["keyword_radar", () => this.keywordRadar.refresh()]
+    ];
+
+    const results: Record<string, { ok: boolean; ms: number; data?: unknown; error?: string }> = {};
+    for (const [name, run] of runners) {
+      const t0 = Date.now();
+      try {
+        const data = await run();
+        results[name] = { ok: true, ms: Date.now() - t0, data };
+      } catch (err: unknown) {
+        results[name] = {
+          ok: false,
+          ms: Date.now() - t0,
+          error: err instanceof Error ? err.message : String(err)
+        };
+      }
+      // Sleep 1.5s giữa endpoint để né AT rate-limit.
+      await new Promise((r) => setTimeout(r, 1500));
+    }
+
+    const totalMs = Object.values(results).reduce((s, r) => s + r.ms, 0);
+    return { ok: true, totalMs, results };
+  }
+
+  @Post("sync/:name")
+  async syncOne(
+    @Param("name") name: string,
+    @Headers("x-admin-role") role?: string,
+    @Headers("x-admin-key") apiKey?: string
+  ) {
+    this.authorize(role, apiKey, ["reviewer", "admin"]);
+    if (!SYNC_NAMES.includes(name as SyncName)) {
+      throw new HttpException(`Unknown sync name: ${name}`, HttpStatus.BAD_REQUEST);
+    }
+    const t0 = Date.now();
+    try {
+      let data: unknown;
+      switch (name as SyncName) {
+        case "crawler":
+          data = await this.crawler.runFullCycle("manual");
+          break;
+        case "reconcile":
+          data = await this.reconciliation.runReconcileCycle("manual");
+          break;
+        case "coupon":
+          data = await this.couponSync.syncFromAccesstrade();
+          break;
+        case "top_products":
+          data = await this.topProducts.syncDailySnapshot();
+          break;
+        case "commission_rank":
+          data = await this.commissionRank.refresh();
+          break;
+        case "keyword_radar":
+          data = await this.keywordRadar.refresh();
+          break;
+      }
+      return { ok: true, ms: Date.now() - t0, data };
+    } catch (err: unknown) {
+      throw new HttpException(
+        err instanceof Error ? err.message : String(err),
+        HttpStatus.INTERNAL_SERVER_ERROR
+      );
+    }
+  }
+
+  // --- STORY-03: dashboard helpers ---
+
+  @Get("queues/counts")
+  async getQueueCounts(
+    @Headers("x-admin-role") role?: string,
+    @Headers("x-admin-key") apiKey?: string
+  ) {
+    this.authorize(role, apiKey, ["viewer", "reviewer", "admin"]);
+    const [refinery, articlesPending, couponsPending] = await Promise.all([
+      this.prisma.productExtraction.count({
+        where: { status: "PENDING_REVIEW", autoApproved: false }
+      }),
+      this.prisma.article.count({ where: { status: "PENDING_REVIEW" } }),
+      this.prisma.coupon.count({ where: { isActive: false } })
+    ]);
+    return { refinery, articlesPending, couponsPending };
+  }
+
+  @Get("kpi/summary")
+  async getKpiSummary(
+    @Headers("x-admin-role") role?: string,
+    @Headers("x-admin-key") apiKey?: string
+  ) {
+    this.authorize(role, apiKey, ["viewer", "reviewer", "admin"]);
+    const now = new Date();
+    const yStart = new Date(now);
+    yStart.setDate(yStart.getDate() - 1);
+    yStart.setHours(0, 0, 0, 0);
+    const yEnd = new Date(yStart);
+    yEnd.setDate(yEnd.getDate() + 1);
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+
+    const [yClicks, yOrders, yRevenue, mClicks, mOrders, mRevenue] = await Promise.all([
+      this.prisma.clickLog.count({ where: { createdAt: { gte: yStart, lt: yEnd } } }),
+      this.prisma.conversionWebhook.count({ where: { receivedAt: { gte: yStart, lt: yEnd } } }),
+      this.prisma.conversionWebhook.aggregate({
+        _sum: { revenue: true },
+        where: { receivedAt: { gte: yStart, lt: yEnd } }
+      }),
+      this.prisma.clickLog.count({ where: { createdAt: { gte: monthStart } } }),
+      this.prisma.conversionWebhook.count({ where: { receivedAt: { gte: monthStart } } }),
+      this.prisma.conversionWebhook.aggregate({
+        _sum: { revenue: true },
+        where: { receivedAt: { gte: monthStart } }
+      })
+    ]);
+
+    return {
+      yesterday: {
+        clicks: yClicks,
+        orders: yOrders,
+        revenue: Number(yRevenue._sum.revenue ?? 0)
+      },
+      month: {
+        clicks: mClicks,
+        orders: mOrders,
+        revenue: Number(mRevenue._sum.revenue ?? 0)
+      }
+    };
+  }
+
+  // --- STORY-04: opportunities ---
+
+  @Get("opportunities/weekly")
+  async getWeeklyOpportunities(
+    @Query("limit") limit?: string,
+    @Headers("x-admin-role") role?: string,
+    @Headers("x-admin-key") apiKey?: string
+  ) {
+    this.authorize(role, apiKey, ["viewer", "reviewer", "admin"]);
+    return this.opportunity.getTopOpportunities(limit ? parseInt(limit, 10) : 5);
+  }
+
+  // --- STORY-05: real-bestseller insight ---
+
+  @Get("insights/real-bestseller")
+  async getRealBestseller(
+    @Query("days") days?: string,
+    @Query("nicheSlug") nicheSlug?: string,
+    @Query("limit") limit?: string,
+    @Headers("x-admin-role") role?: string,
+    @Headers("x-admin-key") apiKey?: string
+  ) {
+    this.authorize(role, apiKey, ["viewer", "reviewer", "admin"]);
+    return this.realBestseller.getTopReal({
+      days: days ? parseInt(days, 10) : 7,
+      nicheSlug,
+      limit: limit ? parseInt(limit, 10) : 10
+    });
+  }
+
+  // --- STORY-06: money trail by channel + ad spend ---
+
+  @Get("money-trail/channels")
+  async getMoneyTrailChannels(
+    @Query("days") days?: string,
+    @Headers("x-admin-role") role?: string,
+    @Headers("x-admin-key") apiKey?: string
+  ) {
+    this.authorize(role, apiKey, ["viewer", "reviewer", "admin"]);
+    return this.moneyTrail.getByChannel({ days: days ? parseInt(days, 10) : 7 });
+  }
+
+  @Post("ad-spend")
+  async upsertAdSpend(
+    @Body() payload: unknown,
+    @Headers("x-admin-role") role?: string,
+    @Headers("x-admin-key") apiKey?: string
+  ) {
+    this.authorize(role, apiKey, ["reviewer", "admin"]);
+    const parsed = adSpendSchema.safeParse(payload);
+    if (!parsed.success) {
+      throw new HttpException(parsed.error.flatten(), HttpStatus.BAD_REQUEST);
+    }
+    const weekStartDate = new Date(parsed.data.weekStartDate);
+    return this.prisma.adSpend.upsert({
+      where: {
+        channel_weekStartDate: { channel: parsed.data.channel, weekStartDate }
+      },
+      create: {
+        channel: parsed.data.channel,
+        weekStartDate,
+        amount: parsed.data.amount,
+        notes: parsed.data.notes ?? null
+      },
+      update: {
+        amount: parsed.data.amount,
+        notes: parsed.data.notes ?? null
+      }
+    });
+  }
+
+  @Get("ad-spend")
+  async listAdSpend(
+    @Query("weekStart") weekStart?: string,
+    @Headers("x-admin-role") role?: string,
+    @Headers("x-admin-key") apiKey?: string
+  ) {
+    this.authorize(role, apiKey, ["viewer", "reviewer", "admin"]);
+    return this.prisma.adSpend.findMany({
+      where: weekStart ? { weekStartDate: new Date(weekStart) } : undefined,
+      orderBy: [{ weekStartDate: "desc" }, { channel: "asc" }]
+    });
+  }
+
+  // --- STORY-08: tracked links ---
+
+  @Post("tracked-links")
+  async createTrackedLink(
+    @Body() payload: unknown,
+    @Headers("x-admin-role") role?: string,
+    @Headers("x-admin-key") apiKey?: string
+  ) {
+    this.authorize(role, apiKey, ["reviewer", "admin"]);
+    const parsed = createTrackedLinkSchema.safeParse(payload);
+    if (!parsed.success) {
+      throw new HttpException(parsed.error.flatten(), HttpStatus.BAD_REQUEST);
+    }
+    return this.trackedLinks.create({
+      ...parsed.data,
+      atCampaignId: parsed.data.atCampaignId ?? undefined,
+      sub2: parsed.data.sub2 ?? undefined,
+      sub3: parsed.data.sub3 ?? undefined,
+      sub4: parsed.data.sub4 ?? undefined,
+      utmSource: parsed.data.utmSource ?? undefined,
+      utmMedium: parsed.data.utmMedium ?? undefined,
+      utmCampaign: parsed.data.utmCampaign ?? undefined,
+      utmContent: parsed.data.utmContent ?? undefined,
+      notes: parsed.data.notes ?? undefined,
+      createdBy: role
+    });
+  }
+
+  @Get("tracked-links")
+  async listTrackedLinks(
+    @Query("channel") channel?: string,
+    @Query("limit") limit?: string,
+    @Query("offset") offset?: string,
+    @Headers("x-admin-role") role?: string,
+    @Headers("x-admin-key") apiKey?: string
+  ) {
+    this.authorize(role, apiKey, ["viewer", "reviewer", "admin"]);
+    return this.trackedLinks.list({
+      channel,
+      limit: limit ? parseInt(limit, 10) : 50,
+      offset: offset ? parseInt(offset, 10) : 0
+    });
+  }
+
+  @Get("tracked-links/kpi")
+  async getTrackedLinkKpi(
+    @Query("days") days?: string,
+    @Headers("x-admin-role") role?: string,
+    @Headers("x-admin-key") apiKey?: string
+  ) {
+    this.authorize(role, apiKey, ["viewer", "reviewer", "admin"]);
+    return this.trackedLinks.getKpi({ days: days ? parseInt(days, 10) : 7 });
+  }
+
+  @Delete("tracked-links/:id")
+  async archiveTrackedLink(
+    @Param("id") id: string,
+    @Headers("x-admin-role") role?: string,
+    @Headers("x-admin-key") apiKey?: string
+  ) {
+    this.authorize(role, apiKey, ["admin"]);
+    await this.trackedLinks.setActive(id, false);
+    return { ok: true };
+  }
+
+  // --- STORY-09: refinery v2 (bulk approve + un-approve) ---
+  // NB: path `refinery-queue` (không phải `refinery/queue`) để né conflict với
+  // `@Get("refinery/:id")` đã đăng ký trước trong controller này (Nest match `:id` literal trước).
+
+  @Get("refinery-queue")
+  async listRefineryQueue(
+    @Query("tab") tab?: string,
+    @Headers("x-admin-role") role?: string,
+    @Headers("x-admin-key") apiKey?: string
+  ) {
+    this.authorize(role, apiKey, ["viewer", "reviewer", "admin"]);
+    const safeTab = (["human", "auto", "all"].includes(tab ?? "") ? tab : "human") as
+      | "human"
+      | "auto"
+      | "all";
+    return this.refinery.listExtractions({ tab: safeTab });
+  }
+
+  @Post("refinery/bulk-approve")
+  async refineryBulkApprove(
+    @Body() payload: unknown,
+    @Headers("x-admin-role") role?: string,
+    @Headers("x-admin-key") apiKey?: string
+  ) {
+    this.authorize(role, apiKey, ["reviewer", "admin"]);
+    const parsed = bulkApproveSchema.safeParse(payload);
+    if (!parsed.success) {
+      throw new HttpException(parsed.error.flatten(), HttpStatus.BAD_REQUEST);
+    }
+    const approved = await this.refinery.bulkApprove(parsed.data.ids, role);
+    return { ok: true, approved };
+  }
+
+  @Post("refinery/:id/unapprove")
+  async refineryUnapprove(
+    @Param("id") id: string,
+    @Headers("x-admin-role") role?: string,
+    @Headers("x-admin-key") apiKey?: string
+  ) {
+    this.authorize(role, apiKey, ["reviewer", "admin"]);
+    await this.refinery.unapprove(id);
+    return { ok: true };
+  }
+
+  // --- STORY-10: article wizard helpers ---
+
+  @Get("articles/suggest-products")
+  async suggestArticleProducts(
+    @Query("nicheSlug") nicheSlug?: string,
+    @Query("merchant") merchant?: string,
+    @Query("limit") limitRaw?: string,
+    @Headers("x-admin-role") role?: string,
+    @Headers("x-admin-key") apiKey?: string
+  ) {
+    this.authorize(role, apiKey, ["viewer", "reviewer", "admin"]);
+    if (!nicheSlug) {
+      throw new HttpException("nicheSlug required", HttpStatus.BAD_REQUEST);
+    }
+    const limit = limitRaw ? Math.min(parseInt(limitRaw, 10) || 5, 20) : 5;
+    const niche = await this.prisma.niche.findUnique({ where: { slug: nicheSlug } });
+    if (!niche) return [];
+
+    // Try real-bestseller first for proven-sales hint, fallback to discount sort.
+    const real = await this.realBestseller.getTopReal({ nicheSlug, limit });
+    if (real.length >= limit) return real;
+
+    const fallback = await this.prisma.product.findMany({
+      where: {
+        nicheId: niche.id,
+        isPublic: true,
+        ...(merchant ? { scrapedData: { path: ["merchant"], equals: merchant } } : {})
+      },
+      orderBy: { updatedAt: "desc" },
+      take: limit,
+      include: { niche: { select: { slug: true, name: true } } }
+    });
+    return fallback;
   }
 }
 

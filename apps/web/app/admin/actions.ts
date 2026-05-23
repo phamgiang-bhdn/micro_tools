@@ -279,6 +279,7 @@ export interface ArticleProgressDto {
   runs: Array<{
     id: string;
     stage: string;
+    agent: string;
     success: boolean;
     errorReason: string | null;
     durationMs: number | null;
@@ -903,5 +904,192 @@ export async function bulkCouponAction(formData: FormData): Promise<void> {
 export async function runReconciliationNowAction(): Promise<void> {
   await post("/admin/reconciliation/run", {});
   revalidatePath("/admin/reconciliation");
+  revalidatePath("/admin");
+}
+
+// ============================================================================
+// at-money-flows-v1 server actions
+// ============================================================================
+
+async function adminGet<T = unknown>(path: string): Promise<T> {
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    method: "GET",
+    headers: {
+      "x-admin-role": ADMIN_ROLE,
+      "x-admin-key": ADMIN_API_KEY
+    },
+    cache: "no-store"
+  });
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(`Request failed ${path}: ${text}`);
+  }
+  return (await response.json()) as T;
+}
+
+// --- STORY-02: sync orchestration ---
+
+export interface SyncStatusRow {
+  name: string;
+  lastRunAt: string | null;
+  lastSuccessAt: string | null;
+  lastError: string | null;
+  lastDurationMs: number | null;
+  expectedFrequencySec: number;
+  isStale: boolean;
+  ageSec: number | null;
+}
+
+export interface SyncAllResult {
+  ok: boolean;
+  totalMs: number;
+  results: Record<string, { ok: boolean; ms: number; error?: string; data?: unknown }>;
+}
+
+export async function fetchSyncStatus(): Promise<SyncStatusRow[]> {
+  return adminGet<SyncStatusRow[]>("/admin/sync/status");
+}
+
+export async function syncAllAction(): Promise<SyncAllResult> {
+  const result = await adminFetch<SyncAllResult>("/admin/sync/all", "POST");
+  revalidatePath("/admin");
+  return result;
+}
+
+export async function syncOneAction(name: string): Promise<void> {
+  await post(`/admin/sync/${name}`);
+  revalidatePath("/admin");
+}
+
+// --- STORY-03: dashboard data ---
+
+export async function fetchQueueCounts(): Promise<{
+  refinery: number;
+  articlesPending: number;
+  couponsPending: number;
+}> {
+  return adminGet("/admin/queues/counts");
+}
+
+export async function fetchKpiSummary(): Promise<{
+  yesterday: { clicks: number; orders: number; revenue: number };
+  month: { clicks: number; orders: number; revenue: number };
+}> {
+  return adminGet("/admin/kpi/summary");
+}
+
+// --- STORY-04: opportunities ---
+
+export interface OpportunityRow {
+  nicheSlug: string;
+  nicheName: string;
+  merchant: string;
+  commissionRange: string;
+  commissionMax: number;
+  hotKeywords: string[];
+  productCount: number;
+  hasArticle: boolean;
+  score: number;
+}
+
+export async function fetchWeeklyOpportunities(limit = 5): Promise<OpportunityRow[]> {
+  return adminGet<OpportunityRow[]>(`/admin/opportunities/weekly?limit=${limit}`);
+}
+
+// --- STORY-06: money trail by channel ---
+
+export interface ChannelRow {
+  channel: string;
+  clicks: number;
+  orders: number;
+  revenue: number;
+  spend: number;
+  roas: number | null;
+}
+
+export async function fetchMoneyTrailChannels(days = 7): Promise<ChannelRow[]> {
+  return adminGet<ChannelRow[]>(`/admin/money-trail/channels?days=${days}`);
+}
+
+export async function upsertAdSpendAction(formData: FormData): Promise<void> {
+  const channel = String(formData.get("channel") ?? "").trim();
+  const weekStartDate = String(formData.get("weekStartDate") ?? "");
+  const amount = Number(formData.get("amount") ?? 0);
+  const notes = formData.get("notes") ? String(formData.get("notes")) : undefined;
+  if (!channel || !weekStartDate || !Number.isFinite(amount)) {
+    throw new Error("Channel + week + amount là bắt buộc.");
+  }
+  await post("/admin/ad-spend", { channel, weekStartDate, amount, notes });
+  revalidatePath("/admin/money-trail");
+  revalidatePath("/admin");
+}
+
+// --- STORY-08: tracked links ---
+
+export interface TrackedLinkRow {
+  id: string;
+  title: string;
+  originUrl: string;
+  atShortLink: string;
+  atAffLink: string;
+  channel: string;
+  conversionCount: number;
+  revenue: number;
+  isActive: boolean;
+  createdAt: string;
+}
+
+export interface TrackedLinkKpi {
+  totalLinks: number;
+  activeLinks: number;
+  totalClicks: number;
+  totalConversions: number;
+  totalRevenue: number;
+  byChannel: Record<string, { links: number; revenue: number }>;
+}
+
+export async function fetchTrackedLinks(): Promise<TrackedLinkRow[]> {
+  return adminGet<TrackedLinkRow[]>("/admin/tracked-links");
+}
+
+export async function fetchTrackedLinkKpi(days = 7): Promise<TrackedLinkKpi> {
+  return adminGet<TrackedLinkKpi>(`/admin/tracked-links/kpi?days=${days}`);
+}
+
+export async function createTrackedLinkAction(formData: FormData): Promise<void> {
+  const body = {
+    title: String(formData.get("title") ?? ""),
+    originUrl: String(formData.get("originUrl") ?? ""),
+    channel: String(formData.get("channel") ?? "other"),
+    atCampaignId: formData.get("atCampaignId") ? String(formData.get("atCampaignId")) : undefined,
+    notes: formData.get("notes") ? String(formData.get("notes")) : undefined
+  };
+  await post("/admin/tracked-links", body);
+  revalidatePath("/admin/external-links");
+  revalidatePath("/admin");
+}
+
+export async function archiveTrackedLinkAction(formData: FormData): Promise<void> {
+  const id = String(formData.get("id") ?? "");
+  if (!id) return;
+  await adminFetch(`/admin/tracked-links/${id}`, "DELETE");
+  revalidatePath("/admin/external-links");
+}
+
+// --- STORY-09: refinery v2 bulk + un-approve ---
+
+export async function bulkApproveRefineryAction(formData: FormData): Promise<void> {
+  const ids = formData.getAll("ids").map((v) => String(v)).filter(Boolean);
+  if (ids.length === 0) throw new Error("Chọn ≥1 sản phẩm.");
+  await post("/admin/refinery/bulk-approve", { ids });
+  revalidatePath("/admin/refinery");
+  revalidatePath("/admin");
+}
+
+export async function unapproveRefineryAction(formData: FormData): Promise<void> {
+  const id = String(formData.get("id") ?? "");
+  if (!id) return;
+  await post(`/admin/refinery/${id}/unapprove`);
+  revalidatePath("/admin/refinery");
   revalidatePath("/admin");
 }

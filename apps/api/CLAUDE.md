@@ -82,10 +82,53 @@ Same HITL philosophy as `ProductExtraction`: AI produces a draft, an admin revie
 
 ## Crawler
 
-- Scheduler: `CrawlerScheduler` runs `@Cron(process.env.CRAWLER_CRON ?? "0 */6 * * *")`. Disable with `CRAWLER_ENABLED=false`. Cron name `crawler-cycle`.
-- Affiliate clients live in `src/modules/crawler/clients/` and all implement `AffiliateClient` (`affiliate-client.interface.ts`): `accesstrade.client.ts` (active), `shopee.client.ts` / `lazada.client.ts` / `tiktok.client.ts` (stubs — code present but only called when explicitly enabled), `web-scrape.client.ts` (Playwright + Gemini fallback for arbitrary URLs).
-- **Active networks are env-gated**: `CRAWLER_ENABLED_NETWORKS` (comma-separated, case-insensitive, default `"accesstrade"`) decides which clients `CrawlerService` actually pulls from. All clients stay in `CrawlerModule` providers regardless — keep them so the skeleton is ready when you onboard a direct integration.
-- To add a new network: implement `AffiliateClient`, register the provider in `CrawlerModule`, inject into `CrawlerService` constructor and add to the `all` array, then add the network name to `CRAWLER_ENABLED_NETWORKS`.
+- Scheduler: `CrawlerScheduler` runs `@Cron(process.env.CRAWLER_CRON ?? "0 */6 * * *")`. **Cron OFF mặc định** (`CRAWLER_ENABLED=false`) — operator chạy manual qua admin button "Đồng bộ tất cả" (at-money-flows-v1 STORY-02). Bật cron 24/7 = đổi 1 dòng `.env`.
+- Affiliate clients live in `src/modules/crawler/clients/` and all implement `AffiliateClient` (`affiliate-client.interface.ts`): `accesstrade.client.ts` (active), `web-scrape.client.ts` (Playwright + Gemini fallback for arbitrary URLs).
+- To add a new network: implement `AffiliateClient`, register the provider in `CrawlerModule`, inject into `CrawlerService` constructor, then add a `@Post('<network>')` handler trong `webhooks.controller.ts` (KHÔNG generic polymorphic).
+
+## AT-only operation (since at-money-flows-v1 STORY-01)
+
+Codebase ban đầu thiết kế multi-network. Sau STORY-01 cleanup:
+- Removed `shopee.client.ts` / `lazada.client.ts` / `tiktok.client.ts` (stub `not_implemented`).
+- Removed 3 stub webhook handler — chỉ còn `@Post("accesstrade")`.
+- Removed `CRAWLER_ENABLED_NETWORKS` env (đã vô dụng).
+- Removed `niche-inference.util.ts` (deprecated, không còn caller).
+- `Product.network` field GIỮ schema (data đã có, drop = breaking migration). Chỉ ẩn UI.
+
+Khi onboard network khác:
+1. Implement `AffiliateClient` mới.
+2. Register `CrawlerModule.providers`.
+3. Inject vào `CrawlerService.all[]`.
+4. Add `@Post('<network>')` handler trong `webhooks.controller.ts`.
+
+## Manual sync mode (at-money-flows-v1 STORY-02)
+
+`SyncStatusService.wrap("<name>", fn)` wrap 4 backbone (`crawler`, `reconcile`, `coupon`, `top_products`) + 2 money loop sync (`commission_rank`, `keyword_radar`). Persist `LastSyncStatus` row per run với `lastRunAt / lastSuccessAt / lastError / lastDurationMs / lastResult / isStale (computed)`.
+
+Endpoints:
+- `GET /admin/sync/status` — list 6 row, compute `isStale` runtime (`now - lastSuccessAt > 2× expectedFrequency`).
+- `POST /admin/sync/all` — orchestrate 6 sync tuần tự, sleep 1.5s giữa endpoint để né AT rate-limit.
+- `POST /admin/sync/:name` — single sync (`crawler|reconcile|coupon|top_products|commission_rank|keyword_radar`).
+
+Cron giữ code, chỉ env flag off → bật lại 1 dòng `.env`. **Không tạo cron mới** trong sprint at-money-flows-v1.
+
+## Insights module (at-money-flows-v1 stories 04-08)
+
+`src/modules/insights/` chứa 6 money loop services:
+- **Loop 1**: `CommissionRankService.refresh()` (pull `/v1/cashback/campaigns`) + `KeywordRadarService.refresh()` (pull `/v1/offers_informations/keyword_list`) + `OpportunityService.getTopOpportunities()` (cross-ref score).
+- **Loop 2**: `OrderProductsSyncService.syncRecent()` (hook trong reconciler, pull `/v1/order-products` cho recently reconciled webhook, cap 50/cycle với 7s sleep) + `RealBestsellerService.getTopReal()` (aggregate `OrderProduct` ranking).
+- **Loop 3**: `MoneyTrailService.getByChannel()` aggregate `ClickLog.channel` + `ConversionWebhook.channel` + `AdSpend` → ROAS.
+- **Loop 4** (no service): coupon-inline pill render-time match — `apps/web/lib/coupon-match.ts` + `<CouponInlinePill>`.
+- **Loop 5**: `TrackedLinkService.create()` (pull `/v1/product_link/create`, auto-detect campaign từ host) + `getKpi()`.
+- **Loop 6**: defer (cần subscriber base trước).
+
+## Refinery v2 (at-money-flows-v1 STORY-09)
+
+`src/modules/refinery/`:
+- `ConfidenceService.compute(product, niche)` — deterministic score 0-100 + reason list. Rule additive: ảnh +20, giá +20, discount ≥15 +15, Mall badge +20, brand +10, title clean +10, schema match +10, sales >10 +5. Penalty: no image -40, no price -40, price <50k -30, title spam -20.
+- `ImportService.recomputeConfidence()` hook chạy sau mọi upsert offer. Score ≥ `REFINERY_AUTO_APPROVE_THRESHOLD` (env, default 80) → flip `Product.isPublic=true` + `ProductExtraction.status=PUBLISHED + autoApproved=true + autoApprovedAt=now`.
+- `RefineryService.bulkApprove(ids)` — max 100, single transaction.
+- `RefineryService.unapprove(id)` — soft un-approve auto-approved trong 24h (chặn sau 24h). `Product.isPublic=false` + `status=PENDING_REVIEW + unapprovedAt=now`.
 - Normalized offer shape in `dto/normalized-offer.dto.ts` — the contract all clients converge to before hitting `ImportService` / `EnrichmentService`. Use `metadata?: Record<string, unknown>` for network-specific fields that don't fit the normalized columns (shop ratings, voucher codes...) so we don't have to widen the DTO every time.
 - **Per-assignment fetch (push filterRules xuống AT)**: `CrawlerService.runFullCycle` load tất cả `CampaignNiche` có `Campaign.status=APPROVED` + `atCampaignId` + `merchantName`. Mỗi assignment = 1 fetch `/v1/datafeeds?campaign=<merchantSlug>` + filter từ `rulesToFetchOpts(rules)` (convert FilterRules → AT params: `discount_rate_from/to`, `price_from/to`, `discount_from/to` (giá sau giảm), `discount_amount_from/to`, `status_discount`, `update_from` (incremental sync), `domain` chỉ khi rule có ĐÚNG 1 domain). Limit `PER_ASSIGNMENT_LIMIT=100` (1 page, không paginate). Sleep `SLEEP_BETWEEN_FETCH_MS=500ms` giữa fetch. Mỗi offer trong response → route thẳng vào `assignment.niche.slug` + `assignment.campaign.id`. `offerPassesFilter` chạy client-side như tầng phòng vệ 2 (chính cho `domains` ≥2 không push được). `CycleResult.assignments[]` trả breakdown chi tiết per-assignment cho UI. **Lưu ý**: `?campaign=` của AT là **merchant slug** (lấy từ `Campaign.merchantName`), KHÔNG phải `atCampaignId` numeric (truyền sai → AT trả mảng rỗng âm thầm; xem [accesstrade.md](../../docs/integrations/accesstrade.md) gotcha #3).
 - **`niche-inference.util.ts` là legacy (`@deprecated`)** — chỉ còn `WebScrapeClient` (paste URL tay) gọi làm fallback khi admin không truyền `nicheSlug`. Crawler-cycle KHÔNG đụng. Không sửa keyword table; xoá khi web-scrape không còn dùng.
@@ -144,7 +187,9 @@ Same HITL philosophy as `ProductExtraction`: AI produces a draft, an admin revie
 - `GEMINI_API_KEY` — required for any path that hits `AiService`.
 - `GEMINI_MODEL` — defaults to `gemini-2.0-flash`. Swap to `gemini-2.0-flash-thinking-exp` for reasoning or `gemini-2.0-pro` for accuracy.
 - `ADMIN_API_KEY` — must match the web app's value.
-- `CRAWLER_CRON` / `CRAWLER_ENABLED` / `CRAWLER_ENABLED_NETWORKS` / `CRAWLER_AI_ENRICH` — crawler scheduler + AI rewrite controls. Per-campaign discount threshold lives in `Campaign.filterRules`, NOT env.
+- `CRAWLER_CRON` / `CRAWLER_ENABLED` / `CRAWLER_AI_ENRICH` — crawler scheduler + AI rewrite controls. `CRAWLER_ENABLED=false` mặc định (at-money-flows-v1 manual mode). Per-campaign discount threshold lives in `Campaign.filterRules`, NOT env.
+- `REFINERY_AUTO_APPROVE_THRESHOLD` — confidence cutoff cho Refinery v2 auto-approve (default 80).
+- `ADMIN_EMAIL` / `EMAIL_PROVIDER` / `RESEND_API_KEY` — article notification (STORY-10). Placeholder log nếu unset.
 - `RECONCILE_ENABLED` / `RECONCILE_CRON` — `/v1/order-list` poller (sprint at-source-of-truth STORY-05).
 - `COUPON_SYNC_ENABLED` / `COUPON_SYNC_CRON` — `/v1/offers_informations/coupon` poller (STORY-06).
 - `TOP_PRODUCTS_ENABLED` / `TOP_PRODUCTS_CRON` — `/v1/top_products` daily snapshot (STORY-07).

@@ -2,6 +2,7 @@ import type React from "react";
 import { ShoppingCart, Sparkles, Flame, ShieldCheck } from "lucide-react";
 import type { ProductItem } from "../../lib/types";
 import { normalizeProduct, formatMoney } from "../../lib/format";
+import { trackAndRedirectAction } from "../../app/actions/tracking";
 
 interface Props {
   products: ProductItem[];
@@ -79,14 +80,16 @@ export function ProductCardEnd({ products }: Props): React.ReactElement | null {
                     ) : null}
                   </div>
                 ) : null}
-                <a
-                  href={p.affiliateUrl ?? "#"}
-                  target="_blank"
-                  rel="nofollow sponsored noopener"
-                  className="mt-3 inline-flex items-center justify-center gap-1.5 rounded-md bg-brand-600 px-3 py-2.5 text-[13px] font-semibold text-white shadow-sm transition hover:bg-brand-700 hover:shadow-md group-hover:bg-brand-700"
-                >
-                  <ShoppingCart className="size-3.5" /> Xem deal ngay ↗
-                </a>
+                <form action={trackAndRedirectAction} className="mt-3">
+                  <input type="hidden" name="productId" value={p.id} />
+                  <input type="hidden" name="affiliateUrl" value={p.affiliateUrl ?? ""} />
+                  <button
+                    type="submit"
+                    className="inline-flex w-full items-center justify-center gap-1.5 rounded-md bg-brand-600 px-3 py-2.5 text-[13px] font-semibold text-white shadow-sm transition hover:bg-brand-700 hover:shadow-md group-hover:bg-brand-700"
+                  >
+                    <ShoppingCart className="size-3.5" /> Xem deal ngay ↗
+                  </button>
+                </form>
               </div>
             </div>
           );

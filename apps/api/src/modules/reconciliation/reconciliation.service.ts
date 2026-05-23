@@ -1,16 +1,20 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { Prisma } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
+import { SyncStatusService } from "../../services/sync-status.service";
 import {
   AccesstradeClient,
   AccesstradeOrder
 } from "../crawler/clients/accesstrade.client";
+import { OrderProductsSyncService } from "../insights/order-products-sync.service";
 
 export interface ReconcileResult {
   fetched: number;
   matched: number;
   updated: number;
   unmatched: number;
+  /** STORY-05: số OrderProduct rows pulled cho recently-reconciled webhooks. */
+  orderProductsFetched: number;
 }
 
 export const RECONCILE_OVERLAP_MS = 10 * 60 * 1000;
@@ -27,10 +31,16 @@ export class ReconciliationService {
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly accesstrade: AccesstradeClient
+    private readonly accesstrade: AccesstradeClient,
+    private readonly syncStatus: SyncStatusService,
+    private readonly orderProductsSync: OrderProductsSyncService
   ) {}
 
   async runReconcileCycle(triggeredBy: "cron" | "manual" = "cron"): Promise<ReconcileResult> {
+    return this.syncStatus.wrap("reconcile", () => this.runReconcileCycleInner(triggeredBy));
+  }
+
+  private async runReconcileCycleInner(triggeredBy: "cron" | "manual"): Promise<ReconcileResult> {
     const lastLog = await this.prisma.reconciliationLog.findFirst({
       where: { success: true },
       orderBy: { startedAt: "desc" }
@@ -108,6 +118,17 @@ export class ReconciliationService {
         updated += 1;
       }
 
+      // STORY-05: pull order-products cho recently reconciled webhooks (cap 50/cycle).
+      let orderProductsFetched = 0;
+      try {
+        const opResult = await this.orderProductsSync.syncRecent();
+        orderProductsFetched = opResult.orderProductsFetched;
+      } catch (opErr: unknown) {
+        this.logger.warn(
+          `[reconcile] order-products sync failed: ${opErr instanceof Error ? opErr.message : String(opErr)}`
+        );
+      }
+
       await this.prisma.reconciliationLog.update({
         where: { id: log.id },
         data: {
@@ -122,9 +143,9 @@ export class ReconciliationService {
       });
 
       this.logger.log(
-        `Reconcile: ${orders.length} fetched, ${matched} matched, ${updated} updated, ${unmatched} unmatched`
+        `Reconcile: ${orders.length} fetched, ${matched} matched, ${updated} updated, ${unmatched} unmatched, +${orderProductsFetched} order-products`
       );
-      return { fetched: orders.length, matched, updated, unmatched };
+      return { fetched: orders.length, matched, updated, unmatched, orderProductsFetched };
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : String(error);
       await this.prisma.reconciliationLog.update({

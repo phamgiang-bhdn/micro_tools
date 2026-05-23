@@ -230,9 +230,31 @@ async function cleanupRemovedNiches(keepSlugs) {
   );
 }
 
+// at-money-flows-v1 STORY-02: ensure LastSyncStatus có đủ 6 row sau db:reset.
+const LAST_SYNC_SEED = [
+  { name: "crawler", expectedFrequencySec: 21600 },
+  { name: "reconcile", expectedFrequencySec: 1800 },
+  { name: "coupon", expectedFrequencySec: 21600 },
+  { name: "top_products", expectedFrequencySec: 86400 },
+  { name: "commission_rank", expectedFrequencySec: 604800 },
+  { name: "keyword_radar", expectedFrequencySec: 604800 }
+];
+
+async function seedLastSyncStatus() {
+  for (const row of LAST_SYNC_SEED) {
+    await prisma.lastSyncStatus.upsert({
+      where: { name: row.name },
+      create: { name: row.name, expectedFrequencySec: row.expectedFrequencySec },
+      update: { expectedFrequencySec: row.expectedFrequencySec }
+    });
+  }
+  console.log(`[seed] Upserted ${LAST_SYNC_SEED.length} lastSyncStatus row(s).`);
+}
+
 async function main() {
   await purgeLegacySeededProducts();
   await cleanupRemovedNiches(NICHES.map((c) => c.slug));
+  await seedLastSyncStatus();
 
   for (const nicheSpec of NICHES) {
     await prisma.niche.upsert({

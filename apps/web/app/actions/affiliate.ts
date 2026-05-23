@@ -9,5 +9,7 @@ export async function affiliateRedirectAction(
   affiliateUrl: string
 ): Promise<void> {
   const tracked = await createTrackingRedirect({ productId, affiliateUrl });
+  // finalUrl="" chỉ xảy ra khi affiliateUrl input rỗng — early return tránh redirect("") crash.
+  if (!tracked.finalUrl) return;
   redirect(tracked.finalUrl);
 }

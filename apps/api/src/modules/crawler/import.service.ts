@@ -1,7 +1,8 @@
 import { Injectable, Logger } from "@nestjs/common";
-import { AffiliateNetwork, Prisma } from "@prisma/client";
+import { AffiliateNetwork, ParseStatus, Prisma } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 import { slugify } from "../../utils/slug.util";
+import { ConfidenceService } from "../refinery/confidence.service";
 import { NormalizedOffer } from "./dto/normalized-offer.dto";
 import { networkFromSource } from "./network.util";
 
@@ -23,7 +24,10 @@ export interface ImportResult {
 export class ImportService {
   private readonly logger = new Logger(ImportService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly confidence: ConfidenceService
+  ) {}
 
   async upsertOffers(offers: NormalizedOffer[]): Promise<ImportResult> {
     let created = 0;
@@ -99,6 +103,7 @@ export class ImportService {
             ...(existing.campaignId ? {} : campaignId ? { campaignId } : {})
           }
         });
+        await this.recomputeConfidence(existing.id);
         updated += 1;
         continue;
       }
@@ -107,7 +112,7 @@ export class ImportService {
       // cho phép multiple NULL (Postgres). Khi admin gán niche, /admin/products/bulk re-dedup theo niche.
       const slug = slugify(offer.name);
 
-      await this.prisma.product.create({
+      const newProduct = await this.prisma.product.create({
         data: {
           nicheId: null,
           categoryId: categoryId ?? null,
@@ -122,10 +127,75 @@ export class ImportService {
           isPublic: false
         }
       });
+      await this.recomputeConfidence(newProduct.id);
       created += 1;
     }
 
     return { created, updated, skipped };
+  }
+
+  /**
+   * STORY-09: compute confidence score + auto-approve gate. Hook chạy sau mọi upsert
+   * (cả create lẫn update). Không throw nếu fail — log warn rồi tiếp tục.
+   */
+  private async recomputeConfidence(productId: string): Promise<void> {
+    try {
+      const product = await this.prisma.product.findUnique({
+        where: { id: productId },
+        include: { niche: true }
+      });
+      if (!product) return;
+
+      const result = this.confidence.compute(product, product.niche ?? null);
+      const threshold = this.confidence.getAutoApproveThreshold();
+      const shouldAutoApprove = result.score >= threshold;
+
+      // Kiểm tra extraction hiện tại — đừng override row đã review thủ công.
+      const existing = await this.prisma.productExtraction.findFirst({
+        where: { productId, status: { in: [ParseStatus.DRAFT_RAW, ParseStatus.PENDING_REVIEW] } },
+        orderBy: { createdAt: "desc" }
+      });
+
+      if (existing) {
+        await this.prisma.productExtraction.update({
+          where: { id: existing.id },
+          data: {
+            confidenceScore: result.score,
+            confidenceReasons: result.reasons as Prisma.InputJsonValue,
+            ...(shouldAutoApprove && !existing.autoApproved
+              ? {
+                  status: ParseStatus.PUBLISHED,
+                  autoApproved: true,
+                  autoApprovedAt: new Date()
+                }
+              : {})
+          }
+        });
+      } else {
+        await this.prisma.productExtraction.create({
+          data: {
+            productId,
+            rawContent: "",
+            status: shouldAutoApprove ? ParseStatus.PUBLISHED : ParseStatus.PENDING_REVIEW,
+            confidenceScore: result.score,
+            confidenceReasons: result.reasons as Prisma.InputJsonValue,
+            autoApproved: shouldAutoApprove,
+            autoApprovedAt: shouldAutoApprove ? new Date() : null
+          }
+        });
+      }
+
+      if (shouldAutoApprove) {
+        await this.prisma.product.update({
+          where: { id: productId },
+          data: { isPublic: true }
+        });
+      }
+    } catch (err: unknown) {
+      this.logger.warn(
+        `[confidence] product=${productId} fail: ${err instanceof Error ? err.message : String(err)}`
+      );
+    }
   }
 
   /**

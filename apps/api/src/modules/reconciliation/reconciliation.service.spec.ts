@@ -1,7 +1,9 @@
 import { Test } from "@nestjs/testing";
 import { Prisma } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
+import { SyncStatusService } from "../../services/sync-status.service";
 import { AccesstradeClient, AccesstradeOrder } from "../crawler/clients/accesstrade.client";
+import { OrderProductsSyncService } from "../insights/order-products-sync.service";
 import {
   RECONCILE_FIRST_RUN_WINDOW_MS,
   RECONCILE_OVERLAP_MS,
@@ -231,11 +233,17 @@ async function buildService(): Promise<{
 }> {
   const prisma = new FakePrisma();
   const accesstrade = new FakeAccesstradeClient();
+  const fakeSyncStatus = { wrap: async <T,>(_name: string, fn: () => Promise<T>) => fn() };
+  const fakeOrderProductsSync = {
+    syncRecent: async () => ({ orderProductsFetched: 0 })
+  };
   const moduleRef = await Test.createTestingModule({
     providers: [
       TestableReconciliationService,
       { provide: PrismaService, useValue: prisma },
-      { provide: AccesstradeClient, useValue: accesstrade }
+      { provide: AccesstradeClient, useValue: accesstrade },
+      { provide: SyncStatusService, useValue: fakeSyncStatus },
+      { provide: OrderProductsSyncService, useValue: fakeOrderProductsSync }
     ]
   }).compile();
   const service = moduleRef.get(TestableReconciliationService);

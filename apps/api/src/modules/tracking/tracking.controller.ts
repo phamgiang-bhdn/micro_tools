@@ -7,7 +7,14 @@ interface TrackClickPayload {
   trackingCode: string;
   ipAddress: string;
   userAgent?: string;
+  /** STORY-06: channel attribution gắn lúc click. */
+  channel?: string;
+  attributionSource?: string;
+  /** STORY-07: signal A/B uplift cho coupon-inline pill. */
+  hasInlineCoupon?: boolean;
 }
+
+const ALLOWED_CHANNELS = new Set(["organic", "fb", "zalo", "email", "direct", "other"]);
 
 @Controller("tracking")
 export class TrackingController {
@@ -24,12 +31,19 @@ export class TrackingController {
 
       const ipHash = createHash("sha256").update(body.ipAddress || randomUUID()).digest("hex");
 
+      const channelInput = (body.channel ?? "direct").toLowerCase();
+      const channel = ALLOWED_CHANNELS.has(channelInput) ? channelInput : "other";
+
       await this.prisma.clickLog.create({
         data: {
           productId: body.productId,
           trackingCode: body.trackingCode,
           ipHash,
-          userAgent: body.userAgent?.slice(0, 1024) ?? null
+          userAgent: body.userAgent?.slice(0, 1024) ?? null,
+          channel,
+          subId1: channel,
+          attributionSource: body.attributionSource?.slice(0, 40) ?? null,
+          hasInlineCoupon: Boolean(body.hasInlineCoupon)
         }
       });
 

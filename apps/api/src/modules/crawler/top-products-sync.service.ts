@@ -1,6 +1,7 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { Prisma, TopProductSnapshot } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
+import { SyncStatusService } from "../../services/sync-status.service";
 import { AccesstradeClient } from "./clients/accesstrade.client";
 
 export interface TopProductsSyncResult {
@@ -17,10 +18,15 @@ export class TopProductsSyncService {
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly accesstrade: AccesstradeClient
+    private readonly accesstrade: AccesstradeClient,
+    private readonly syncStatus: SyncStatusService
   ) {}
 
   async syncDailySnapshot(): Promise<TopProductsSyncResult> {
+    return this.syncStatus.wrap("top_products", () => this.syncDailySnapshotInner());
+  }
+
+  private async syncDailySnapshotInner(): Promise<TopProductsSyncResult> {
     const today = startOfDay(new Date());
 
     const existing = await this.prisma.topProductSnapshot.findFirst({

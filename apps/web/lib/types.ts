@@ -4,6 +4,8 @@ export interface NicheItem {
   name: string;
   status: "ACTIVE" | "INACTIVE";
   schemaConfig: Record<string, unknown>;
+  seoTitle?: string | null;
+  seoDescription?: string | null;
   _count?: {
     products: number;
   };
@@ -17,6 +19,7 @@ export interface ProductItem {
   slug?: string | null;
   affiliateUrl: string;
   scrapedData: Record<string, unknown>;
+  updatedAt?: string;
   shop?: {
     id: string;
     slug: string;
@@ -55,6 +58,14 @@ export interface ProductView {
   highlights?: string[];
   /** % giảm so với originalPrice */
   discountPercent?: number;
+  /** Số lượng đã bán (sales count) — từ scrapedData (sold/salesCount/purchasedCount). */
+  salesCount?: number;
+  /** Tier shop — mall (Lazada Mall / Shopee Mall / Tiki Trading) vs regular. */
+  storeTier?: "mall" | "regular" | null;
+  /** ISO string từ Product.updatedAt — dùng cho verified-price chip. */
+  updatedAt?: string;
+  /** Affiliate URL gốc — copy từ ProductItem.affiliateUrl để inline CTA form action. */
+  affiliateUrl?: string;
   /** Shop admin gán tay (replace cho campaign trên storefront). */
   shop?: {
     id: string;
@@ -131,6 +142,25 @@ export type ArticleBlock =
       hint: string;
       productId?: string;
       angle?: string;
+    }
+  | {
+      type: "image";
+      src: string;
+      alt?: string;
+      caption?: string;
+      attribution?: string;
+      attributionUrl?: string;
+      width?: number;
+      height?: number;
+    }
+  | {
+      type: "review_quote";
+      body: string;
+      author?: string;
+      rating?: number;
+      sourceUrl?: string;
+      sourceName?: string;
+      verifiedBuyer?: boolean;
     };
 
 export interface ArticleDetail extends ArticleSummary {

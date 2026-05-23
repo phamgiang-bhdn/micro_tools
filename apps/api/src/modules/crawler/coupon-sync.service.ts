@@ -1,6 +1,7 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { AffiliateNetwork, Prisma } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
+import { SyncStatusService } from "../../services/sync-status.service";
 import { sanitizeCouponHtml } from "../../common/sanitize-html.util";
 import {
   AccesstradeClient,
@@ -26,10 +27,15 @@ export class CouponSyncService {
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly accesstrade: AccesstradeClient
+    private readonly accesstrade: AccesstradeClient,
+    private readonly syncStatus: SyncStatusService
   ) {}
 
   async syncFromAccesstrade(): Promise<CouponSyncResult> {
+    return this.syncStatus.wrap("coupon", () => this.syncFromAccesstradeInner());
+  }
+
+  private async syncFromAccesstradeInner(): Promise<CouponSyncResult> {
     const atMerchants = await this.accesstrade.fetchMerchantsWithCoupons();
     if (atMerchants.length === 0) {
       this.logger.warn("Coupon sync: AT trả 0 merchant — skip");

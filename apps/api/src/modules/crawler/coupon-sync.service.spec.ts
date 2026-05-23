@@ -1,6 +1,7 @@
 import { Test } from "@nestjs/testing";
 import { Prisma } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
+import { SyncStatusService } from "../../services/sync-status.service";
 import {
   AccesstradeClient,
   AtCoupon,
@@ -149,11 +150,13 @@ async function buildService(): Promise<{
 }> {
   const prisma = new FakePrisma();
   const accesstrade = new FakeAccesstradeClient();
+  const fakeSyncStatus = { wrap: async <T,>(_name: string, fn: () => Promise<T>) => fn() };
   const moduleRef = await Test.createTestingModule({
     providers: [
       TestableCouponSyncService,
       { provide: PrismaService, useValue: prisma },
-      { provide: AccesstradeClient, useValue: accesstrade }
+      { provide: AccesstradeClient, useValue: accesstrade },
+      { provide: SyncStatusService, useValue: fakeSyncStatus }
     ]
   }).compile();
   const service = moduleRef.get(TestableCouponSyncService);

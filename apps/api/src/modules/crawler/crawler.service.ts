@@ -1,10 +1,8 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { Prisma } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
+import { SyncStatusService } from "../../services/sync-status.service";
 import { AccesstradeClient, FetchProductsOpts } from "./clients/accesstrade.client";
-import { LazadaAffiliateClient } from "./clients/lazada.client";
-import { ShopeeAffiliateClient } from "./clients/shopee.client";
-import { TiktokAffiliateClient } from "./clients/tiktok.client";
 import { DEFAULT_FILTER_RULES, FilterRules, filterRulesSchema } from "./dto/filter-rules.dto";
 import { NormalizedOffer } from "./dto/normalized-offer.dto";
 import { EnrichmentService } from "./enrichment.service";
@@ -91,17 +89,22 @@ export class CrawlerService {
 
   constructor(
     private readonly accesstrade: AccesstradeClient,
-    _shopee: ShopeeAffiliateClient,
-    _tiktok: TiktokAffiliateClient,
-    _lazada: LazadaAffiliateClient,
     private readonly enrichment: EnrichmentService,
     private readonly importer: ImportService,
-    private readonly prisma: PrismaService
+    private readonly prisma: PrismaService,
+    private readonly syncStatus: SyncStatusService
   ) {
     this.accesstradeEnabled = true;
   }
 
   async runFullCycle(
+    triggeredBy = "cron",
+    options?: { campaignIds?: string[]; overrideLimit?: number }
+  ): Promise<CycleResult> {
+    return this.syncStatus.wrap("crawler", () => this.runFullCycleInner(triggeredBy, options));
+  }
+
+  private async runFullCycleInner(
     triggeredBy = "cron",
     options?: { campaignIds?: string[]; overrideLimit?: number }
   ): Promise<CycleResult> {

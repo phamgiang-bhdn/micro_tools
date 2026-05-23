@@ -107,6 +107,67 @@ export async function fetchCouponsByMerchant(
   }
 }
 
+export async function fetchAllCoupons(limit = 100): Promise<PublicCoupon[]> {
+  try {
+    const qs = new URLSearchParams({ limit: String(limit), sort: "expiresAt:asc" });
+    return await safeFetch<PublicCoupon[]>(`/coupons?${qs.toString()}`);
+  } catch (error) {
+    console.error("Failed to fetch all coupons:", error);
+    return [];
+  }
+}
+
+/** Coupon list cho homepage preview — sắp theo gần hết hạn nhất (urgency). */
+export async function fetchActiveCoupons(limit = 3): Promise<PublicCoupon[]> {
+  try {
+    const qs = new URLSearchParams({ limit: String(limit), sort: "expiresAt:asc" });
+    return await safeFetch<PublicCoupon[]>(`/coupons?${qs.toString()}`);
+  } catch (error) {
+    console.error("Failed to fetch active coupons:", error);
+    return [];
+  }
+}
+
+/**
+ * Lấy FAQ items từ latest BUYING_GUIDE article của niche — extract `faq` block đầu tiên
+ * trong sections/blocks. Trả [] nếu niche chưa có guide hoặc guide chưa có faq block.
+ * Best-effort: fail silent (network/4xx), không throw lên page.
+ */
+export async function fetchNicheFaqFromArticle(nicheSlug: string): Promise<Array<{ q: string; a: string }>> {
+  try {
+    const guides = await fetchArticles({ nicheSlug, type: "BUYING_GUIDE", limit: 1 });
+    const summary = guides[0];
+    if (!summary) return [];
+    const detail = await fetchArticleBySlug(summary.slug);
+    if (!detail) return [];
+    // Source 1: top-level blocks (article v1).
+    const flatBlocks = Array.isArray(detail.blocks) ? detail.blocks : [];
+    // Source 2: V2 sections[].blocks[].
+    const sectionBlocks = Array.isArray(detail.sections)
+      ? detail.sections.flatMap((s) => (Array.isArray(s.blocks) ? s.blocks : []))
+      : [];
+    const allBlocks = [...flatBlocks, ...sectionBlocks];
+    for (const block of allBlocks) {
+      if (!block || typeof block !== "object") continue;
+      const b = block as { type?: string; items?: unknown };
+      if (b.type !== "faq" || !Array.isArray(b.items)) continue;
+      const items: Array<{ q: string; a: string }> = [];
+      for (const it of b.items) {
+        if (!it || typeof it !== "object") continue;
+        const row = it as { q?: unknown; a?: unknown };
+        if (typeof row.q === "string" && typeof row.a === "string" && row.q.trim() && row.a.trim()) {
+          items.push({ q: row.q.trim(), a: row.a.trim() });
+        }
+      }
+      if (items.length > 0) return items;
+    }
+    return [];
+  } catch (error) {
+    console.error(`Failed to fetch niche FAQ slug=${nicheSlug}:`, error);
+    return [];
+  }
+}
+
 export interface TopProductSnapshotItem {
   id: string;
   position: number;

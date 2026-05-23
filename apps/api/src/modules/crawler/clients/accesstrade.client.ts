@@ -200,6 +200,48 @@ export interface AtCoupon {
   discount_percentage?: number;
 }
 
+// === STORY-04: cashback/campaigns shape (doc /v1/cashback/campaigns) ===
+export interface AtCashbackCampaign {
+  campaign_id: string;
+  name: string;
+  merchant: string;
+  category_name?: string;
+  sub_category?: string;
+  min_commission: number;
+  max_commission: number;
+  commission_type: string;
+  all_commissions?: unknown;
+}
+
+// === STORY-05: order-products shape ===
+export interface AtOrderProductItem {
+  _id: string;
+  campaign_id?: string;
+  merchant: string;
+  product_id?: string;
+  atProductId?: string;
+  product_name?: string;
+  product_image?: string;
+  product_price?: number;
+  product_quantity?: number;
+  quantity?: { approved?: number; pending?: number; reject?: number };
+  billing?: { approved?: number };
+  commission?: { approved?: number };
+  sales_time?: string;
+}
+
+// === STORY-08: product_link/create shape ===
+export interface ProductLinkCreateResult {
+  success_link: Array<{
+    aff_link: string;
+    first_link: string | null;
+    short_link: string;
+    url_origin: string;
+  }>;
+  error_link: Array<{ url: string; error: string }>;
+  suspend_url: string[];
+}
+
 @Injectable()
 export class AccesstradeClient implements AffiliateClient {
   readonly network = AffiliateNetwork.ACCESSTRADE;
@@ -391,6 +433,138 @@ export class AccesstradeClient implements AffiliateClient {
       return json.data ?? null;
     } catch {
       return null;
+    }
+  }
+
+  // ==========================================================================
+  // STORY-04: cashback campaigns + keyword list (Loop 1 "Cơ hội tuần")
+  // ==========================================================================
+
+  async fetchCashbackCampaigns(opts: {
+    page?: number;
+    pageSize?: number;
+    sortBy?: "min_commission" | "max_commission";
+    sortOrder?: "asc" | "desc";
+  } = {}): Promise<AtCashbackCampaign[]> {
+    if (!this.isConfigured()) return [];
+    const params = new URLSearchParams();
+    params.set("page", String(opts.page ?? 1));
+    params.set("page_size", String(opts.pageSize ?? 50));
+    if (opts.sortBy) params.set("sort_by", opts.sortBy);
+    if (opts.sortOrder) params.set("sort_order", opts.sortOrder);
+
+    const { ok, body } = await this.atFetch("/cashback/campaigns", params);
+    if (!ok) return [];
+    try {
+      const json = JSON.parse(body) as { data?: { campaigns?: AtCashbackCampaign[] } | AtCashbackCampaign[] };
+      const raw = Array.isArray(json.data)
+        ? json.data
+        : (json.data && "campaigns" in json.data ? json.data.campaigns : []) ?? [];
+      return raw as AtCashbackCampaign[];
+    } catch {
+      return [];
+    }
+  }
+
+  async fetchKeywordList(): Promise<AtKeyword[]> {
+    if (!this.isConfigured()) return [];
+    const { ok, body } = await this.atFetch("/offers_informations/keyword_list", new URLSearchParams());
+    if (!ok) return [];
+    try {
+      const json = JSON.parse(body) as { data?: AtKeyword[] };
+      return Array.isArray(json.data) ? json.data : [];
+    } catch {
+      return [];
+    }
+  }
+
+  // ==========================================================================
+  // STORY-05: order-products (Loop 2 "User mua gì thật")
+  // ==========================================================================
+
+  async fetchOrderProducts(opts: {
+    orderId: string;
+    merchant: string;
+    page?: number;
+    limit?: number;
+  }): Promise<AtOrderProductItem[]> {
+    if (!this.isConfigured()) return [];
+    const params = new URLSearchParams();
+    params.set("order_id", opts.orderId);
+    params.set("merchant", opts.merchant);
+    params.set("page", String(opts.page ?? 1));
+    params.set("limit", String(opts.limit ?? 100));
+
+    const { ok, body } = await this.atFetch("/order-products", params);
+    if (!ok) return [];
+    try {
+      const json = JSON.parse(body) as { data?: AtOrderProductItem[] };
+      return Array.isArray(json.data) ? json.data : [];
+    } catch {
+      return [];
+    }
+  }
+
+  // ==========================================================================
+  // STORY-08: product_link/create (Loop 5 "Link ngoài site")
+  // ==========================================================================
+
+  async createProductLink(opts: {
+    campaignId: string;
+    urls: string[];
+    utmSource?: string;
+    utmMedium?: string;
+    utmCampaign?: string;
+    utmContent?: string;
+    sub1?: string;
+    sub2?: string;
+    sub3?: string;
+    sub4?: string;
+    urlEnc?: boolean;
+  }): Promise<ProductLinkCreateResult> {
+    if (!this.isConfigured()) {
+      return { success_link: [], error_link: [], suspend_url: [] };
+    }
+    const body: Record<string, unknown> = {
+      campaign_id: opts.campaignId,
+      urls: opts.urls,
+      url_enc: opts.urlEnc ?? true
+    };
+    if (opts.utmSource) body.utm_source = opts.utmSource;
+    if (opts.utmMedium) body.utm_medium = opts.utmMedium;
+    if (opts.utmCampaign) body.utm_campaign = opts.utmCampaign;
+    if (opts.utmContent) body.utm_content = opts.utmContent;
+    if (opts.sub1) body.sub1 = opts.sub1;
+    if (opts.sub2) body.sub2 = opts.sub2;
+    if (opts.sub3) body.sub3 = opts.sub3;
+    if (opts.sub4) body.sub4 = opts.sub4;
+
+    const url = "https://api.accesstrade.vn/v1/product_link/create";
+    const token = process.env.ACCESSTRADE_ACCESS_TOKEN as string;
+    try {
+      const resp = await fetch(url, {
+        method: "POST",
+        headers: {
+          Authorization: `Token ${token}`,
+          "Content-Type": "application/json",
+          Accept: "application/json"
+        },
+        body: JSON.stringify(body)
+      });
+      const text = await resp.text();
+      if (!resp.ok) {
+        this.logger.warn(`[AT] product_link/create non-2xx ${resp.status}: ${text.slice(0, 200)}`);
+        return { success_link: [], error_link: [], suspend_url: [] };
+      }
+      const json = JSON.parse(text) as { data?: ProductLinkCreateResult };
+      return (
+        json.data ?? { success_link: [], error_link: [], suspend_url: [] }
+      );
+    } catch (err: unknown) {
+      this.logger.error(
+        `[AT] product_link/create throw: ${err instanceof Error ? err.message : String(err)}`
+      );
+      return { success_link: [], error_link: [], suspend_url: [] };
     }
   }
 

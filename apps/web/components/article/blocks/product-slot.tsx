@@ -2,6 +2,7 @@ import type React from "react";
 import { ShoppingCart, Star } from "lucide-react";
 import type { ProductItem } from "../../../lib/types";
 import { normalizeProduct, formatMoney } from "../../../lib/format";
+import { trackAndRedirectAction } from "../../../app/actions/tracking";
 
 interface Props {
   product: ProductItem;
@@ -65,14 +66,16 @@ export function ProductSlotBlock({ product, angle }: Props): React.ReactElement 
             ) : null}
           </div>
 
-          <a
-            href={product.affiliateUrl ?? "#"}
-            target="_blank"
-            rel="nofollow sponsored noopener"
-            className="mt-3 inline-flex w-fit items-center justify-center gap-1.5 rounded-md bg-brand-600 px-4 py-2 text-[13px] font-semibold text-white shadow-sm transition hover:bg-brand-700 hover:shadow-md"
-          >
-            Xem deal ↗
-          </a>
+          <form action={trackAndRedirectAction} className="mt-3 w-fit">
+            <input type="hidden" name="productId" value={product.id} />
+            <input type="hidden" name="affiliateUrl" value={product.affiliateUrl ?? ""} />
+            <button
+              type="submit"
+              className="inline-flex items-center justify-center gap-1.5 rounded-md bg-brand-600 px-4 py-2 text-[13px] font-semibold text-white shadow-sm transition hover:bg-brand-700 hover:shadow-md"
+            >
+              Xem deal ↗
+            </button>
+          </form>
         </div>
       </div>
     </aside>

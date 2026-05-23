@@ -1,3 +1,11 @@
+/**
+ * Webhook endpoint nhận postback từ Accesstrade.
+ *
+ * Hiện chỉ accept Accesstrade. Khi onboard network khác (Shopee/Lazada direct):
+ * thêm `@Post('<network-slug>')` mới với handler riêng (parse shape riêng, không generic
+ * polymorphic). Sprint at-money-flows-v1 STORY-01 đã remove 3 stub Shopee/TikTok/Lazada
+ * để giảm surface area + tránh confuse "có phải bật cái này không?".
+ */
 import { Body, Controller, HttpCode, HttpException, HttpStatus, Logger, Post } from "@nestjs/common";
 import { AffiliateNetwork, Prisma } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
@@ -18,8 +26,6 @@ interface ConversionWebhookPayload {
   [key: string]: unknown;
 }
 
-type StubResponse = { success: false; reason: "not_implemented"; network: AffiliateNetwork };
-
 @Controller("webhooks")
 export class WebhooksController {
   private readonly logger = new Logger(WebhooksController.name);
@@ -30,24 +36,6 @@ export class WebhooksController {
   @HttpCode(HttpStatus.OK)
   async handleAccessTradeWebhook(@Body() payload: ConversionWebhookPayload): Promise<{ success: true }> {
     return this.recordConversion(AffiliateNetwork.ACCESSTRADE, payload);
-  }
-
-  @Post("shopee")
-  @HttpCode(HttpStatus.OK)
-  async handleShopeeWebhook(@Body() payload: ConversionWebhookPayload): Promise<StubResponse> {
-    return this.stubResponse(AffiliateNetwork.SHOPEE, payload);
-  }
-
-  @Post("tiktok")
-  @HttpCode(HttpStatus.OK)
-  async handleTiktokWebhook(@Body() payload: ConversionWebhookPayload): Promise<StubResponse> {
-    return this.stubResponse(AffiliateNetwork.TIKTOK, payload);
-  }
-
-  @Post("lazada")
-  @HttpCode(HttpStatus.OK)
-  async handleLazadaWebhook(@Body() payload: ConversionWebhookPayload): Promise<StubResponse> {
-    return this.stubResponse(AffiliateNetwork.LAZADA, payload);
   }
 
   private async recordConversion(
@@ -72,6 +60,13 @@ export class WebhooksController {
 
       const campaignId = await this.resolveCampaignId(network, payload);
 
+      // STORY-06: copy channel attribution from matching ClickLog (first-touch).
+      const click = await this.prisma.clickLog.findUnique({
+        where: { trackingCode },
+        select: { channel: true }
+      });
+      const channel = click?.channel ?? "direct";
+
       await this.prisma.conversionWebhook.create({
         data: {
           trackingCode,
@@ -79,11 +74,12 @@ export class WebhooksController {
           campaignId,
           revenue: new Prisma.Decimal(revenueNumber.toFixed(2)),
           status,
+          channel,
           payload: payload as Prisma.InputJsonValue
         }
       });
 
-      this.logger.log(`Webhook stored network=${network} trackingCode=${trackingCode}`);
+      this.logger.log(`Webhook stored network=${network} trackingCode=${trackingCode} channel=${channel}`);
       return { success: true };
     } catch (error: unknown) {
       this.logger.error(
@@ -97,11 +93,6 @@ export class WebhooksController {
     }
   }
 
-  /**
-   * Match conversion → Campaign theo (network, slugified-name).
-   * Trả null nếu payload không gửi tên campaign hoặc chưa có Campaign tương ứng trong DB.
-   * Không tự tạo Campaign từ webhook — luồng tạo chính thức là từ crawler datafeed.
-   */
   private async resolveCampaignId(
     network: AffiliateNetwork,
     payload: ConversionWebhookPayload
@@ -115,12 +106,5 @@ export class WebhooksController {
       select: { id: true }
     });
     return found?.id ?? null;
-  }
-
-  private stubResponse(network: AffiliateNetwork, payload: ConversionWebhookPayload): StubResponse {
-    this.logger.warn(
-      `${network} webhook received but handler is a stub — payload keys: ${Object.keys(payload).join(",")}`
-    );
-    return { success: false, reason: "not_implemented", network };
   }
 }

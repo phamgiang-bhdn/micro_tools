@@ -3,69 +3,83 @@
 import type React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { BRAND } from "../lib/brand";
 
-/**
- * Footer chỉ render ở trang public. Admin có chrome riêng.
- */
 export function Footer(): React.ReactElement | null {
   const pathname = usePathname();
   if (pathname?.startsWith("/admin")) return null;
 
   return (
     <footer className="mt-20 border-t border-line bg-card">
-      <div className="mx-auto max-w-6xl px-4 py-12 sm:px-6">
-        <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-[1.4fr_repeat(3,1fr)]">
+      <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
+        <div className="border-b border-line pb-6">
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-ink-mute">
+            Đối tác chính thức
+          </p>
+          <div className="mt-3 flex flex-wrap items-center gap-x-6 gap-y-2">
+            {BRAND.partners.map((p) => (
+              <span
+                key={p.slug}
+                className="text-sm font-semibold text-ink-soft/80"
+              >
+                {p.name}
+              </span>
+            ))}
+          </div>
+        </div>
+
+        <div className="grid gap-10 pt-8 sm:grid-cols-2 lg:grid-cols-[1.4fr_repeat(3,1fr)]">
           <div>
             <div className="flex items-center gap-2">
               <span className="flex size-9 items-center justify-center rounded-xl bg-brand-gradient text-base font-bold text-white shadow-glow">
                 d.
               </span>
-              <span className="text-base font-semibold tracking-tight text-ink">
-                deal<span className="text-brand-600">vault</span>
+              <span className="flex flex-col">
+                <span className="text-base font-semibold leading-tight tracking-tight text-ink">
+                  deal<span className="text-brand-600">vault</span>
+                </span>
+                <span className="text-[10.5px] font-medium uppercase tracking-wider text-ink-mute">
+                  {BRAND.taglineShort}
+                </span>
               </span>
             </div>
             <p className="mt-3 max-w-sm text-sm leading-relaxed text-ink-soft">
-              Tổng hợp ưu đãi từ các shop uy tín. Mỗi sản phẩm đều có giá gốc — giá ưu đãi rõ ràng để bạn so sánh nhanh.
+              {BRAND.taglineLong}
             </p>
-            <div className="mt-4 flex flex-wrap gap-2 text-[11px] font-medium uppercase tracking-wider text-ink-mute">
-              <span className="inline-flex items-center gap-1 rounded-full border border-line bg-canvas px-2.5 py-1">
-                <DotIcon className="text-accent-500" /> Cập nhật mỗi giờ
-              </span>
-              <span className="inline-flex items-center gap-1 rounded-full border border-line bg-canvas px-2.5 py-1">
-                <DotIcon className="text-brand-500" /> Affiliate minh bạch
-              </span>
-            </div>
           </div>
           <FooterColumn
             title="Khám phá"
             items={[
               { label: "Tất cả danh mục", href: "/" },
-              { label: "Deal hot", href: "/?sort=top" },
-              { label: "Mới về", href: "/?sort=newest" }
+              { label: "Deal hot hôm nay", href: "/deal-hot" },
+              { label: "Mã giảm còn dùng", href: "/khuyen-mai" },
+              { label: "Cẩm nang chọn mua", href: "/blog" }
             ]}
           />
           <FooterColumn
-            title="Về dealvault"
+            title={`Về ${BRAND.name}`}
             items={[
-              { label: "Giới thiệu", href: "#" },
-              { label: "Liên hệ", href: "#" },
-              { label: "Đối tác merchant", href: "#" }
+              { label: `Vì sao chọn ${BRAND.name}`, href: "/ve-chung-toi" },
+              { label: "Cách chúng tôi chọn deal", href: "/ve-chung-toi#cach-chon-deal" },
+              { label: "Liên hệ", href: "/lien-he" }
             ]}
           />
           <FooterColumn
             title="Pháp lý"
             items={[
-              { label: "Tuyên bố affiliate", href: "#" },
-              { label: "Chính sách bảo mật", href: "#" },
-              { label: "Điều khoản", href: "#" }
+              { label: "Tuyên bố affiliate", href: "/tuyen-bo-affiliate" },
+              { label: "Chính sách bảo mật", href: "/chinh-sach-bao-mat" },
+              { label: "Điều khoản sử dụng", href: "/dieu-khoan" }
             ]}
           />
         </div>
       </div>
       <div className="border-t border-line">
-        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-5 text-xs text-ink-mute sm:px-6">
-          <p>© {new Date().getFullYear()} dealvault. Mọi quyền được bảo lưu.</p>
-          <p className="max-w-md text-right">
+        <div className="mx-auto flex max-w-6xl flex-col gap-2 px-4 py-5 text-xs text-ink-mute sm:flex-row sm:items-center sm:justify-between sm:px-6">
+          <p>
+            © {new Date().getFullYear()} {BRAND.name}. {BRAND.taglineShort}.
+          </p>
+          <p className="max-w-md text-[11px] sm:text-right">
             Một số liên kết trên trang có thể giúp chúng tôi nhận hoa hồng. Giá hiển thị tại thời điểm cập nhật dữ liệu.
           </p>
         </div>
@@ -95,8 +109,4 @@ function FooterColumn({
       </ul>
     </div>
   );
-}
-
-function DotIcon({ className = "" }: { className?: string }): React.ReactElement {
-  return <span aria-hidden className={`size-1.5 rounded-full bg-current ${className}`} />;
 }
