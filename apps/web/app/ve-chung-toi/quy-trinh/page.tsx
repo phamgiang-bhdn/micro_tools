@@ -94,7 +94,7 @@ export default function ProcessPage(): React.ReactElement {
           />
 
           <div className="mt-6 max-w-3xl">
-            <p className="text-xs font-semibold uppercase tracking-wider text-brand-700">
+            <p className="text-xs font-semibold uppercase tracking-wider text-primary-700">
               Quy trình HITL
             </p>
             <h1 className="mt-2 text-3xl font-bold tracking-tight text-ink sm:text-4xl">
@@ -118,7 +118,7 @@ export default function ProcessPage(): React.ReactElement {
                 key={step.title}
                 className="rounded-2xl border border-line bg-white p-5 shadow-card"
               >
-                <div className="inline-flex size-10 items-center justify-center rounded-full bg-google-blue/10 text-google-blue">
+                <div className="inline-flex size-10 items-center justify-center rounded-full bg-primary-600/10 text-primary-600">
                   {step.icon}
                 </div>
                 <h3 className="mt-3 font-semibold text-ink">{step.title}</h3>
@@ -144,7 +144,7 @@ export default function ProcessPage(): React.ReactElement {
             ))}
           </ul>
 
-          <section className="mt-14 rounded-3xl border border-google-blue/20 bg-google-blue/5 p-6 sm:p-8">
+          <section className="mt-14 rounded-3xl border border-primary-600/20 bg-primary-600/5 p-6 sm:p-8">
             <h2 className="text-xl font-semibold text-ink sm:text-2xl">
               Vì sao chúng tôi không sợ minh bạch?
             </h2>
@@ -163,7 +163,7 @@ export default function ProcessPage(): React.ReactElement {
                 Nếu bạn phát hiện thông tin sai (giá lệch, spec không đúng), email
                 <a
                   href="mailto:hello@dealvault.vn"
-                  className="ml-1 font-medium text-google-blue hover:underline"
+                  className="ml-1 font-medium text-primary-600 hover:underline"
                 >
                   hello@dealvault.vn
                 </a>{" "}

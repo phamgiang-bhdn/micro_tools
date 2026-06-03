@@ -82,7 +82,7 @@ export function ResultCards({ products, session, toolSlug }: ResultCardsProps): 
           <button
             type="button"
             onClick={() => setShowAll((s) => !s)}
-            className="flex w-full items-center justify-between rounded-xl border border-line bg-white px-4 py-3 text-sm text-ink transition hover:border-google-blue"
+            className="flex w-full items-center justify-between rounded-xl border border-border bg-surface px-4 py-3 text-sm text-ink transition hover:border-primary-600"
           >
             <span className="font-medium">
               {showAll ? "Thu gọn" : `Hoặc xem ${rest.length} lựa chọn khác ↓`}
@@ -162,7 +162,7 @@ function PrimaryCard({
 }): React.ReactElement {
   const v = product.view;
   return (
-    <div className="overflow-hidden rounded-3xl border border-line bg-white shadow-card">
+    <div className="overflow-hidden rounded-3xl border border-border bg-surface shadow-card">
       <div className="bg-brand-gradient px-4 py-1.5 text-xs font-semibold text-white">
         🏆 #{rank} · AI gợi ý cho bạn
       </div>
@@ -180,7 +180,7 @@ function PrimaryCard({
 
           <div className="mt-3 flex items-baseline gap-2">
             {v.price > 0 && (
-              <span className="text-xl font-bold text-brand-700">
+              <span className="text-xl font-bold text-ink">
                 {formatMoney(v.price)}
               </span>
             )}
@@ -190,7 +190,7 @@ function PrimaryCard({
                   {formatMoney(v.originalPrice)}
                 </span>
                 {v.discountPercent && (
-                  <span className="rounded-md bg-red-100 px-1.5 py-0.5 text-xs font-bold text-red-700">
+                  <span className="rounded-md bg-cta-100 px-1.5 py-0.5 text-xs font-bold text-cta-700">
                     -{v.discountPercent}%
                   </span>
                 )}
@@ -198,13 +198,13 @@ function PrimaryCard({
             )}
           </div>
 
-          <div className="mt-4 rounded-xl border border-google-blue/20 bg-google-blue/5 p-3.5">
-            <p className="flex items-start gap-2 text-sm text-ink">
-              <Sparkles className="mt-0.5 size-4 shrink-0 text-google-blue" />
-              <span>
-                <span className="font-semibold text-google-blue">{confidenceLabel}.</span>{" "}
-                {reasoning ?? "Top match từ scoring engine."}
-              </span>
+          <div className="mt-4 rounded-xl border border-primary-200 bg-primary-50 p-3.5">
+            <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-primary-700">
+              <Sparkles className="size-3.5" /> 🤖 AI phân tích
+            </p>
+            <p className="mt-1.5 text-sm text-ink">
+              <span className="font-semibold text-primary-700">{confidenceLabel}.</span>{" "}
+              {reasoning ?? "Top match từ scoring engine dựa trên nhu cầu bạn mô tả."}
             </p>
           </div>
 
@@ -245,8 +245,8 @@ function SecondaryCard({
 }): React.ReactElement {
   const v = product.view;
   return (
-    <div className="overflow-hidden rounded-2xl border border-line bg-white">
-      <div className="border-b border-line bg-canvas px-3 py-1 text-[11px] font-medium text-ink-soft">
+    <div className="overflow-hidden rounded-2xl border border-border bg-surface">
+      <div className="border-b border-border bg-canvas px-3 py-1 text-[11px] font-medium text-ink-soft">
         #{rank}
       </div>
       <div className="p-4">
@@ -259,11 +259,11 @@ function SecondaryCard({
         </div>
         <h4 className="mt-3 line-clamp-2 text-sm font-semibold text-ink">{v.name}</h4>
         {v.price > 0 && (
-          <p className="mt-1 text-base font-bold text-brand-700">{formatMoney(v.price)}</p>
+          <p className="mt-1 text-base font-bold text-ink">{formatMoney(v.price)}</p>
         )}
-        <div className="mt-2 rounded-lg border border-line bg-canvas p-2.5">
+        <div className="mt-2 rounded-lg border border-border bg-canvas p-2.5">
           <p className="line-clamp-3 text-xs text-ink">
-            <span className="font-semibold text-google-blue">🤖 {confidenceLabel}.</span>{" "}
+            <span className="font-semibold text-primary-600">🤖 {confidenceLabel}.</span>{" "}
             {reasoning ?? "Match từ scoring."}
           </p>
         </div>
@@ -301,7 +301,7 @@ function EmailCaptureInline({
 
   if (submitted) {
     return (
-      <div className="rounded-xl border border-accent/30 bg-accent/5 p-4 text-center text-sm text-ink">
+      <div className="rounded-xl border border-success/30 bg-success-soft p-4 text-center text-sm text-ink">
         ✓ Đã đăng ký — sẽ gửi alert khi có deal {nicheName.toLowerCase()} phù hợp.
       </div>
     );
@@ -338,7 +338,7 @@ function EmailCaptureInline({
   return (
     <form
       onSubmit={handleSubmit}
-      className="rounded-xl border border-line bg-white p-4 sm:p-5"
+      className="rounded-xl border border-border bg-surface p-4 sm:p-5"
     >
       <p className="text-sm font-medium text-ink">
         💡 Muốn được nhắc khi giá xuống hoặc có deal mới?
@@ -350,7 +350,7 @@ function EmailCaptureInline({
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           placeholder="you@example.com"
-          className="flex-1 rounded-lg border border-line px-3 py-2 text-sm text-ink outline-none focus:border-google-blue"
+          className="flex-1 rounded-lg border border-border px-3 py-2 text-sm text-ink outline-none focus:border-primary-600"
         />
         <Button type="submit" variant="primary" size="md" disabled={pending}>
           {pending ? "Đang gửi..." : "Đăng ký"}
@@ -376,13 +376,13 @@ function ShareBox({ shareSlug, nicheName }: { shareSlug: string; nicheName: stri
   };
 
   return (
-    <div className="rounded-xl border border-line bg-canvas p-4 text-center text-sm">
+    <div className="rounded-xl border border-border bg-canvas p-4 text-center text-sm">
       <p className="font-medium text-ink">Chia sẻ kết quả cho bạn bè xin ý kiến</p>
       <div className="mt-3 flex flex-wrap justify-center gap-2">
         <button
           type="button"
           onClick={handleCopy}
-          className="rounded-full border border-line bg-white px-3 py-1.5 text-xs text-ink hover:border-google-blue"
+          className="rounded-full border border-border bg-surface px-3 py-1.5 text-xs text-ink hover:border-primary-600"
         >
           <Share2 className="mr-1 inline size-3" /> Copy link
         </button>
@@ -390,7 +390,7 @@ function ShareBox({ shareSlug, nicheName }: { shareSlug: string; nicheName: stri
           href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`}
           target="_blank"
           rel="noopener noreferrer"
-          className="rounded-full border border-line bg-white px-3 py-1.5 text-xs text-ink hover:border-google-blue"
+          className="rounded-full border border-border bg-surface px-3 py-1.5 text-xs text-ink hover:border-primary-600"
         >
           Facebook
         </a>
@@ -398,7 +398,7 @@ function ShareBox({ shareSlug, nicheName }: { shareSlug: string; nicheName: stri
           href={`https://zalo.me/share?u=${encodeURIComponent(url)}&t=${encodeURIComponent(`AI gợi ý ${nicheName} cho mình`)}`}
           target="_blank"
           rel="noopener noreferrer"
-          className="rounded-full border border-line bg-white px-3 py-1.5 text-xs text-ink hover:border-google-blue"
+          className="rounded-full border border-border bg-surface px-3 py-1.5 text-xs text-ink hover:border-primary-600"
         >
           Zalo
         </a>
@@ -418,10 +418,10 @@ function StickyCta({
 }): React.ReactElement {
   return (
     <div
-      className="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-white/95 p-3 backdrop-blur sm:hidden"
+      className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-surface/95 p-3 backdrop-blur sm:hidden"
       style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}
     >
-      <Button onClick={onClick} disabled={redirecting} variant="brand" size="lg" className="w-full">
+      <Button onClick={onClick} disabled={redirecting} variant="cta" size="lg" className="w-full">
         {redirecting ? (
           "Đang chuyển..."
         ) : (

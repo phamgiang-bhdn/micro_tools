@@ -14,7 +14,7 @@ export function TopProductCard({ product }: TopProductCardProps): React.ReactEle
       <input type="hidden" name="affiliateUrl" value={product.affLink} />
       <button
         type="submit"
-        className="group block w-full rounded-xl border border-line bg-white p-3 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-brand-200 hover:shadow-md"
+        className="group block w-full rounded-xl border border-line bg-white p-3 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-primary-200 hover:shadow-md"
       >
         <div className="relative aspect-square overflow-hidden rounded-lg bg-canvas">
           {product.image ? (
@@ -28,7 +28,7 @@ export function TopProductCard({ product }: TopProductCardProps): React.ReactEle
           ) : (
             <div className="absolute inset-0 grid place-items-center text-ink-mute">—</div>
           )}
-          <span className="absolute left-2 top-2 inline-flex items-center gap-1 rounded-full bg-brand-600 px-2 py-0.5 text-[11px] font-bold text-white shadow">
+          <span className="absolute left-2 top-2 inline-flex items-center gap-1 rounded-full bg-primary-600 px-2 py-0.5 text-[11px] font-bold text-white shadow">
             #{product.position}
           </span>
           {product.merchantDisplay || product.merchant ? (
@@ -40,9 +40,9 @@ export function TopProductCard({ product }: TopProductCardProps): React.ReactEle
         <div className="mt-3 space-y-1">
           <h3 className="line-clamp-2 text-sm font-medium text-ink">{product.name}</h3>
           {discount != null && discount > 0 ? (
-            <p className="text-sm font-bold text-brand-700">{formatMoney(discount)}</p>
+            <p className="text-sm font-bold text-primary-700">{formatMoney(discount)}</p>
           ) : product.price ? (
-            <p className="text-sm font-bold text-brand-700">{formatMoney(Number(product.price))}</p>
+            <p className="text-sm font-bold text-primary-700">{formatMoney(Number(product.price))}</p>
           ) : null}
           {product.brand ? (
             <p className="text-[11px] text-ink-mute">{product.brand}</p>

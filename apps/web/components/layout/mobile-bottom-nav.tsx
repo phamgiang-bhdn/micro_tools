@@ -51,10 +51,10 @@ export function MobileBottomNav(): React.ReactElement | null {
 
           const className = cn(
             "relative flex h-full w-full flex-col items-center justify-center gap-0.5 text-[10px] font-medium leading-none",
-            active ? "text-brand-700" : "text-ink-mute hover:text-ink"
+            active ? "text-primary-700" : "text-ink-mute hover:text-ink"
           );
           const indicator = active ? (
-            <span aria-hidden className="absolute inset-x-3 top-0 h-0.5 rounded-full bg-brand-600" />
+            <span aria-hidden className="absolute inset-x-3 top-0 h-0.5 rounded-full bg-primary-600" />
           ) : null;
 
           if (tab.label === "Theo dõi") {

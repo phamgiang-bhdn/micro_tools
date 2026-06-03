@@ -1,43 +1,24 @@
 import { Module } from "@nestjs/common";
 import { PrismaService } from "../../prisma/prisma.service";
 import { CrawlerModule } from "../crawler/crawler.module";
-import { CommissionRankService } from "./commission-rank.service";
-import { KeywordRadarService } from "./keyword-radar.service";
 import { MoneyTrailService } from "./money-trail.service";
-import { OpportunityService } from "./opportunity.service";
 import { OrderProductsSyncService } from "./order-products-sync.service";
 import { RealBestsellerService } from "./real-bestseller.service";
-import { TrackedLinkService } from "./tracked-link.service";
 
 /**
- * 6 money loop services (at-money-flows-v1):
- * - Loop 1: CommissionRank + KeywordRadar + Opportunity (cross-ref)
- * - Loop 2: OrderProductsSync (reconciler hook) + RealBestseller (ranking)
- * - Loop 3: MoneyTrail (channel ROAS)
- * - Loop 4: coupon-inline pill — pure render-time, no service
- * - Loop 5: TrackedLink (AT product_link/create)
- * - Loop 6: defer
+ * Insights services (sau Refactor V3 — cắt các loop speculative):
+ * - OrderProductsSync (reconciler hook) + RealBestseller (ranking đơn thật)
+ * - MoneyTrail (doanh thu per channel)
+ * Đã cắt: CommissionRank, KeywordRadar, Opportunity ("Cơ hội tuần"), TrackedLink, AdSpend/ROAS.
  */
 @Module({
   imports: [CrawlerModule],
   providers: [
     PrismaService,
-    CommissionRankService,
-    KeywordRadarService,
-    OpportunityService,
     OrderProductsSyncService,
     RealBestsellerService,
-    MoneyTrailService,
-    TrackedLinkService
+    MoneyTrailService
   ],
-  exports: [
-    CommissionRankService,
-    KeywordRadarService,
-    OpportunityService,
-    OrderProductsSyncService,
-    RealBestsellerService,
-    MoneyTrailService,
-    TrackedLinkService
-  ]
+  exports: [OrderProductsSyncService, RealBestsellerService, MoneyTrailService]
 })
 export class InsightsModule {}

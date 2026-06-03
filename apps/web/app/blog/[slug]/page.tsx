@@ -156,7 +156,7 @@ export default async function ArticleDetailPage({ params }: PageProps): Promise<
       <ReadingProgress />
 
       {/* Thin brand stripe — giữ identity nhẹ, không choáng */}
-      <div className="h-1 bg-gradient-to-r from-brand-500 via-brand-600 to-accent-500" />
+      <div className="h-1 bg-gradient-to-r from-primary-500 via-primary-600 to-accent-500" />
 
       {/* ───── HERO compact ───── */}
       <header className="border-b border-line bg-canvas">
@@ -202,7 +202,7 @@ export default async function ArticleDetailPage({ params }: PageProps): Promise<
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={article.author.avatarUrl} alt={article.author.name} className="size-7 rounded-full object-cover" />
                 ) : (
-                  <span className="grid size-7 place-items-center rounded-full bg-brand-50 text-[11px] font-bold text-brand-700">
+                  <span className="grid size-7 place-items-center rounded-full bg-primary-50 text-[11px] font-bold text-primary-700">
                     {article.author ? article.author.name.slice(0, 1) : "dv"}
                   </span>
                 )}
@@ -255,7 +255,7 @@ export default async function ArticleDetailPage({ params }: PageProps): Promise<
                   className="mb-14 scroll-mt-24"
                 >
                   <div className="flex items-baseline gap-3">
-                    <span className="text-[12px] font-semibold tabular-nums text-brand-600">
+                    <span className="text-[12px] font-semibold tabular-nums text-primary-600">
                       {String(idx + 1).padStart(2, "0")}
                     </span>
                     <span className="h-px flex-1 bg-line" />
@@ -287,7 +287,7 @@ export default async function ArticleDetailPage({ params }: PageProps): Promise<
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={article.author.avatarUrl} alt={article.author.name} className="size-12 rounded-full object-cover" />
                 ) : (
-                  <span className="grid size-12 shrink-0 place-items-center rounded-full bg-brand-50 text-brand-700 font-bold">
+                  <span className="grid size-12 shrink-0 place-items-center rounded-full bg-primary-50 text-primary-700 font-bold">
                     {article.author.name.slice(0, 1)}
                   </span>
                 )}
@@ -299,7 +299,7 @@ export default async function ArticleDetailPage({ params }: PageProps): Promise<
             ) : null}
 
             <aside className="mt-10 flex gap-4 rounded-2xl border border-line bg-card/60 p-5 shadow-sm">
-              <span aria-hidden className="grid size-9 shrink-0 place-items-center rounded-full bg-brand-50 text-brand-700">
+              <span aria-hidden className="grid size-9 shrink-0 place-items-center rounded-full bg-primary-50 text-primary-700">
                 <InfoIcon />
               </span>
               <div className="text-sm leading-6 text-ink-soft">
@@ -316,7 +316,7 @@ export default async function ArticleDetailPage({ params }: PageProps): Promise<
             <div className="mt-10 flex justify-center">
               <Link
                 href="/blog"
-                className="inline-flex items-center gap-2 rounded-full border border-line bg-card px-5 py-2.5 text-sm font-medium text-ink-soft transition hover:border-brand-300 hover:text-brand-700"
+                className="inline-flex items-center gap-2 rounded-full border border-line bg-card px-5 py-2.5 text-sm font-medium text-ink-soft transition hover:border-primary-300 hover:text-primary-700"
               >
                 <BackArrowIcon /> Xem thêm bài viết khác
               </Link>

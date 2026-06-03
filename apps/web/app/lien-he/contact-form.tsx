@@ -69,7 +69,7 @@ export function ContactForm(): React.ReactElement {
       <button
         type="submit"
         disabled={status === "submitting"}
-        className="inline-flex h-10 items-center justify-center rounded-full bg-brand-600 px-5 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-700 disabled:opacity-60"
+        className="inline-flex h-10 items-center justify-center rounded-full bg-primary-600 px-5 text-sm font-semibold text-white shadow-sm transition hover:bg-primary-700 disabled:opacity-60"
       >
         {status === "submitting" ? "Đang gửi…" : "Gửi tin nhắn"}
       </button>

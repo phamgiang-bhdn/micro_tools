@@ -82,7 +82,7 @@ export function MobileMenuPanel({ open, onClose }: Props): React.ReactElement | 
               d.
             </span>
             <span>
-              deal<span className="text-brand-600">vault</span>
+              deal<span className="text-primary-600">vault</span>
             </span>
           </Link>
           <button
@@ -112,7 +112,7 @@ export function MobileMenuPanel({ open, onClose }: Props): React.ReactElement | 
           ))}
           <Link
             href="/#all-niches"
-            className="mt-1 flex items-center justify-center gap-1 rounded-lg border border-dashed border-line px-3 py-2 text-[13px] font-semibold text-brand-700 hover:bg-card"
+            className="mt-1 flex items-center justify-center gap-1 rounded-lg border border-dashed border-line px-3 py-2 text-[13px] font-semibold text-primary-700 hover:bg-card"
           >
             Xem tất cả danh mục →
           </Link>
@@ -153,7 +153,7 @@ function MenuLink({
   return (
     <Link
       href={href}
-      className="flex items-center gap-3 rounded-lg px-2 py-2.5 text-[14px] font-medium text-ink hover:bg-card hover:text-brand-700"
+      className="flex items-center gap-3 rounded-lg px-2 py-2.5 text-[14px] font-medium text-ink hover:bg-card hover:text-primary-700"
     >
       <span aria-hidden className="grid size-7 shrink-0 place-items-center text-base">
         {icon}

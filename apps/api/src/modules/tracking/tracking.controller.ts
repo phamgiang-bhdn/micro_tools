@@ -1,7 +1,6 @@
 import { Body, Controller, HttpException, HttpStatus, Logger, Post } from "@nestjs/common";
 import { createHash, randomUUID } from "crypto";
 import { PrismaService } from "../../prisma/prisma.service";
-import { ToolEmailDripService } from "../tool/email-drip.service";
 
 interface TrackClickPayload {
   productId: string;
@@ -27,10 +26,7 @@ const ALLOWED_MARKETPLACES = new Set(["tiki", "shopee", "lazada", "tiktokshop", 
 export class TrackingController {
   private readonly logger = new Logger(TrackingController.name);
 
-  constructor(
-    private readonly prisma: PrismaService,
-    private readonly emailDrip: ToolEmailDripService
-  ) {}
+  constructor(private readonly prisma: PrismaService) {}
 
   @Post("click")
   async logClick(@Body() body: TrackClickPayload): Promise<{ success: boolean }> {
@@ -63,16 +59,6 @@ export class TrackingController {
         }
       });
 
-      // Trigger email drip nếu có quizSession + email (fire-and-forget).
-      if (body.quizSessionId) {
-        this.maybeEnqueueDrip(body.quizSessionId, body.productId, body.toolId).catch((err: unknown) => {
-          this.logger.warn(
-            "Email drip enqueue failed",
-            err instanceof Error ? err.message : String(err)
-          );
-        });
-      }
-
       return { success: true };
     } catch (error: unknown) {
       if (error instanceof HttpException) {
@@ -81,34 +67,5 @@ export class TrackingController {
       this.logger.error("Failed to insert ClickLog", error instanceof Error ? error.stack : String(error));
       throw new HttpException("Failed to track click", HttpStatus.INTERNAL_SERVER_ERROR);
     }
-  }
-
-  private async maybeEnqueueDrip(
-    quizSessionId: string,
-    productId: string,
-    toolId?: string
-  ): Promise<void> {
-    const session = await this.prisma.quizSession.findUnique({
-      where: { id: quizSessionId },
-      include: {
-        tool: { include: { niche: { select: { name: true } } } }
-      }
-    });
-    if (!session || !session.email) return;
-
-    const product = await this.prisma.product.findUnique({
-      where: { id: productId },
-      select: { name: true }
-    });
-
-    await this.emailDrip.enqueuePostClick({
-      email: session.email,
-      quizSessionId: session.id,
-      toolId: toolId ?? session.toolId,
-      productId,
-      productName: product?.name ?? "(sản phẩm)",
-      nicheName: session.tool.niche.name,
-      shareSlug: session.shareSlug
-    });
   }
 }

@@ -26,8 +26,8 @@ export function CouponHero({ coupons }: Props): React.ReactElement {
   const time = now.toLocaleString("vi-VN", { hour: "2-digit", minute: "2-digit", day: "2-digit", month: "2-digit" });
 
   return (
-    <section className="rounded-3xl border border-line bg-gradient-to-br from-brand-50 via-card to-card p-6 sm:p-8">
-      <p className="text-xs font-semibold uppercase tracking-wider text-brand-700">Mã giảm giá</p>
+    <section className="rounded-3xl border border-line bg-gradient-to-br from-primary-50 via-card to-card p-6 sm:p-8">
+      <p className="text-xs font-semibold uppercase tracking-wider text-primary-700">Mã giảm giá</p>
       <h1 className="mt-2 text-2xl font-bold leading-tight text-ink sm:text-3xl">
         Mã giảm giá tháng {month}/{year} — đối chiếu {time}
       </h1>

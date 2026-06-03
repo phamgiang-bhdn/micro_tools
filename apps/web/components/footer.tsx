@@ -36,7 +36,7 @@ export function Footer(): React.ReactElement | null {
               </span>
               <span className="flex flex-col">
                 <span className="text-base font-semibold leading-tight tracking-tight text-ink">
-                  deal<span className="text-brand-600">vault</span>
+                  deal<span className="text-primary-600">vault</span>
                 </span>
                 <span className="text-[10.5px] font-medium uppercase tracking-wider text-ink-mute">
                   {BRAND.taglineShort}
@@ -101,7 +101,7 @@ function FooterColumn({
       <ul className="mt-3 space-y-2 text-sm">
         {items.map((item) => (
           <li key={item.label}>
-            <Link href={item.href} className="text-ink-soft transition hover:text-brand-700">
+            <Link href={item.href} className="text-ink-soft transition hover:text-primary-700">
               {item.label}
             </Link>
           </li>

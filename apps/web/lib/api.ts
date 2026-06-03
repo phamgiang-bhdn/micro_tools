@@ -56,6 +56,24 @@ export async function fetchToolBySlug(slug: string): Promise<ToolDetailResponse 
   }
 }
 
+export interface PublicTool {
+  id: string;
+  slug: string;
+  name: string;
+  tagline: string | null;
+  niche: { slug: string; name: string };
+}
+
+/** Tool AI đang PUBLISHED — dùng cho hero AI-first + listing. Lỗi → mảng rỗng (không vỡ trang). */
+export async function fetchActiveTools(limit = 6): Promise<PublicTool[]> {
+  try {
+    return await safeFetch<PublicTool[]>(`/tool/active?limit=${limit}`);
+  } catch (err) {
+    console.error("fetchActiveTools failed:", err);
+    return [];
+  }
+}
+
 export async function fetchToolSession(id: string): Promise<ToolSessionResponse | null> {
   try {
     return await safeFetch<ToolSessionResponse>(`/tool/sessions/${id}`);

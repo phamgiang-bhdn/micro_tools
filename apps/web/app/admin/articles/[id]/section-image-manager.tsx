@@ -88,7 +88,7 @@ export function SectionImageManager({ blocks, onBlocksChange }: Props) {
     <div className="rounded-lg border border-admin-line bg-admin-surface">
       <div className="flex items-center justify-between gap-2 border-b border-admin-line px-3 py-2">
         <div className="flex items-center gap-2 text-[12.5px] font-semibold text-admin-ink">
-          <ImagePlus className="size-4 text-brand-600" /> Quản lý ảnh trong phần
+          <ImagePlus className="size-4 text-primary-600" /> Quản lý ảnh trong phần
           <span className="rounded bg-admin-subtle px-1.5 py-0.5 text-[10.5px] font-normal text-admin-mute">
             {imageBlocks.length} ảnh
           </span>

@@ -16,7 +16,7 @@ export function CriteriaGridBlock({ title, items }: Props): React.ReactElement {
     <section className="space-y-5">
       {title ? (
         <header>
-          <p className="text-xs font-semibold uppercase tracking-wider text-brand-700">Tiêu chí chọn mua</p>
+          <p className="text-xs font-semibold uppercase tracking-wider text-primary-700">Tiêu chí chọn mua</p>
           <h2 className="mt-1 text-2xl font-bold tracking-tight text-ink sm:text-3xl">{title}</h2>
         </header>
       ) : null}
@@ -24,11 +24,11 @@ export function CriteriaGridBlock({ title, items }: Props): React.ReactElement {
         {items.map((item, i) => (
           <article
             key={i}
-            className="group flex gap-4 rounded-2xl border border-line bg-card p-5 shadow-card transition hover:-translate-y-0.5 hover:border-brand-300 hover:shadow-pop"
+            className="group flex gap-4 rounded-2xl border border-line bg-card p-5 shadow-card transition hover:-translate-y-0.5 hover:border-primary-300 hover:shadow-pop"
           >
             <span
               aria-hidden
-              className="grid size-11 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-brand-100 to-accent-100 text-brand-700 ring-1 ring-brand-200"
+              className="grid size-11 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-primary-100 to-accent-100 text-primary-700 ring-1 ring-primary-200"
             >
               <CriteriaIcon name={item.icon} />
             </span>

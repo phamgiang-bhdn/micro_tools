@@ -41,7 +41,7 @@ export function QuickPicks({ products: raw }: Props): React.ReactElement | null 
   return (
     <aside className="not-prose my-8 rounded-3xl border border-line bg-card p-5 shadow-card sm:p-7">
       <div className="mb-5">
-        <p className="text-[11px] font-semibold uppercase tracking-wider text-brand-700">Quick Picks</p>
+        <p className="text-[11px] font-semibold uppercase tracking-wider text-primary-700">Quick Picks</p>
         <h2 className="mt-1 text-xl font-bold tracking-tight text-ink sm:text-2xl">
           {tiered ? "Top lựa chọn theo phân khúc" : "Gợi ý nhanh"}
         </h2>
@@ -73,9 +73,9 @@ function PickCard({ pick }: PickProps): React.ReactElement {
         ? "bg-sky-50 text-sky-700 ring-sky-200"
         : tier === "Cao cấp"
           ? "bg-violet-50 text-violet-700 ring-violet-200"
-          : "bg-brand-50 text-brand-700 ring-brand-200";
+          : "bg-primary-50 text-primary-700 ring-primary-200";
   return (
-    <div className="flex flex-col gap-3 rounded-2xl border border-line bg-canvas p-4 transition hover:border-brand-200 hover:bg-card">
+    <div className="flex flex-col gap-3 rounded-2xl border border-line bg-canvas p-4 transition hover:border-primary-200 hover:bg-card">
       {tier ? (
         <div>
           <span className={`inline-flex rounded-full px-2.5 py-0.5 text-[11px] font-semibold ring-1 ring-inset ${tierColor}`}>
@@ -90,7 +90,7 @@ function PickCard({ pick }: PickProps): React.ReactElement {
           // eslint-disable-next-line @next/next/no-img-element
           <img src={view.image} alt={view.name} className="aspect-[4/3] w-full object-cover" loading="lazy" />
         ) : (
-          <div className="grid aspect-[4/3] w-full place-items-center bg-gradient-to-br from-brand-50 to-accent-50 text-3xl font-bold text-brand-700">
+          <div className="grid aspect-[4/3] w-full place-items-center bg-gradient-to-br from-primary-50 to-accent-50 text-3xl font-bold text-primary-700">
             {view.brand?.[0] ?? "★"}
           </div>
         )}
@@ -105,7 +105,7 @@ function PickCard({ pick }: PickProps): React.ReactElement {
 
       {view.price !== undefined ? (
         <div className="flex items-baseline gap-1.5">
-          <span className="text-base font-bold text-brand-700">{formatMoney(view.price, view.currency)}</span>
+          <span className="text-base font-bold text-primary-700">{formatMoney(view.price, view.currency)}</span>
           {view.originalPrice && view.originalPrice > view.price ? (
             <span className="text-xs text-ink-mute line-through">{formatMoney(view.originalPrice, view.currency)}</span>
           ) : null}

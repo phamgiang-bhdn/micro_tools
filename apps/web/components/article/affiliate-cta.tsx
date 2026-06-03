@@ -35,7 +35,7 @@ export function AffiliateCta({
 
   const variantClasses =
     variant === "ghost"
-      ? "border border-line bg-card text-ink-soft hover:border-brand-300 hover:text-brand-700"
+      ? "border border-line bg-card text-ink-soft hover:border-primary-300 hover:text-primary-700"
       : "bg-brand-gradient text-white shadow-glow-sm hover:shadow-glow";
 
   return (

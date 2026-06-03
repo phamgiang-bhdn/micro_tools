@@ -64,7 +64,7 @@ export default async function ComingSoonPage({
           </div>
           <h1 className="mt-4 text-3xl font-bold text-ink sm:text-4xl">
             AI chọn {nicheName.toLowerCase()} <br />
-            <span className="text-google-blue">phù hợp với nhà bạn</span>
+            <span className="text-primary-600">phù hợp với nhà bạn</span>
           </h1>
           <p className="mt-4 text-base text-ink-soft">
             Mô tả nhu cầu trong 1-2 câu — AI gợi ý 3 sản phẩm hợp nhất, kèm lý do
@@ -103,21 +103,21 @@ export default async function ComingSoonPage({
           </h3>
           <ol className="mt-4 space-y-3 text-sm text-ink">
             <li className="flex gap-3">
-              <span className="font-bold text-google-blue">1.</span>
+              <span className="font-bold text-primary-600">1.</span>
               <span>
                 Bạn trả lời <span className="font-semibold">3-5 câu</span> đơn giản (số người
                 dùng, ngân sách, nguồn nước...) hoặc mô tả tự nhiên.
               </span>
             </li>
             <li className="flex gap-3">
-              <span className="font-bold text-google-blue">2.</span>
+              <span className="font-bold text-primary-600">2.</span>
               <span>
                 AI phân tích từ <span className="font-semibold">database spec thật</span> +
                 giá hôm nay từ Tiki/Shopee/Lazada.
               </span>
             </li>
             <li className="flex gap-3">
-              <span className="font-bold text-google-blue">3.</span>
+              <span className="font-bold text-primary-600">3.</span>
               <span>
                 Nhận <span className="font-semibold">3 gợi ý kèm lý do AI</span> giải thích
                 vì sao hợp với bạn — không phải bài review chung chung.

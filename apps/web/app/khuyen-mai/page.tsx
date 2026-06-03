@@ -109,7 +109,7 @@ function ChipLink({ href, active, label }: { href: string; active: boolean; labe
     <Link
       href={href}
       className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-semibold transition ${
-        active ? "bg-ink text-white" : "border border-line bg-card text-ink-soft hover:border-brand-300 hover:text-brand-700"
+        active ? "bg-ink text-white" : "border border-line bg-card text-ink-soft hover:border-primary-300 hover:text-primary-700"
       }`}
     >
       {label}
@@ -123,7 +123,7 @@ function EmptyState(): React.ReactElement {
       <p className="text-base font-semibold text-ink">Chưa có mã đang còn dùng</p>
       <p className="mt-2 text-sm text-ink-soft">
         Quay lại sau 6h để xem mã mới, hoặc đọc{" "}
-        <Link href="/blog" className="text-brand-700 hover:underline">
+        <Link href="/blog" className="text-primary-700 hover:underline">
           cẩm nang chọn mua
         </Link>
         .

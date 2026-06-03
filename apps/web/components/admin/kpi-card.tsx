@@ -13,9 +13,9 @@ interface KpiCardProps {
 
 const TONE: Record<Tone, { value: string; chip: string; iconBg: string }> = {
   brand: {
-    value: "text-brand-700",
-    chip: "bg-brand-50 text-brand-700 ring-brand-200",
-    iconBg: "bg-brand-50 text-brand-700"
+    value: "text-primary-700",
+    chip: "bg-primary-50 text-primary-700 ring-primary-200",
+    iconBg: "bg-primary-50 text-primary-700"
   },
   accent: {
     value: "text-emerald-600",

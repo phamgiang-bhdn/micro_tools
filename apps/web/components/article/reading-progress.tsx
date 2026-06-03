@@ -40,7 +40,7 @@ export function ReadingProgress() {
       aria-hidden
     >
       <div
-        className="h-full bg-gradient-to-r from-brand-500 via-brand-600 to-accent-500 transition-[width] duration-100 ease-out"
+        className="h-full bg-gradient-to-r from-primary-500 via-primary-600 to-accent-500 transition-[width] duration-100 ease-out"
         style={{ width: `${progress}%` }}
       />
     </div>

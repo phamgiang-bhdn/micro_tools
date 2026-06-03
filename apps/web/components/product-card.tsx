@@ -40,7 +40,7 @@ export function ProductCard({ product, nicheSlug, compact = false }: ProductCard
   const verifiedRecent = isVerifiedRecent(product.updatedAt);
 
   return (
-    <article className="group relative flex h-full flex-col overflow-hidden rounded-2xl border border-line bg-card shadow-card transition duration-300 hover:-translate-y-1 hover:border-brand-300 hover:shadow-pop">
+    <article className="group relative flex h-full flex-col overflow-hidden rounded-2xl border border-border bg-surface shadow-card transition duration-300 hover:-translate-y-1 hover:border-primary-300 hover:shadow-card-lg">
       {/* Image + badges. Nested Link làm primary tap target cho image. */}
       <Link
         href={detailHref}
@@ -52,7 +52,7 @@ export function ProductCard({ product, nicheSlug, compact = false }: ProductCard
         <div className="absolute left-2 top-2 flex flex-col items-start gap-1">
           {discountPct > 0 ? <DiscountBadge percent={discountPct} /> : null}
           {isHot ? (
-            <span className="inline-flex items-center gap-0.5 rounded-md bg-amber-500 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white shadow-sm">
+            <span className="inline-flex items-center gap-0.5 rounded-md bg-ink px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white shadow-sm">
               <Flame className="size-2.5" /> Hot
             </span>
           ) : null}
@@ -75,7 +75,7 @@ export function ProductCard({ product, nicheSlug, compact = false }: ProductCard
             </p>
           ) : null}
           <p
-            className={`min-h-[2.6em] text-sm font-medium text-ink transition group-hover:text-brand-700 ${
+            className={`min-h-[2.6em] text-sm font-medium text-ink transition group-hover:text-primary-700 ${
               compact ? "line-clamp-1" : "line-clamp-2"
             }`}
           >
@@ -87,7 +87,7 @@ export function ProductCard({ product, nicheSlug, compact = false }: ProductCard
               {social ? <span className="font-medium text-ink-soft">{social}</span> : null}
               {social && verifiedRecent ? <span aria-hidden>·</span> : null}
               {verifiedRecent ? (
-                <span className="inline-flex items-center gap-0.5 font-medium text-emerald-700">
+                <span className="inline-flex items-center gap-0.5 font-medium text-success-ink">
                   <CheckCircle2 className="size-3" /> Đối chiếu {formatShortDate(product.updatedAt)}
                 </span>
               ) : null}
@@ -124,22 +124,16 @@ function ProductImage({ product }: { product: ProductView }): React.ReactElement
     .map((word) => word[0]?.toUpperCase() ?? "")
     .join("");
   return (
-    <div className="flex size-full items-center justify-center bg-gradient-to-br from-brand-50 via-white to-accent-50 text-2xl font-bold text-brand-700">
+    <div className="flex size-full items-center justify-center bg-gradient-to-br from-primary-50 to-primary-100 text-2xl font-bold text-primary-700">
       {initials || "★"}
     </div>
   );
 }
 
 function DiscountBadge({ percent }: { percent: number }): React.ReactElement {
-  // Tier theo % giảm: ≥50 đỏ + flame, ≥30 gradient, ≥15 brand. <15 caller đã hide.
-  const tone =
-    percent >= 50
-      ? "bg-red-600 text-white"
-      : percent >= 30
-        ? "bg-brand-gradient text-white"
-        : "bg-brand-600 text-white";
+  // Badge giảm giá: amber (cta) cho mọi mức — flame thêm khi ≥50%. Bỏ 3-tier đỏ/gradient cũ.
   return (
-    <span className={`inline-flex items-center gap-0.5 rounded-md px-2 py-0.5 text-[11px] font-bold shadow-sm ${tone}`}>
+    <span className="inline-flex items-center gap-0.5 rounded-md bg-cta-500 px-2 py-0.5 text-[11px] font-bold text-ink shadow-sm">
       {percent >= 50 ? <Flame className="size-2.5" /> : null}
       -{percent}%
     </span>
@@ -161,7 +155,7 @@ function PriceBlock({
   return (
     <div className="space-y-0.5">
       <div className="flex flex-wrap items-baseline gap-1.5">
-        <span className={`font-bold text-brand-700 ${compact ? "text-sm" : "text-base sm:text-lg"}`}>
+        <span className={`font-bold text-ink ${compact ? "text-sm" : "text-base sm:text-lg"}`}>
           {formatMoney(product.price, product.currency)}
         </span>
         {product.originalPrice && product.originalPrice > product.price ? (
@@ -171,7 +165,7 @@ function PriceBlock({
         ) : null}
       </div>
       {!compact && savings ? (
-        <p className="text-[11px] font-medium text-accent-700">
+        <p className="text-[11px] font-medium text-success-ink">
           Tiết kiệm {formatMoney(savings, product.currency)}
         </p>
       ) : null}
@@ -187,7 +181,7 @@ function OutboundButton({ product, detailHref }: { product: ProductView; detailH
     return (
       <Link
         href={detailHref}
-        className="mt-3 inline-flex w-full items-center justify-center gap-1.5 rounded-lg border border-line bg-card px-3 py-2.5 text-[13px] font-semibold text-ink-soft transition hover:border-brand-300 hover:text-brand-700 ring-focus"
+        className="mt-3 inline-flex w-full items-center justify-center gap-1.5 rounded-lg border border-border bg-surface px-3 py-2.5 text-[13px] font-semibold text-ink-soft transition hover:border-primary-300 hover:text-primary-700 ring-focus"
         aria-label={`Xem chi tiết ${product.name}`}
       >
         Liên hệ shop
@@ -201,7 +195,7 @@ function OutboundButton({ product, detailHref }: { product: ProductView; detailH
       <input type="hidden" name="affiliateUrl" value={affiliateUrl} />
       <button
         type="submit"
-        className="inline-flex w-full items-center justify-center gap-1.5 rounded-lg bg-brand-600 px-3 py-2.5 text-[13px] font-semibold text-white shadow-sm transition hover:bg-brand-700 hover:shadow-md ring-focus"
+        className="inline-flex w-full items-center justify-center gap-1.5 rounded-lg bg-cta-500 px-3 py-2.5 text-[13px] font-semibold text-ink shadow-sm transition hover:bg-cta-400 hover:shadow-md ring-focus"
       >
         <ShoppingCart className="size-3.5" /> Xem deal ngay →
       </button>

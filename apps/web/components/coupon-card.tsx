@@ -59,7 +59,7 @@ export function CouponCard({ coupon }: CouponCardProps): React.ReactElement {
               href={coupon.affiliateUrl}
               target="_blank"
               rel="nofollow noopener"
-              className="inline-flex items-center gap-1.5 rounded-full bg-brand-600 px-4 py-1.5 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-700"
+              className="inline-flex items-center gap-1.5 rounded-full bg-primary-600 px-4 py-1.5 text-sm font-semibold text-white shadow-sm transition hover:bg-primary-700"
             >
               Nhận ưu đãi
             </a>

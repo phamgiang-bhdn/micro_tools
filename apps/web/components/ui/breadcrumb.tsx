@@ -15,7 +15,7 @@ export function Breadcrumb({ items }: { items: BreadcrumbItem[] }): React.ReactE
           return (
             <li key={`${item.label}-${index}`} className="flex items-center gap-1">
               {item.href && !isLast ? (
-                <Link href={item.href} className="rounded px-1 py-0.5 hover:bg-white/70 hover:text-ink">
+                <Link href={item.href} className="rounded px-1 py-0.5 hover:bg-surface-2 hover:text-ink">
                   {item.label}
                 </Link>
               ) : (

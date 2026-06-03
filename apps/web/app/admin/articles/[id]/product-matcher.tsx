@@ -194,11 +194,11 @@ export function ProductMatcher({ articleId, nicheId }: Props) {
             <p className="text-[13px] text-admin-mute">Chọn 1 slot bên trái để bắt đầu gắn.</p>
           ) : (
             <>
-              <div className="mb-3 rounded-lg border border-brand-200 bg-brand-50/40 p-3">
+              <div className="mb-3 rounded-lg border border-primary-200 bg-primary-50/40 p-3">
                 <div className="flex items-start gap-2 text-[12.5px]">
-                  <Sparkles className="mt-0.5 size-4 shrink-0 text-brand-600" />
+                  <Sparkles className="mt-0.5 size-4 shrink-0 text-primary-600" />
                   <div className="min-w-0 flex-1">
-                    <p className="text-[11px] font-semibold uppercase tracking-wider text-brand-700">AI gợi ý</p>
+                    <p className="text-[11px] font-semibold uppercase tracking-wider text-primary-700">AI gợi ý</p>
                     <p className="mt-0.5 text-admin-ink">{activeSlot.hint}</p>
                     {activeSlot.angle ? (
                       <p className="mt-1 text-[11.5px] italic text-admin-mute">Spin: &quot;{activeSlot.angle}&quot;</p>
@@ -269,7 +269,7 @@ export function ProductMatcher({ articleId, nicheId }: Props) {
                           className={`flex w-full items-start gap-3 rounded-lg border p-2.5 text-left transition ${
                             isCurrent
                               ? "border-emerald-300 bg-emerald-50/40"
-                              : "border-line bg-canvas hover:border-brand-300 hover:bg-brand-50/30"
+                              : "border-line bg-canvas hover:border-primary-300 hover:bg-primary-50/30"
                           } disabled:opacity-50`}
                         >
                           <ProductThumb product={p as unknown as SlotProductDto} />
@@ -335,7 +335,7 @@ function PriceLine({ raw }: { raw: Record<string, unknown> }) {
     original && original > price ? Math.round(((original - price) / original) * 100) : 0;
   return (
     <div className="mt-1 flex items-baseline gap-1.5">
-      <span className="text-[12px] font-bold text-brand-700">
+      <span className="text-[12px] font-bold text-primary-700">
         {new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND", maximumFractionDigits: 0 }).format(price)}
       </span>
       {original && original > price ? (

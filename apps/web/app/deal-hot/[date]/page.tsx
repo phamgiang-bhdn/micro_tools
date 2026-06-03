@@ -54,7 +54,7 @@ export default async function DealHotPage({ params }: PageProps): Promise<React.
   return (
     <main className="mx-auto max-w-[480px] bg-canvas pb-12">
       <header className="border-b border-line bg-card px-4 py-4">
-        <p className="text-[10px] font-semibold uppercase tracking-wider text-brand-600">{BRAND.name}</p>
+        <p className="text-[10px] font-semibold uppercase tracking-wider text-primary-600">{BRAND.name}</p>
         <p className="text-xs text-ink-mute">{BRAND.taglineShort}</p>
       </header>
 
@@ -88,7 +88,7 @@ export default async function DealHotPage({ params }: PageProps): Promise<React.
           Một số liên kết trên trang có thể giúp chúng tôi nhận hoa hồng.
         </p>
         <p className="mt-2">
-          <Link href="/" className="text-brand-700 hover:underline">
+          <Link href="/" className="text-primary-700 hover:underline">
             ← Về trang chủ {BRAND.name}
           </Link>
         </p>
@@ -124,7 +124,7 @@ function DealCard({
             loading={hero ? "eager" : "lazy"}
           />
         ) : (
-          <div className={`grid w-full place-items-center bg-brand-50 text-3xl ${hero ? "aspect-[16/10]" : "aspect-[16/11]"}`}>
+          <div className={`grid w-full place-items-center bg-primary-50 text-3xl ${hero ? "aspect-[16/10]" : "aspect-[16/11]"}`}>
             🛒
           </div>
         )}
@@ -160,7 +160,7 @@ function DealCard({
             <input type="hidden" name="affiliateUrl" value={product.affiliateUrl ?? ""} />
             <button
               type="submit"
-              className="mt-1 inline-flex w-full items-center justify-center rounded-full bg-brand-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-700"
+              className="mt-1 inline-flex w-full items-center justify-center rounded-full bg-primary-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-primary-700"
             >
               Xem deal ngay →
             </button>
@@ -168,7 +168,7 @@ function DealCard({
         ) : (
           <Link
             href={`/categories/${product.nicheSlug}/${product.slug ?? product.id}`}
-            className="mt-1 inline-flex w-full items-center justify-center rounded-full border border-line bg-canvas px-4 py-2.5 text-sm font-semibold text-ink-soft hover:border-brand-300 hover:text-brand-700"
+            className="mt-1 inline-flex w-full items-center justify-center rounded-full border border-line bg-canvas px-4 py-2.5 text-sm font-semibold text-ink-soft hover:border-primary-300 hover:text-primary-700"
           >
             Xem chi tiết
           </Link>
@@ -180,7 +180,7 @@ function DealCard({
 
 function SubscribeCta(): React.ReactElement {
   return (
-    <section className="mx-4 mt-4 rounded-2xl border border-dashed border-brand-300 bg-brand-50/50 p-5 text-center">
+    <section className="mx-4 mt-4 rounded-2xl border border-dashed border-primary-300 bg-primary-50/50 p-5 text-center">
       <p className="text-sm font-semibold text-ink">Hết deal hôm nay rồi?</p>
       <p className="mt-1 text-xs text-ink-soft">📧 Đăng ký nhận deal mỗi sáng 7:00.</p>
       <form
@@ -198,7 +198,7 @@ function SubscribeCta(): React.ReactElement {
         <input type="hidden" name="source" value="deal_hot_footer" />
         <button
           type="submit"
-          className="inline-flex h-10 items-center justify-center rounded-full bg-brand-600 px-5 text-sm font-semibold text-white"
+          className="inline-flex h-10 items-center justify-center rounded-full bg-primary-600 px-5 text-sm font-semibold text-white"
         >
           Đăng ký
         </button>
@@ -218,13 +218,13 @@ function EmptyState({ date }: { date: string }): React.ReactElement {
       <div className="flex justify-center gap-3 pt-3">
         <Link
           href={`/deal-hot/${vnDateOffset(-1)}`}
-          className="rounded-full border border-line bg-card px-4 py-2 text-sm font-semibold text-ink-soft hover:border-brand-300"
+          className="rounded-full border border-line bg-card px-4 py-2 text-sm font-semibold text-ink-soft hover:border-primary-300"
         >
           Deal hôm qua →
         </Link>
         <Link
           href="/blog"
-          className="rounded-full border border-line bg-card px-4 py-2 text-sm font-semibold text-ink-soft hover:border-brand-300"
+          className="rounded-full border border-line bg-card px-4 py-2 text-sm font-semibold text-ink-soft hover:border-primary-300"
         >
           Cẩm nang
         </Link>

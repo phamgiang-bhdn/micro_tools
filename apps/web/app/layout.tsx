@@ -42,14 +42,14 @@ export const metadata: Metadata = {
     icon: [
       {
         url:
-          "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%23ee1f12'/><text x='50%25' y='55%25' font-size='18' text-anchor='middle' fill='white' font-family='Arial' font-weight='bold' dominant-baseline='middle'>d.</text></svg>"
+          "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%232563eb'/><text x='50%25' y='55%25' font-size='18' text-anchor='middle' fill='white' font-family='Arial' font-weight='bold' dominant-baseline='middle'>d.</text></svg>"
       }
     ]
   }
 };
 
 export const viewport: Viewport = {
-  themeColor: "#fbf8f5",
+  themeColor: "#f8fafc",
   width: "device-width",
   initialScale: 1
 };

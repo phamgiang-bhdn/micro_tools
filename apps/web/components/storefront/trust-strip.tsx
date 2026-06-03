@@ -42,7 +42,7 @@ export function TrustStrip(): React.ReactElement {
           key={item.title}
           className="flex gap-3 rounded-xl border border-line bg-card/70 p-3 backdrop-blur"
         >
-          <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-brand-50 text-brand-700">
+          <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-primary-50 text-primary-700">
             <Icon name={item.icon} size="md" />
           </span>
           <div className="min-w-0">

@@ -26,12 +26,12 @@ export function CopyCodeButton({ code, className }: Props): React.ReactElement {
     <button
       type="button"
       onClick={copy}
-      className={`inline-flex items-center gap-2 rounded-lg border border-dashed border-brand-300 bg-brand-50 px-3 py-2 text-sm font-bold text-brand-700 transition hover:bg-brand-100 ${className ?? ""}`}
+      className={`inline-flex items-center gap-2 rounded-lg border border-dashed border-primary-300 bg-primary-50 px-3 py-2 text-sm font-bold text-primary-700 transition hover:bg-primary-100 ${className ?? ""}`}
       aria-label={copied ? "Đã sao chép" : "Sao chép mã"}
     >
       <span className="font-mono">{code}</span>
       {copied ? (
-        <span className="inline-flex items-center gap-1 text-emerald-600">
+        <span className="inline-flex items-center gap-1 text-success">
           <Check className="size-3.5" />
           <span className="text-xs">Đã sao chép</span>
         </span>

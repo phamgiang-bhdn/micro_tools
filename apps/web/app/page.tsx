@@ -2,6 +2,7 @@ import type React from "react";
 import Link from "next/link";
 import {
   fetchActiveCoupons,
+  fetchActiveTools,
   fetchAllProductsFlat,
   fetchArticles,
   fetchNiches,
@@ -16,9 +17,9 @@ import { TopProductCard } from "../components/storefront/top-product-card";
 import { SortControl } from "../components/storefront/sort-control";
 import { TrustStrip } from "../components/storefront/trust-strip";
 import { HomeHero } from "../components/storefront/home-hero";
+import { AiHero } from "../components/storefront/ai-hero";
 import { CuratedNicheGrid } from "../components/storefront/curated-niche-grid";
 import { SocialProofStrip } from "../components/storefront/social-proof-strip";
-import { AiToolBanner } from "../components/storefront/ai-tool-banner";
 import { SessionRestoreBanner } from "../components/storefront/session-restore-banner";
 import { CouponPreview } from "../components/storefront/coupon-preview";
 import { ArticleCard } from "../components/storefront/article-card";
@@ -32,11 +33,12 @@ interface HomeProps {
 
 export default async function HomePage({ searchParams }: HomeProps): Promise<React.ReactElement> {
   const { category: activeSlug, sort = "top", q = "" } = await searchParams;
-  const [{ niches, loadError }, topProducts, activeCoupons, latestArticles] = await Promise.all([
+  const [{ niches, loadError }, topProducts, activeCoupons, latestArticles, aiTools] = await Promise.all([
     fetchNiches(),
     fetchTopProducts(12),
     fetchActiveCoupons(3),
-    fetchArticles({ limit: 3 })
+    fetchArticles({ limit: 3 }),
+    fetchActiveTools(6)
   ]);
   const allProducts = loadError ? [] : await fetchAllProductsFlat(niches);
 
@@ -75,14 +77,21 @@ export default async function HomePage({ searchParams }: HomeProps): Promise<Rea
 
   return (
     <div>
-      <HomeHero
-        topDealsCount={allProducts.length}
-        hotDealCount={topProducts.length}
-        savingsTotal={totalSavings}
-        featuredDeal={topDeals[0] ?? null}
-      />
-
-      <AiToolBanner />
+      {aiTools.length > 0 ? (
+        <AiHero
+          tools={aiTools}
+          featuredDeal={topDeals[0] ?? null}
+          productCount={allProducts.length}
+          hotDealCount={topProducts.length}
+        />
+      ) : (
+        <HomeHero
+          topDealsCount={allProducts.length}
+          hotDealCount={topProducts.length}
+          savingsTotal={totalSavings}
+          featuredDeal={topDeals[0] ?? null}
+        />
+      )}
 
       <div className="mx-auto max-w-6xl px-4">
         <SessionRestoreBanner />
@@ -104,7 +113,7 @@ export default async function HomePage({ searchParams }: HomeProps): Promise<Rea
             description={
               <p>
                 Chúng tôi đang cập nhật danh sách deal. Vui lòng quay lại sau ít phút, hoặc xem{" "}
-                <Link href="/blog" className="font-medium text-brand-700 hover:underline">
+                <Link href="/blog" className="font-medium text-primary-700 hover:underline">
                   cẩm nang chọn mua
                 </Link>{" "}
                 trong lúc chờ.
@@ -120,7 +129,7 @@ export default async function HomePage({ searchParams }: HomeProps): Promise<Rea
             title="🔥 Deal hot trong tuần"
             description={`Sắp theo % giảm sâu nhất · ${topDeals.length} sản phẩm`}
             trailing={
-              <Link href="#all-deals" className="font-semibold text-brand-700 hover:underline">
+              <Link href="#all-deals" className="font-semibold text-primary-700 hover:underline">
                 Xem thêm →
               </Link>
             }
@@ -135,7 +144,7 @@ export default async function HomePage({ searchParams }: HomeProps): Promise<Rea
           description="6 danh mục được săn nhiều nhất tuần này."
           trailing={
             niches.length > 6 ? (
-              <Link href="#all-niches" className="font-semibold text-brand-700 hover:underline">
+              <Link href="#all-niches" className="font-semibold text-primary-700 hover:underline">
                 Xem tất cả {niches.length} danh mục →
               </Link>
             ) : null
@@ -165,7 +174,7 @@ export default async function HomePage({ searchParams }: HomeProps): Promise<Rea
             title="Mã giảm giá nóng"
             description="Ưu tiên mã sắp hết hạn."
             trailing={
-              <Link href="/khuyen-mai" className="font-semibold text-brand-700 hover:underline">
+              <Link href="/khuyen-mai" className="font-semibold text-primary-700 hover:underline">
                 Xem tất cả mã →
               </Link>
             }
@@ -180,7 +189,7 @@ export default async function HomePage({ searchParams }: HomeProps): Promise<Rea
             title="Cẩm nang chọn mua"
             description="Bài viết mới nhất từ team biên tập."
             trailing={
-              <Link href="/blog" className="font-semibold text-brand-700 hover:underline">
+              <Link href="/blog" className="font-semibold text-primary-700 hover:underline">
                 Xem tất cả cẩm nang →
               </Link>
             }
@@ -223,7 +232,7 @@ export default async function HomePage({ searchParams }: HomeProps): Promise<Rea
               <p className="mt-2 text-xs text-ink-mute">
                 Đang tìm: <span className="font-medium text-ink">“{q}”</span> · {sorted.length} kết quả
                 {" · "}
-                <Link href={buildHref({ category: activeSlug, sort, q: "" })} className="text-brand-700 hover:underline">
+                <Link href={buildHref({ category: activeSlug, sort, q: "" })} className="text-primary-700 hover:underline">
                   Xoá tìm kiếm
                 </Link>
               </p>
@@ -241,7 +250,7 @@ export default async function HomePage({ searchParams }: HomeProps): Promise<Rea
               ) : (
                 <p>
                   Team dealvault đang đối chiếu deal mới từ các sàn. Vui lòng quay lại sau ít phút,
-                  hoặc xem <Link href="/blog" className="font-medium text-brand-700 hover:underline">cẩm nang chọn mua</Link>.
+                  hoặc xem <Link href="/blog" className="font-medium text-primary-700 hover:underline">cẩm nang chọn mua</Link>.
                 </p>
               )
             }

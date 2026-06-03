@@ -19,7 +19,7 @@ export function CouponCountdown({ expiresAt, className }: Props): React.ReactEle
 
   const diff = expires.getTime() - now.getTime();
   if (diff <= 0) {
-    return <span className={`text-rose-600 font-semibold ${className ?? ""}`}>Đã hết hạn</span>;
+    return <span className={`text-danger font-semibold ${className ?? ""}`}>Đã hết hạn</span>;
   }
 
   const totalHours = diff / 3600000;
@@ -33,8 +33,8 @@ export function CouponCountdown({ expiresAt, className }: Props): React.ReactEle
   const s = Math.floor((diff % 60000) / 1000);
   const urgent = totalHours <= 1;
   const cls = urgent
-    ? "text-rose-600 font-bold"
-    : "text-amber-700 font-semibold";
+    ? "text-danger font-bold"
+    : "text-warning font-semibold";
   return (
     <span className={`${cls} tabular-nums ${className ?? ""}`}>
       {urgent ? "⏰ " : ""}Còn {h}:{m.toString().padStart(2, "0")}:{s.toString().padStart(2, "0")}

@@ -13,7 +13,7 @@ export default function AboutPage(): React.ReactElement {
   return (
     <article className="mx-auto max-w-3xl px-4 py-10 sm:px-6">
       <header className="mb-8">
-        <p className="text-xs font-semibold uppercase tracking-wider text-brand-600">Về chúng tôi</p>
+        <p className="text-xs font-semibold uppercase tracking-wider text-primary-600">Về chúng tôi</p>
         <h1 className="mt-1 text-3xl font-bold text-ink sm:text-4xl">{BRAND.name} là ai?</h1>
         <p className="mt-3 text-base text-ink-soft">
           {BRAND.taglineLong}

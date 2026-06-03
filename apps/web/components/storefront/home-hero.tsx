@@ -35,15 +35,15 @@ export function HomeHero({
     : null;
 
   return (
-    <section className="relative overflow-hidden border-b border-line bg-gradient-to-br from-brand-50/40 via-canvas to-canvas">
+    <section className="relative overflow-hidden border-b border-line bg-gradient-to-br from-primary-50/40 via-canvas to-canvas">
       <div className="mx-auto grid max-w-6xl gap-6 px-4 py-6 sm:px-6 sm:py-8 lg:grid-cols-[1.3fr_1fr] lg:items-center lg:gap-10">
         <div className="space-y-3">
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-brand-200 bg-card/80 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wider text-brand-700">
-            <span aria-hidden className="size-1.5 rounded-full bg-brand-500 animate-pulse-glow" />
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-primary-200 bg-card/80 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wider text-primary-700">
+            <span aria-hidden className="size-1.5 rounded-full bg-primary-500" />
             Cập nhật mỗi giờ
           </span>
           <h1 className="text-2xl font-bold leading-tight tracking-tight text-ink sm:text-3xl">
-            Mua khôn hơn — đối chiếu giá thật từ <span className="text-brand-700">Shopee, Lazada, TikTok</span>
+            Mua khôn hơn — đối chiếu giá thật từ <span className="text-primary-700">Shopee, Lazada, TikTok</span>
           </h1>
           <p className="text-sm text-ink-soft sm:text-base">
             {hotDealCount > 0
@@ -72,7 +72,7 @@ export function HomeHero({
         {featuredDeal && dealKey ? (
           <Link
             href={`/categories/${featuredDeal.nicheSlug}/${dealKey}`}
-            className="group relative flex gap-3 overflow-hidden rounded-2xl border border-line bg-card p-3 shadow-card transition hover:-translate-y-0.5 hover:border-brand-300 hover:shadow-pop sm:p-4"
+            className="group relative flex gap-3 overflow-hidden rounded-2xl border border-line bg-card p-3 shadow-card transition hover:-translate-y-0.5 hover:border-primary-300 hover:shadow-pop sm:p-4"
           >
             <div className="relative aspect-square w-28 shrink-0 overflow-hidden rounded-xl bg-canvas sm:w-32">
               {featuredDeal.image ? (
@@ -83,34 +83,34 @@ export function HomeHero({
                   className="size-full object-cover transition group-hover:scale-110"
                 />
               ) : (
-                <div className="grid size-full place-items-center bg-gradient-to-br from-brand-50 to-brand-100 text-lg font-bold text-brand-700">
+                <div className="grid size-full place-items-center bg-gradient-to-br from-primary-50 to-primary-100 text-lg font-bold text-primary-700">
                   {featuredDeal.name.slice(0, 2).toUpperCase()}
                 </div>
               )}
               {typeof featuredDeal.discountPercent === "number" && featuredDeal.discountPercent > 0 ? (
-                <span className="absolute left-1.5 top-1.5 rounded-md bg-red-600 px-1.5 py-0.5 text-[10.5px] font-bold text-white shadow">
+                <span className="absolute left-1.5 top-1.5 rounded-md bg-cta-500 px-1.5 py-0.5 text-[10.5px] font-bold text-ink shadow">
                   -{featuredDeal.discountPercent}%
                 </span>
               ) : null}
             </div>
             <div className="flex min-w-0 flex-1 flex-col">
-              <span className="text-[10.5px] font-semibold uppercase tracking-wider text-brand-700">
+              <span className="text-[10.5px] font-semibold uppercase tracking-wider text-primary-700">
                 Đang hot nhất
               </span>
-              <p className="mt-0.5 line-clamp-2 text-[14px] font-semibold leading-snug text-ink group-hover:text-brand-700">
+              <p className="mt-0.5 line-clamp-2 text-[14px] font-semibold leading-snug text-ink group-hover:text-primary-700">
                 {featuredDeal.name}
               </p>
               <div className="mt-auto pt-2">
                 <div className="flex items-baseline gap-2">
                   {typeof featuredDeal.price === "number" && featuredDeal.price > 0 ? (
-                    <span className="text-[17px] font-bold text-brand-700">{formatMoney(featuredDeal.price)}</span>
+                    <span className="text-[17px] font-bold text-primary-700">{formatMoney(featuredDeal.price)}</span>
                   ) : null}
                   {typeof featuredDeal.originalPrice === "number" &&
                   featuredDeal.originalPrice > (featuredDeal.price ?? 0) ? (
                     <span className="text-[11.5px] text-ink-mute line-through">{formatMoney(featuredDeal.originalPrice)}</span>
                   ) : null}
                 </div>
-                <span className="mt-1.5 inline-flex items-center gap-1 text-[12px] font-semibold text-brand-700 group-hover:gap-1.5">
+                <span className="mt-1.5 inline-flex items-center gap-1 text-[12px] font-semibold text-primary-700 group-hover:gap-1.5">
                   Xem deal ngay <Icon name="arrow-right" size="xs" />
                 </span>
               </div>

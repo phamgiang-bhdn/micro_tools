@@ -3,112 +3,131 @@ import typography from "@tailwindcss/typography";
 import animate from "tailwindcss-animate";
 
 /**
- * Design tokens hợp nhất cho cả public storefront và admin shell.
- * - `canvas` (cream) làm nền cho user-facing UI; `surface` (white) cho card.
- * - `slate-*` tones là backbone cho admin (đậm, info-dense) — tránh dùng google-* deprecated.
- * - Brand red giữ riêng cho conversion CTA; accent green cho tín hiệu success/savings.
+ * Design system V3 — MỘT hệ token trust-blue duy nhất, dùng chung storefront + admin.
+ *
+ * Canonical (code mới chỉ dùng các tên này):
+ *  - `primary`  : blue, màu thương hiệu / tin cậy / link / focus.
+ *  - `cta`      : amber ấm — CHỈ cho conversion ("Xem deal") + badge 🤖 AI. Đừng dùng tràn lan.
+ *  - `ink/-soft/-mute` : text 3 cấp (slate-900/700/500).
+ *  - `canvas`   : nền trang (slate-50). `surface`/`surface-2` : card / panel phụ.
+ *  - `border`/`border-strong` : viền.
+ *  - `success/warning/danger/info` : semantic, mỗi cái có `.soft` (nền nhạt) + `.ink` (chữ đậm).
+ *
+ * Legacy aliases (brand/google/admin/accent/line/card): TẠM remap về hệ mới để file cũ
+ *   vẫn compile và tự đổi màu (đỏ/tím → xanh). Sẽ XOÁ ở Phase 6 sau khi migrate hết.
  */
 const config: Config = {
   content: ["./app/**/*.{ts,tsx}", "./components/**/*.{ts,tsx}", "./lib/**/*.{ts,tsx}"],
   theme: {
     extend: {
       colors: {
-        brand: {
-          50: "#fff1f0",
-          100: "#ffe1de",
-          200: "#ffc7c1",
-          300: "#ff9d92",
-          400: "#ff6a5b",
-          500: "#ff3b2f",
-          600: "#ee1f12",
-          700: "#c5160c",
-          800: "#a3160e",
-          900: "#871a13",
-          950: "#4a0805"
+        // ─── Canonical ────────────────────────────────────────────────
+        primary: {
+          50: "#eff6ff",
+          100: "#dbeafe",
+          200: "#bfdbfe",
+          300: "#93c5fd",
+          400: "#60a5fa",
+          500: "#3b82f6",
+          600: "#2563eb",
+          700: "#1d4ed8",
+          800: "#1e40af",
+          900: "#1e3a8a",
+          950: "#172554"
         },
-        accent: {
-          50: "#effbf6",
-          100: "#d8f4e6",
-          200: "#b3e8cf",
-          300: "#7fd5b1",
-          400: "#46bb8c",
-          500: "#1fa471",
-          600: "#13845a",
-          700: "#106a4a",
-          800: "#0f543c",
-          900: "#0d4532"
+        cta: {
+          50: "#fffbeb",
+          100: "#fef3c7",
+          200: "#fde68a",
+          300: "#fcd34d",
+          400: "#fbbf24",
+          500: "#f59e0b",
+          600: "#d97706",
+          700: "#b45309"
         },
         ink: {
-          DEFAULT: "#0e1116",
-          soft: "#3a3f47",
-          mute: "#6b7280"
+          DEFAULT: "#0f172a", // slate-900
+          soft: "#334155", // slate-700
+          mute: "#64748b" // slate-500
         },
-        line: "#e5e7eb",
-        "line-strong": "#d1d5db",
-        canvas: "#fbf8f5",
+        canvas: "#f8fafc", // slate-50 — nền trang (cả storefront lẫn admin)
+        surface: "#ffffff",
+        "surface-2": "#f1f5f9", // slate-100 — panel/well phụ
+        border: "#e2e8f0", // slate-200
+        "border-strong": "#cbd5e1", // slate-300
+        success: { DEFAULT: "#16a34a", soft: "#dcfce7", ink: "#166534" },
+        warning: { DEFAULT: "#d97706", soft: "#fef3c7", ink: "#92400e" },
+        danger: { DEFAULT: "#dc2626", soft: "#fee2e2", ink: "#991b1b" },
+        info: { DEFAULT: "#2563eb", soft: "#dbeafe", ink: "#1e40af" },
+
+        // ─── Legacy aliases còn lại (map → hệ mới; tên không gây hiểu lầm) ──
+        // accent (xanh-lá cũ, dùng cho savings) → success green giữ ngữ nghĩa.
+        accent: {
+          50: "#f0fdf4",
+          100: "#dcfce7",
+          200: "#bbf7d0",
+          300: "#86efac",
+          400: "#4ade80",
+          500: "#22c55e",
+          600: "#16a34a",
+          700: "#15803d",
+          800: "#166534",
+          900: "#14532d"
+        },
+        line: "#e2e8f0",
+        "line-strong": "#cbd5e1",
         card: "#ffffff",
+        // admin (indigo/tím cũ) → neutral slate + primary blue accent.
         admin: {
-          // Nền chính: warm-cool neutral pha xíu tím — không vô hồn như slate thuần.
-          bg: "#f4f5fa",
+          bg: "#f8fafc",
           surface: "#ffffff",
-          "surface-2": "#fafbff",
-          ink: "#0b1220",
-          "ink-soft": "#111827",
-          // Mute đậm hơn (slate-600 thay vì #5a6478) — chữ thứ cấp không còn "mờ mờ" trên light bg.
+          "surface-2": "#f1f5f9",
+          ink: "#0f172a",
+          "ink-soft": "#334155",
           mute: "#475569",
           "mute-soft": "#64748b",
-          line: "#dfe3ee",
-          "line-strong": "#c7cddc",
-          subtle: "#eef0f8",
-          "subtle-hover": "#e6e9f4",
-          // Accent: indigo-violet thay vì pure blue → "có chất" hơn, không khô khan.
-          accent: "#4f46e5",
-          "accent-hover": "#4338ca",
-          "accent-soft": "#e8e7ff",
-          "accent-ink": "#312e81",
-          // Semantic tones
+          line: "#e2e8f0",
+          "line-strong": "#cbd5e1",
+          subtle: "#f1f5f9",
+          "subtle-hover": "#e2e8f0",
+          accent: "#2563eb",
+          "accent-hover": "#1d4ed8",
+          "accent-soft": "#dbeafe",
+          "accent-ink": "#1e3a8a",
           success: "#16a34a",
           "success-soft": "#dcfce7",
           warning: "#d97706",
           "warning-soft": "#fef3c7",
           danger: "#dc2626",
           "danger-soft": "#fee2e2",
-          info: "#0284c7",
-          "info-soft": "#e0f2fe"
-        },
-        // Tokens cũ (google-*) giữ alias để file legacy không vỡ — sẽ phai dần.
-        google: {
-          blue: "#2563eb",
-          "blue-hover": "#1d4ed8",
-          surface: "#ffffff",
-          "surface-tint": "#f1f5f9",
-          outline: "#e2e8f0",
-          ink: "#0f172a",
-          "ink-secondary": "#64748b",
-          error: "#dc2626",
-          success: "#16a34a",
-          warning: "#d97706"
+          info: "#2563eb",
+          "info-soft": "#dbeafe"
         }
       },
       boxShadow: {
+        // Bóng trung tính, mềm — bỏ glow đỏ.
+        card: "0 1px 2px rgba(15, 23, 42, 0.04), 0 1px 3px rgba(15, 23, 42, 0.06)",
+        "card-md": "0 4px 14px rgba(15, 23, 42, 0.08), 0 2px 4px rgba(15, 23, 42, 0.04)",
+        "card-lg": "0 12px 32px rgba(15, 23, 42, 0.12), 0 4px 8px rgba(15, 23, 42, 0.04)",
+        // Legacy aliases → trỏ về bóng trung tính.
         google: "0 1px 2px 0 rgba(15, 23, 42, 0.08), 0 1px 3px 1px rgba(15, 23, 42, 0.06)",
         "google-md": "0 1px 3px 0 rgba(15, 23, 42, 0.08), 0 4px 8px 3px rgba(15, 23, 42, 0.06)",
-        card: "0 1px 2px rgba(16, 24, 40, 0.04), 0 1px 3px rgba(16, 24, 40, 0.06)",
-        "card-md": "0 4px 14px rgba(16, 24, 40, 0.08), 0 2px 4px rgba(16, 24, 40, 0.04)",
-        "card-lg": "0 12px 32px rgba(16, 24, 40, 0.12), 0 4px 8px rgba(16, 24, 40, 0.04)",
-        glow: "0 8px 28px rgba(255, 59, 47, 0.28)",
-        "glow-sm": "0 4px 14px rgba(255, 59, 47, 0.18)",
-        pop: "0 18px 38px -16px rgba(238, 31, 18, 0.32), 0 6px 14px -6px rgba(15, 23, 42, 0.08)"
+        glow: "0 8px 28px rgba(37, 99, 235, 0.18)",
+        "glow-sm": "0 4px 14px rgba(37, 99, 235, 0.12)",
+        pop: "0 18px 38px -16px rgba(15, 23, 42, 0.18), 0 6px 14px -6px rgba(15, 23, 42, 0.08)"
       },
       backgroundImage: {
-        "brand-gradient": "linear-gradient(135deg, #ff6a5b 0%, #ee1f12 60%, #871a13 100%)",
-        "accent-gradient": "linear-gradient(135deg, #46bb8c 0%, #13845a 100%)",
+        // Gradient brand → xanh dương (bỏ đỏ). CTA gradient → amber.
+        "brand-gradient": "linear-gradient(135deg, #3b82f6 0%, #2563eb 60%, #1d4ed8 100%)",
+        "cta-gradient": "linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%)",
+        // accent-gradient (legacy, savings) → green.
+        "accent-gradient": "linear-gradient(135deg, #4ade80 0%, #16a34a 100%)",
+        // Mesh nền: nhẹ, đơn sắc xanh (bỏ mesh đỏ-xanh-lá hỗn loạn).
         "hero-mesh":
-          "radial-gradient(60% 60% at 15% 20%, rgba(255, 106, 91, 0.25) 0%, rgba(255, 106, 91, 0) 60%), radial-gradient(50% 50% at 90% 10%, rgba(70, 187, 140, 0.22) 0%, rgba(70, 187, 140, 0) 60%), radial-gradient(45% 45% at 80% 90%, rgba(238, 31, 18, 0.18) 0%, rgba(238, 31, 18, 0) 60%)",
+          "radial-gradient(60% 60% at 15% 15%, rgba(37, 99, 235, 0.10) 0%, rgba(37, 99, 235, 0) 60%), radial-gradient(45% 45% at 90% 10%, rgba(37, 99, 235, 0.06) 0%, rgba(37, 99, 235, 0) 60%)",
         "admin-mesh":
-          "radial-gradient(60% 50% at 0% 0%, rgba(79, 70, 229, 0.08) 0%, rgba(79, 70, 229, 0) 60%), radial-gradient(40% 40% at 100% 0%, rgba(14, 165, 233, 0.06) 0%, rgba(14, 165, 233, 0) 60%)",
-        "admin-accent-gradient":
-          "linear-gradient(135deg, #6366f1 0%, #4f46e5 60%, #4338ca 100%)"
+          "radial-gradient(60% 50% at 0% 0%, rgba(37, 99, 235, 0.06) 0%, rgba(37, 99, 235, 0) 60%)",
+        "admin-accent-gradient": "linear-gradient(135deg, #3b82f6 0%, #2563eb 60%, #1d4ed8 100%)"
       },
       borderRadius: {
         "2.5xl": "1.25rem",
@@ -138,10 +157,6 @@ const config: Config = {
         shimmer: {
           "0%": { backgroundPosition: "-400px 0" },
           "100%": { backgroundPosition: "400px 0" }
-        },
-        "pulse-glow": {
-          "0%, 100%": { boxShadow: "0 0 0 0 rgba(238, 31, 18, 0.4)" },
-          "50%": { boxShadow: "0 0 0 8px rgba(238, 31, 18, 0)" }
         }
       },
       animation: {
@@ -150,8 +165,7 @@ const config: Config = {
         "slide-in-right": "slide-in-right 0.35s ease-out both",
         "slide-in-left": "slide-in-left 0.25s ease-out both",
         "slide-up": "slide-up 0.3s ease-out both",
-        shimmer: "shimmer 1.4s linear infinite",
-        "pulse-glow": "pulse-glow 2s ease-in-out infinite"
+        shimmer: "shimmer 1.4s linear infinite"
       }
     }
   },

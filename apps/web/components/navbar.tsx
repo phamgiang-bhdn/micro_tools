@@ -43,7 +43,7 @@ export function Navbar(): React.ReactElement | null {
 
   return (
     <>
-      <header className="sticky top-0 z-40 border-b border-line bg-card/80 backdrop-blur-md">
+      <header className="sticky top-0 z-40 border-b border-border bg-surface/80 backdrop-blur-md">
         <div className="mx-auto flex h-16 max-w-6xl items-center gap-2 px-3 sm:gap-3 sm:px-6">
           {/* Mobile hamburger */}
           <button
@@ -62,7 +62,7 @@ export function Navbar(): React.ReactElement | null {
             </span>
             <span className="hidden flex-col sm:flex">
               <span className="text-base font-semibold leading-tight tracking-tight text-ink">
-                deal<span className="text-brand-600">vault</span>
+                deal<span className="text-primary-600">vault</span>
               </span>
               <span className="hidden text-[10px] font-medium uppercase tracking-wider text-ink-mute lg:block">
                 {BRAND.taglineShort}
@@ -102,14 +102,14 @@ export function Navbar(): React.ReactElement | null {
                 value={desktopQuery}
                 onChange={(event) => setDesktopQuery(event.target.value)}
                 placeholder="Tìm deal, brand, danh mục…"
-                className="h-10 w-full rounded-full border border-line bg-canvas pl-10 pr-12 text-sm text-ink placeholder:text-ink-mute focus:border-brand-300 focus:bg-card focus:outline-none focus:ring-2 focus:ring-brand-500/20"
+                className="h-10 w-full rounded-full border border-border bg-canvas pl-10 pr-12 text-sm text-ink placeholder:text-ink-mute focus:border-primary-300 focus:bg-surface focus:outline-none focus:ring-2 focus:ring-primary-500/20"
               />
               {desktopQuery ? (
                 <button
                   type="button"
                   onClick={() => setDesktopQuery("")}
                   aria-label="Xoá tìm kiếm"
-                  className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full p-1 text-ink-mute hover:bg-line hover:text-ink"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full p-1 text-ink-mute hover:bg-surface-2 hover:text-ink"
                 >
                   <Icon name="close" size="sm" />
                 </button>
@@ -136,7 +136,7 @@ export function Navbar(): React.ReactElement | null {
             </Button>
             <Link
               href="/admin"
-              className="hidden items-center gap-1.5 rounded-full border border-line bg-card px-3 py-1.5 text-xs font-medium text-ink-soft transition hover:border-admin-accent hover:text-admin-accent lg:inline-flex"
+              className="hidden items-center gap-1.5 rounded-full border border-border bg-surface px-3 py-1.5 text-xs font-medium text-ink-soft transition hover:border-primary-400 hover:text-primary-700 lg:inline-flex"
               title="Admin Console"
             >
               <Icon name="shield" size="sm" />

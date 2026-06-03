@@ -22,9 +22,6 @@ import { ADMIN_PARAMS, NETWORK_OPTIONS } from "../../lib/admin/constants";
 import { SyncAllButton } from "../../components/admin/sync/sync-all-button";
 import { LastSyncStatusWidget } from "../../components/admin/sync/last-sync-status-widget";
 import { KpiWidget } from "../../components/admin/dashboard/kpi-widget";
-import { CommissionKeywordWidget } from "../../components/admin/dashboard/commission-keyword-widget";
-import { ChannelROASWidget } from "../../components/admin/dashboard/channel-roas-widget";
-import { ExternalLinkKpiWidget } from "../../components/admin/dashboard/external-link-kpi-widget";
 
 export const dynamic = "force-dynamic";
 
@@ -156,15 +153,9 @@ export default async function AdminPage({ searchParams }: AdminPageProps): Promi
 
       {tab === "war-room" ? (
         <>
-          {/* at-money-flows-v1 STORY-03: 7-widget dashboard mới (mount trước War Room legacy). */}
           <section className="grid gap-4 lg:grid-cols-2">
             <KpiWidget />
             <SyncAllButton />
-          </section>
-          <CommissionKeywordWidget />
-          <section className="grid gap-4 lg:grid-cols-2">
-            <ChannelROASWidget />
-            <ExternalLinkKpiWidget />
           </section>
           <LastSyncStatusWidget />
           <WarRoom data={warRoom} pendingItems={refinery.length} />

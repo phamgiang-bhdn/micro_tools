@@ -92,7 +92,7 @@ export function QuizStepFlow({
   if (submitting) {
     return (
       <div className="rounded-3xl border border-line bg-white p-8 text-center shadow-card">
-        <Sparkles className="mx-auto size-8 animate-pulse text-google-blue" />
+        <Sparkles className="mx-auto size-8 animate-pulse text-primary-600" />
         <h2 className="mt-3 text-lg font-semibold text-ink">AI đang phân tích nhu cầu...</h2>
         <p className="mt-1 text-xs text-ink-soft">Mất vài giây để xếp hạng sản phẩm.</p>
       </div>
@@ -186,7 +186,7 @@ export function QuizStepFlow({
       )}
 
       {errorMsg && (
-        <p className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+        <p className="rounded-lg border border-danger/30 bg-danger-soft p-3 text-sm text-danger-ink">
           {errorMsg}
         </p>
       )}
@@ -215,8 +215,8 @@ function SingleChoice({
             onClick={() => onChange(opt.value)}
             className={
               selected
-                ? "flex items-center gap-3 rounded-2xl border-2 border-google-blue bg-google-blue/5 p-4 text-left transition"
-                : "flex items-center gap-3 rounded-2xl border-2 border-line bg-white p-4 text-left transition hover:border-google-blue"
+                ? "flex items-center gap-3 rounded-2xl border-2 border-primary-600 bg-primary-600/5 p-4 text-left transition"
+                : "flex items-center gap-3 rounded-2xl border-2 border-line bg-white p-4 text-left transition hover:border-primary-600"
             }
           >
             {opt.icon && <span className="text-2xl">{opt.icon}</span>}
@@ -246,7 +246,7 @@ function NumberInput({
       max={question.max}
       step={question.step ?? 1}
       placeholder="Nhập số..."
-      className="w-full rounded-xl border border-line bg-canvas px-4 py-3 text-lg text-ink outline-none focus:border-google-blue"
+      className="w-full rounded-xl border border-line bg-canvas px-4 py-3 text-lg text-ink outline-none focus:border-primary-600"
     />
   );
 }

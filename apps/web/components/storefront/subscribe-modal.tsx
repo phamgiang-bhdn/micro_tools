@@ -90,7 +90,7 @@ export function SubscribeModal(): React.ReactElement | null {
       <div className="w-full max-w-md rounded-3xl border border-line bg-card p-6 shadow-2xl">
         <div className="flex items-start justify-between">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wider text-brand-600">📧 Nhận deal sớm</p>
+            <p className="text-xs font-semibold uppercase tracking-wider text-primary-600">📧 Nhận deal sớm</p>
             <h2 className="mt-1 text-xl font-bold text-ink">Nhận deal sớm nhất</h2>
           </div>
           <button
@@ -127,7 +127,7 @@ export function SubscribeModal(): React.ReactElement | null {
                     type="button"
                     onClick={() => toggleNiche(n.slug)}
                     className={`rounded-full px-3 py-1.5 text-xs font-semibold transition ${
-                      active ? "bg-brand-600 text-white" : "border border-line bg-canvas text-ink-soft hover:border-brand-300"
+                      active ? "bg-primary-600 text-white" : "border border-line bg-canvas text-ink-soft hover:border-primary-300"
                     }`}
                   >
                     {active ? "✓ " : ""}
@@ -141,7 +141,7 @@ export function SubscribeModal(): React.ReactElement | null {
           <button
             type="submit"
             disabled={submitting}
-            className="inline-flex h-11 w-full items-center justify-center rounded-full bg-brand-600 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-700 disabled:opacity-60"
+            className="inline-flex h-11 w-full items-center justify-center rounded-full bg-primary-600 text-sm font-semibold text-white shadow-sm transition hover:bg-primary-700 disabled:opacity-60"
           >
             {submitting ? "Đang gửi…" : "Đăng ký nhận deal"}
           </button>

@@ -181,7 +181,7 @@ export default async function NicheDetailPage({
           <Breadcrumb items={[{ label: "Trang chủ", href: "/" }, { label: niche.name }]} />
           <div className="mt-4 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
             <div className="max-w-2xl space-y-3">
-              <p className="text-xs font-semibold uppercase tracking-wider text-brand-700">Danh mục</p>
+              <p className="text-xs font-semibold uppercase tracking-wider text-primary-700">Danh mục</p>
               <h1 className="text-3xl font-bold tracking-tight text-ink sm:text-4xl">{h1}</h1>
               <NicheIntro
                 niche={niche}
@@ -209,7 +209,7 @@ export default async function NicheDetailPage({
             description={
               <p>
                 Trong lúc đợi, xem các danh mục đang có nhiều deal tốt bên dưới — hoặc đọc{" "}
-                <Link href="/blog" className="font-medium text-brand-700 hover:underline">cẩm nang chọn mua</Link>.
+                <Link href="/blog" className="font-medium text-primary-700 hover:underline">cẩm nang chọn mua</Link>.
               </p>
             }
           />
@@ -262,7 +262,7 @@ export default async function NicheDetailPage({
                   description={
                     <p>
                       Thử bỏ bớt điều kiện hoặc{" "}
-                      <Link href={`/categories/${niche.slug}`} className="font-medium text-brand-700 hover:underline">
+                      <Link href={`/categories/${niche.slug}`} className="font-medium text-primary-700 hover:underline">
                         xem tất cả
                       </Link>{" "}
                       sản phẩm.
@@ -295,7 +295,7 @@ export default async function NicheDetailPage({
             description={`Cẩm nang & review về ${niche.name.toLowerCase()}.`}
             size="sm"
             trailing={
-              <Link href={`/blog?category=${niche.slug}`} className="font-semibold text-brand-700 hover:underline">
+              <Link href={`/blog?category=${niche.slug}`} className="font-semibold text-primary-700 hover:underline">
                 Xem tất cả →
               </Link>
             }

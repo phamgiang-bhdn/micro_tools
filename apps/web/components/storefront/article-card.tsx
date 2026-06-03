@@ -48,7 +48,7 @@ export function FeaturedArticleCard({ article }: { article: ArticleSummary }): R
   return (
     <Link
       href={`/blog/${article.slug}`}
-      className="group grid overflow-hidden rounded-3xl border border-line bg-card shadow-card transition hover:-translate-y-0.5 hover:shadow-pop md:grid-cols-5"
+      className="group grid overflow-hidden rounded-3xl border border-border bg-surface shadow-card transition hover:-translate-y-0.5 hover:shadow-card-lg md:grid-cols-5"
     >
       <div className="relative aspect-[5/3] overflow-hidden md:col-span-2 md:aspect-auto">
         {article.coverImage ? (
@@ -77,13 +77,13 @@ export function FeaturedArticleCard({ article }: { article: ArticleSummary }): R
 
       <div className="flex flex-col justify-center p-6 sm:p-8 md:col-span-3">
         <ArticleMeta article={article} />
-        <h2 className="mt-3 text-2xl font-bold tracking-tight text-ink group-hover:text-brand-700 sm:text-3xl">
+        <h2 className="mt-3 text-2xl font-bold tracking-tight text-ink group-hover:text-primary-700 sm:text-3xl">
           {article.title}
         </h2>
         {article.excerpt ? (
           <p className="mt-3 line-clamp-3 text-[15px] leading-7 text-ink-soft">{article.excerpt}</p>
         ) : null}
-        <span className="mt-5 inline-flex items-center gap-1 text-sm font-semibold text-brand-700 transition-all group-hover:gap-2">
+        <span className="mt-5 inline-flex items-center gap-1 text-sm font-semibold text-primary-700 transition-all group-hover:gap-2">
           Đọc bài đầy đủ <Icon name="arrow-right" size="sm" />
         </span>
       </div>
@@ -96,7 +96,7 @@ export function ArticleCard({ article }: { article: ArticleSummary }): React.Rea
   return (
     <Link
       href={`/blog/${article.slug}`}
-      className="group flex flex-col overflow-hidden rounded-2xl border border-line bg-card shadow-card transition hover:-translate-y-0.5 hover:border-brand-300 hover:shadow-pop"
+      className="group flex flex-col overflow-hidden rounded-2xl border border-border bg-surface shadow-card transition hover:-translate-y-0.5 hover:border-primary-300 hover:shadow-card-lg"
     >
       <div className="relative aspect-[16/10] overflow-hidden">
         {article.coverImage ? (
@@ -122,7 +122,7 @@ export function ArticleCard({ article }: { article: ArticleSummary }): React.Rea
 
       <div className="flex flex-1 flex-col p-5">
         <ArticleMeta article={article} />
-        <h3 className="mt-2 line-clamp-2 text-lg font-semibold text-ink group-hover:text-brand-700">
+        <h3 className="mt-2 line-clamp-2 text-lg font-semibold text-ink group-hover:text-primary-700">
           {article.title}
         </h3>
         {article.excerpt ? (
@@ -130,12 +130,12 @@ export function ArticleCard({ article }: { article: ArticleSummary }): React.Rea
         ) : null}
         <div className="mt-auto flex items-center justify-between pt-4 text-xs">
           <span className="inline-flex items-center gap-1.5 text-ink-mute">
-            <span className="grid size-5 place-items-center rounded-full bg-gradient-to-br from-brand-500 to-orange-500 text-[9px] font-bold text-white">
+            <span className="grid size-5 place-items-center rounded-full bg-gradient-to-br from-primary-500 to-primary-700 text-[9px] font-bold text-white">
               d
             </span>
             dealvault Team
           </span>
-          <span className="font-semibold text-brand-700 group-hover:underline">Đọc tiếp →</span>
+          <span className="font-semibold text-primary-700 group-hover:underline">Đọc tiếp →</span>
         </div>
       </div>
     </Link>

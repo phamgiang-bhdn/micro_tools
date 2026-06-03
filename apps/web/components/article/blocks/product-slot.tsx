@@ -17,8 +17,8 @@ interface Props {
 export function ProductSlotBlock({ product, angle }: Props): React.ReactElement {
   const pv = normalizeProduct(product);
   return (
-    <aside className="relative my-4 overflow-hidden rounded-2xl border border-brand-200 bg-gradient-to-br from-brand-50/60 to-white p-4 shadow-sm sm:p-5">
-      <span className="absolute right-3 top-3 inline-flex items-center gap-1 rounded-full bg-brand-600 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white">
+    <aside className="relative my-4 overflow-hidden rounded-2xl border border-primary-200 bg-gradient-to-br from-primary-50/60 to-white p-4 shadow-sm sm:p-5">
+      <span className="absolute right-3 top-3 inline-flex items-center gap-1 rounded-full bg-primary-600 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white">
         <ShoppingCart className="size-3" /> Deal
       </span>
 
@@ -52,7 +52,7 @@ export function ProductSlotBlock({ product, angle }: Props): React.ReactElement 
 
           <div className="mt-2 flex items-baseline gap-2">
             {typeof pv.price === "number" && pv.price > 0 ? (
-              <span className="text-[17px] font-bold text-brand-700">{formatMoney(pv.price)}</span>
+              <span className="text-[17px] font-bold text-primary-700">{formatMoney(pv.price)}</span>
             ) : (
               <span className="text-[12px] text-ink-mute">Liên hệ</span>
             )}
@@ -71,7 +71,7 @@ export function ProductSlotBlock({ product, angle }: Props): React.ReactElement 
             <input type="hidden" name="affiliateUrl" value={product.affiliateUrl ?? ""} />
             <button
               type="submit"
-              className="inline-flex items-center justify-center gap-1.5 rounded-md bg-brand-600 px-4 py-2 text-[13px] font-semibold text-white shadow-sm transition hover:bg-brand-700 hover:shadow-md"
+              className="inline-flex items-center justify-center gap-1.5 rounded-md bg-primary-600 px-4 py-2 text-[13px] font-semibold text-white shadow-sm transition hover:bg-primary-700 hover:shadow-md"
             >
               Xem deal ↗
             </button>

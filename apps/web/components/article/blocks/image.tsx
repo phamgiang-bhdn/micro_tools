@@ -80,7 +80,7 @@ export function ImageBlock({
                 href={attributionUrl}
                 target="_blank"
                 rel="noreferrer"
-                className="not-italic underline-offset-2 hover:text-brand-700 hover:underline"
+                className="not-italic underline-offset-2 hover:text-primary-700 hover:underline"
               >
                 Ảnh: {attribution}
               </a>

@@ -32,8 +32,8 @@ export function FilterChip({
       className={cn(
         "inline-flex shrink-0 items-center gap-1.5 rounded-full px-3.5 py-1.5 text-sm font-medium transition",
         active
-          ? "bg-ink text-white shadow-card"
-          : "border border-line bg-card text-ink-soft hover:border-brand-300 hover:text-brand-700",
+          ? "bg-primary-600 text-white shadow-card"
+          : "border border-border bg-surface text-ink-soft hover:border-primary-300 hover:text-primary-700",
         className
       )}
     >

@@ -3,7 +3,6 @@ import { ScheduleModule } from "@nestjs/schedule";
 import { PrismaService } from "../../prisma/prisma.service";
 import { AiService } from "../../services/ai.service";
 import { InventoryCheckService } from "./inventory-check.service";
-import { ToolEmailDripService } from "./email-drip.service";
 import { ToolScoringService } from "./scoring.service";
 import { ToolPublicController } from "./tool-public.controller";
 import { ToolAiService } from "./tool-ai.service";
@@ -27,9 +26,8 @@ import { ToolAiService } from "./tool-ai.service";
     AiService,
     ToolScoringService,
     ToolAiService,
-    InventoryCheckService,
-    ToolEmailDripService
+    InventoryCheckService
   ],
-  exports: [ToolScoringService, ToolAiService, InventoryCheckService, ToolEmailDripService]
+  exports: [ToolScoringService, ToolAiService, InventoryCheckService]
 })
 export class ToolModule {}

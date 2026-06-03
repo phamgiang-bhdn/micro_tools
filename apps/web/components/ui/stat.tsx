@@ -1,7 +1,7 @@
 import type React from "react";
 import { cn } from "../../lib/utils";
 
-type StatTone = "default" | "brand" | "accent";
+type StatTone = "default" | "primary" | "success" | "brand" | "accent";
 
 interface StatProps {
   label: React.ReactNode;
@@ -14,8 +14,11 @@ interface StatProps {
 
 const TONE_CLASS: Record<StatTone, string> = {
   default: "text-ink",
-  brand: "text-brand-700",
-  accent: "text-accent-700"
+  primary: "text-primary-700",
+  success: "text-success-ink",
+  // deprecated aliases
+  brand: "text-primary-700",
+  accent: "text-success-ink"
 };
 
 export function Stat({
@@ -29,7 +32,7 @@ export function Stat({
   return (
     <div
       className={cn(
-        "rounded-xl border border-line bg-card/70 px-3 py-2 backdrop-blur",
+        "rounded-xl border border-border bg-surface/70 px-3 py-2 backdrop-blur",
         className
       )}
     >

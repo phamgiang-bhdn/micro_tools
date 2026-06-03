@@ -84,7 +84,7 @@ export function InterstitialRedirect({
         </button>
 
         <div className="text-center">
-          <Loader2 className="mx-auto size-8 animate-spin text-google-blue" />
+          <Loader2 className="mx-auto size-8 animate-spin text-primary-600" />
           <h3 className="mt-3 text-base font-semibold text-ink">
             Đang chuyển sang {label}...
           </h3>
@@ -94,13 +94,13 @@ export function InterstitialRedirect({
         </div>
 
         {saveLink && (
-          <div className="mt-5 rounded-xl border border-google-blue/20 bg-google-blue/5 p-4 text-center">
+          <div className="mt-5 rounded-xl border border-primary-600/20 bg-primary-600/5 p-4 text-center">
             <p className="text-sm text-ink">{saveLabel}</p>
             <button
               type="button"
               onClick={handleSaveLink}
               disabled={saved}
-              className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-google-blue px-4 py-2 text-sm font-medium text-white disabled:bg-accent disabled:text-white hover:bg-google-blue-hover"
+              className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-primary-600 px-4 py-2 text-sm font-medium text-white disabled:bg-accent disabled:text-white hover:bg-primary-700"
             >
               {saved ? (
                 <>✓ Đã copy link!</>

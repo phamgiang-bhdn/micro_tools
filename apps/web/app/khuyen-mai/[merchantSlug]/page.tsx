@@ -32,7 +32,7 @@ export default async function MerchantCouponsPage({ params }: PageProps): Promis
   return (
     <main className="mx-auto max-w-5xl space-y-6 px-4 py-8 sm:px-6">
       <header className="space-y-2">
-        <p className="text-xs font-semibold uppercase tracking-wider text-brand-600">Mã giảm giá</p>
+        <p className="text-xs font-semibold uppercase tracking-wider text-primary-600">Mã giảm giá</p>
         <h1 className="text-2xl font-bold text-ink sm:text-3xl">
           {display} — {coupons.length} mã đang còn dùng
         </h1>
@@ -48,7 +48,7 @@ export default async function MerchantCouponsPage({ params }: PageProps): Promis
       </div>
 
       <p className="pt-2 text-sm">
-        <Link href="/khuyen-mai" className="text-brand-700 hover:underline">
+        <Link href="/khuyen-mai" className="text-primary-700 hover:underline">
           ← Xem mã các shop khác
         </Link>
       </p>

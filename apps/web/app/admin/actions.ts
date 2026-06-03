@@ -134,24 +134,6 @@ export async function runInventoryCheckAction(): Promise<{
   }
 }
 
-export async function flushEmailDripAction(): Promise<{
-  ok: boolean;
-  found?: number;
-  sent?: number;
-  failed?: number;
-  error?: string;
-}> {
-  try {
-    const result = await adminFetch<{ found: number; sent: number; failed: number }>(
-      "/admin/tools/email-drip-flush",
-      "POST"
-    );
-    return { ok: true, ...result };
-  } catch (err) {
-    return { ok: false, error: err instanceof Error ? err.message : "Email drip flush failed" };
-  }
-}
-
 export async function previewToolScoreAction(
   input: PreviewToolScoreInput
 ): Promise<PreviewToolScoreResult> {
@@ -165,15 +147,6 @@ export async function previewToolScoreAction(
   } catch (err) {
     return { ok: false, error: err instanceof Error ? err.message : "Preview thất bại" };
   }
-}
-
-// ───────── Waitlist (Epic 0 pre-launch validation) ─────────
-
-export async function deleteWaitlistEntryAction(formData: FormData): Promise<void> {
-  const id = String(formData.get("id") ?? "");
-  if (!id) return;
-  await adminFetch(`/admin/waitlist/${id}`, "DELETE");
-  revalidatePath("/admin/waitlist");
 }
 
 export async function approveExtractionAction(formData: FormData): Promise<void> {
@@ -556,38 +529,6 @@ export async function deleteNicheAction(formData: FormData): Promise<void> {
   revalidatePath("/admin/niches");
 }
 
-// ───────── Categories (AT taxonomy — PR2) ─────────
-//
-// Admin chỉ điền displayName để storefront/filter hiện tên đẹp. Slug + rawValue do crawler auto-populate.
-
-export async function updateCategoryDisplayNameAction(formData: FormData): Promise<void> {
-  const id = String(formData.get("id") ?? "");
-  if (!id) throw new Error("Thiếu id category.");
-  const displayNameRaw = String(formData.get("displayName") ?? "").trim();
-  const displayName = displayNameRaw || null;
-  await adminFetch(`/admin/categories/${id}`, "PUT", { displayName });
-  revalidatePath("/admin/categories");
-}
-
-// ───────── Sources + Brands (PR3) ─────────
-
-export async function updateSourceDisplayNameAction(formData: FormData): Promise<void> {
-  const id = String(formData.get("id") ?? "");
-  if (!id) throw new Error("Thiếu id source.");
-  const displayNameRaw = String(formData.get("displayName") ?? "").trim();
-  const displayName = displayNameRaw || null;
-  await adminFetch(`/admin/sources/${id}`, "PUT", { displayName });
-  revalidatePath("/admin/sources");
-}
-
-export async function updateBrandDisplayNameAction(formData: FormData): Promise<void> {
-  const id = String(formData.get("id") ?? "");
-  if (!id) throw new Error("Thiếu id brand.");
-  const displayNameRaw = String(formData.get("displayName") ?? "").trim();
-  const displayName = displayNameRaw || null;
-  await adminFetch(`/admin/brands/${id}`, "PUT", { displayName });
-  revalidatePath("/admin/brands");
-}
 
 // ───────── Products (admin manual) ─────────
 
@@ -1117,24 +1058,6 @@ export async function fetchKpiSummary(): Promise<{
   return adminGet("/admin/kpi/summary");
 }
 
-// --- STORY-04: opportunities ---
-
-export interface OpportunityRow {
-  nicheSlug: string;
-  nicheName: string;
-  merchant: string;
-  commissionRange: string;
-  commissionMax: number;
-  hotKeywords: string[];
-  productCount: number;
-  hasArticle: boolean;
-  score: number;
-}
-
-export async function fetchWeeklyOpportunities(limit = 5): Promise<OpportunityRow[]> {
-  return adminGet<OpportunityRow[]>(`/admin/opportunities/weekly?limit=${limit}`);
-}
-
 // --- STORY-06: money trail by channel ---
 
 export interface ChannelRow {
@@ -1142,77 +1065,10 @@ export interface ChannelRow {
   clicks: number;
   orders: number;
   revenue: number;
-  spend: number;
-  roas: number | null;
 }
 
 export async function fetchMoneyTrailChannels(days = 7): Promise<ChannelRow[]> {
   return adminGet<ChannelRow[]>(`/admin/money-trail/channels?days=${days}`);
-}
-
-export async function upsertAdSpendAction(formData: FormData): Promise<void> {
-  const channel = String(formData.get("channel") ?? "").trim();
-  const weekStartDate = String(formData.get("weekStartDate") ?? "");
-  const amount = Number(formData.get("amount") ?? 0);
-  const notes = formData.get("notes") ? String(formData.get("notes")) : undefined;
-  if (!channel || !weekStartDate || !Number.isFinite(amount)) {
-    throw new Error("Channel + week + amount là bắt buộc.");
-  }
-  await post("/admin/ad-spend", { channel, weekStartDate, amount, notes });
-  revalidatePath("/admin/money-trail");
-  revalidatePath("/admin");
-}
-
-// --- STORY-08: tracked links ---
-
-export interface TrackedLinkRow {
-  id: string;
-  title: string;
-  originUrl: string;
-  atShortLink: string;
-  atAffLink: string;
-  channel: string;
-  conversionCount: number;
-  revenue: number;
-  isActive: boolean;
-  createdAt: string;
-}
-
-export interface TrackedLinkKpi {
-  totalLinks: number;
-  activeLinks: number;
-  totalClicks: number;
-  totalConversions: number;
-  totalRevenue: number;
-  byChannel: Record<string, { links: number; revenue: number }>;
-}
-
-export async function fetchTrackedLinks(): Promise<TrackedLinkRow[]> {
-  return adminGet<TrackedLinkRow[]>("/admin/tracked-links");
-}
-
-export async function fetchTrackedLinkKpi(days = 7): Promise<TrackedLinkKpi> {
-  return adminGet<TrackedLinkKpi>(`/admin/tracked-links/kpi?days=${days}`);
-}
-
-export async function createTrackedLinkAction(formData: FormData): Promise<void> {
-  const body = {
-    title: String(formData.get("title") ?? ""),
-    originUrl: String(formData.get("originUrl") ?? ""),
-    channel: String(formData.get("channel") ?? "other"),
-    atCampaignId: formData.get("atCampaignId") ? String(formData.get("atCampaignId")) : undefined,
-    notes: formData.get("notes") ? String(formData.get("notes")) : undefined
-  };
-  await post("/admin/tracked-links", body);
-  revalidatePath("/admin/external-links");
-  revalidatePath("/admin");
-}
-
-export async function archiveTrackedLinkAction(formData: FormData): Promise<void> {
-  const id = String(formData.get("id") ?? "");
-  if (!id) return;
-  await adminFetch(`/admin/tracked-links/${id}`, "DELETE");
-  revalidatePath("/admin/external-links");
 }
 
 // --- STORY-09: refinery v2 bulk + un-approve ---

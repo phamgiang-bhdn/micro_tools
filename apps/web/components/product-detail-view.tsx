@@ -99,7 +99,7 @@ export function ProductDetailView({
                 className="size-full object-cover"
               />
             ) : (
-              <div className="flex size-full items-center justify-center bg-gradient-to-br from-brand-50 via-white to-accent-50 text-5xl font-bold text-brand-700">
+              <div className="flex size-full items-center justify-center bg-gradient-to-br from-primary-50 via-white to-accent-50 text-5xl font-bold text-primary-700">
                 {product.name.slice(0, 2).toUpperCase()}
               </div>
             )}
@@ -143,7 +143,7 @@ export function ProductDetailView({
             {product.price !== undefined ? (
               <>
                 <div className="flex flex-wrap items-baseline gap-3">
-                  <span className="text-3xl font-bold text-brand-700 sm:text-4xl">
+                  <span className="text-3xl font-bold text-primary-700 sm:text-4xl">
                     {formatMoney(product.price, product.currency)}
                   </span>
                   {product.originalPrice && product.originalPrice > product.price ? (
@@ -215,7 +215,7 @@ export function ProductDetailView({
         <section className="space-y-3">
           <div className="flex items-end justify-between gap-3">
             <h2 className="text-lg font-semibold text-ink">Sản phẩm liên quan trong {niche.name}</h2>
-            <Link href={`/categories/${niche.slug}`} className="text-sm font-medium text-brand-700 hover:underline">
+            <Link href={`/categories/${niche.slug}`} className="text-sm font-medium text-primary-700 hover:underline">
               Xem tất cả →
             </Link>
           </div>
@@ -224,27 +224,27 @@ export function ProductDetailView({
               <Link
                 key={r.id}
                 href={`/categories/${niche.slug}/${r.slug ?? r.id}`}
-                className="group overflow-hidden rounded-xl border border-line bg-card shadow-card transition hover:-translate-y-0.5 hover:border-brand-200 hover:shadow-card-md"
+                className="group overflow-hidden rounded-xl border border-line bg-card shadow-card transition hover:-translate-y-0.5 hover:border-primary-200 hover:shadow-card-md"
               >
                 <div className="relative aspect-square overflow-hidden bg-canvas">
                   {r.image ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={r.image} alt={r.name} loading="lazy" className="size-full object-cover transition group-hover:scale-110" />
                   ) : (
-                    <div className="grid size-full place-items-center bg-gradient-to-br from-brand-50 via-white to-accent-50 text-base font-bold text-brand-700">
+                    <div className="grid size-full place-items-center bg-gradient-to-br from-primary-50 via-white to-accent-50 text-base font-bold text-primary-700">
                       {r.name.slice(0, 2).toUpperCase()}
                     </div>
                   )}
                   {r.discountPercent ? (
-                    <span className="absolute left-1.5 top-1.5 rounded bg-brand-600 px-1.5 py-0.5 text-[10px] font-bold text-white">
+                    <span className="absolute left-1.5 top-1.5 rounded bg-primary-600 px-1.5 py-0.5 text-[10px] font-bold text-white">
                       -{r.discountPercent}%
                     </span>
                   ) : null}
                 </div>
                 <div className="p-2.5">
-                  <p className="line-clamp-2 text-xs font-medium text-ink group-hover:text-brand-700">{r.name}</p>
+                  <p className="line-clamp-2 text-xs font-medium text-ink group-hover:text-primary-700">{r.name}</p>
                   {r.price !== undefined ? (
-                    <p className="mt-1 text-xs font-bold text-brand-700">{formatMoney(r.price, r.currency)}</p>
+                    <p className="mt-1 text-xs font-bold text-primary-700">{formatMoney(r.price, r.currency)}</p>
                   ) : null}
                 </div>
               </Link>
@@ -259,7 +259,7 @@ export function ProductDetailView({
           <form action={buyAction} className="flex items-center gap-3">
             {product.price !== undefined ? (
               <div className="flex flex-1 flex-col leading-tight">
-                <span className="text-base font-bold text-brand-700">{formatMoney(product.price, product.currency)}</span>
+                <span className="text-base font-bold text-primary-700">{formatMoney(product.price, product.currency)}</span>
                 {savings ? (
                   <span className="text-[11px] font-medium text-accent-700">
                     Tiết kiệm {formatMoney(savings, product.currency)}
@@ -425,7 +425,7 @@ function DescriptionSection({ description }: { description?: string }): React.Re
               <ul key={idx} className="space-y-1.5 pl-1 text-sm text-ink-soft">
                 {block.items.map((item, i) => (
                   <li key={i} className="flex items-start gap-2">
-                    <span aria-hidden className="mt-2 size-1.5 shrink-0 rounded-full bg-brand-500" />
+                    <span aria-hidden className="mt-2 size-1.5 shrink-0 rounded-full bg-primary-500" />
                     <span>{item}</span>
                   </li>
                 ))}

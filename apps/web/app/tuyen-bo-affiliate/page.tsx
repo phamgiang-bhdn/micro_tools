@@ -13,7 +13,7 @@ export default function AffiliateDisclosurePage(): React.ReactElement {
   return (
     <article className="mx-auto max-w-3xl px-4 py-10 sm:px-6">
       <header className="mb-8">
-        <p className="text-xs font-semibold uppercase tracking-wider text-brand-600">Pháp lý</p>
+        <p className="text-xs font-semibold uppercase tracking-wider text-primary-600">Pháp lý</p>
         <h1 className="mt-1 text-3xl font-bold text-ink">Tuyên bố affiliate</h1>
       </header>
       <div className="prose prose-neutral max-w-none">

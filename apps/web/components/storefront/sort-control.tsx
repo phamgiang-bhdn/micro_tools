@@ -26,7 +26,7 @@ export function SortControl({ sort, buildHref }: SortControlProps): React.ReactE
   const current = SORT_OPTIONS.find((o) => o.value === sort) ?? SORT_OPTIONS[0];
   return (
     <details className="group relative">
-      <summary className="inline-flex shrink-0 cursor-pointer list-none items-center gap-2 rounded-full border border-line bg-card px-4 py-1.5 text-sm font-medium text-ink-soft transition hover:border-brand-300 hover:text-brand-700">
+      <summary className="inline-flex shrink-0 cursor-pointer list-none items-center gap-2 rounded-full border border-line bg-card px-4 py-1.5 text-sm font-medium text-ink-soft transition hover:border-primary-300 hover:text-primary-700">
         <Icon name="sort" size="sm" />
         <span>{current.label}</span>
         <Icon name="chevron-down" size="xs" className="transition group-open:rotate-180" />
@@ -40,11 +40,11 @@ export function SortControl({ sort, buildHref }: SortControlProps): React.ReactE
               href={buildHref(option.value)}
               scroll={false}
               className={`flex items-center justify-between rounded-lg px-3 py-2 text-sm transition ${
-                active ? "bg-brand-50 text-brand-700" : "text-ink-soft hover:bg-canvas hover:text-ink"
+                active ? "bg-primary-50 text-primary-700" : "text-ink-soft hover:bg-canvas hover:text-ink"
               }`}
             >
               <span>{option.label}</span>
-              {active ? <Icon name="check" size="md" className="text-brand-700" /> : null}
+              {active ? <Icon name="check" size="md" className="text-primary-700" /> : null}
             </Link>
           );
         })}

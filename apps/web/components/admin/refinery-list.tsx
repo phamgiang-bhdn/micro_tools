@@ -303,12 +303,12 @@ function PreviewCard({ view }: { view: ProductView }): React.ReactElement {
             // eslint-disable-next-line @next/next/no-img-element
             <img src={view.image} alt={view.name} className="size-full object-cover" loading="lazy" />
           ) : (
-            <div className="grid size-full place-items-center bg-gradient-to-br from-brand-50 via-white to-accent-50 text-2xl font-bold text-brand-700">
+            <div className="grid size-full place-items-center bg-gradient-to-br from-primary-50 via-white to-accent-50 text-2xl font-bold text-primary-700">
               {view.name.slice(0, 2).toUpperCase()}
             </div>
           )}
           {view.discountPercent && view.discountPercent > 0 ? (
-            <span className="absolute left-2 top-2 rounded-md bg-brand-600 px-1.5 py-0.5 text-[11px] font-bold text-white">
+            <span className="absolute left-2 top-2 rounded-md bg-primary-600 px-1.5 py-0.5 text-[11px] font-bold text-white">
               -{view.discountPercent}%
             </span>
           ) : null}
@@ -322,7 +322,7 @@ function PreviewCard({ view }: { view: ProductView }): React.ReactElement {
           <p className="line-clamp-2 text-sm font-medium text-admin-ink">{view.name}</p>
           {view.price !== undefined ? (
             <div className="flex flex-wrap items-baseline gap-1.5">
-              <span className="text-sm font-bold text-brand-700 sm:text-base">{formatMoney(view.price, view.currency)}</span>
+              <span className="text-sm font-bold text-primary-700 sm:text-base">{formatMoney(view.price, view.currency)}</span>
               {view.originalPrice && view.originalPrice > view.price ? (
                 <span className="text-[11px] text-admin-mute line-through">
                   {formatMoney(view.originalPrice, view.currency)}
@@ -348,7 +348,7 @@ function PreviewCard({ view }: { view: ProductView }): React.ReactElement {
           <ul className="mt-1.5 space-y-1 text-xs text-admin-ink">
             {view.highlights.slice(0, 4).map((entry, idx) => (
               <li key={idx} className="flex items-start gap-1.5">
-                <span aria-hidden className="mt-1 size-1 shrink-0 rounded-full bg-brand-500" />
+                <span aria-hidden className="mt-1 size-1 shrink-0 rounded-full bg-primary-500" />
                 <span>{entry}</span>
               </li>
             ))}

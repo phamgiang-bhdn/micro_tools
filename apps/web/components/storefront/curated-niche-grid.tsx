@@ -21,9 +21,9 @@ export function CuratedNicheGrid({ niches }: Props): React.ReactElement {
         <Link
           key={n.slug}
           href={`/categories/${n.slug}`}
-          className="group relative flex flex-col overflow-hidden rounded-2xl border border-line bg-card shadow-card transition hover:-translate-y-0.5 hover:border-brand-300 hover:shadow-pop"
+          className="group relative flex flex-col overflow-hidden rounded-2xl border border-line bg-card shadow-card transition hover:-translate-y-0.5 hover:border-primary-300 hover:shadow-pop"
         >
-          <div className="relative aspect-[16/9] overflow-hidden bg-gradient-to-br from-brand-100 via-brand-50 to-canvas">
+          <div className="relative aspect-[16/9] overflow-hidden bg-gradient-to-br from-primary-100 via-primary-50 to-canvas">
             <span
               aria-hidden
               className="absolute inset-0 grid place-items-center text-5xl opacity-90 transition group-hover:scale-110"
@@ -32,7 +32,7 @@ export function CuratedNicheGrid({ niches }: Props): React.ReactElement {
             </span>
           </div>
           <div className="flex flex-1 flex-col gap-1 p-4">
-            <p className="text-[15px] font-bold text-ink group-hover:text-brand-700">{n.displayName}</p>
+            <p className="text-[15px] font-bold text-ink group-hover:text-primary-700">{n.displayName}</p>
             {n.productCount > 0 ? (
               <p className="text-xs font-medium text-ink-soft">{n.productCount} deal đang sống</p>
             ) : (

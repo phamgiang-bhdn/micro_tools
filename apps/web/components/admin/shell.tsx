@@ -21,6 +21,13 @@ interface NavGroup {
   entries: NavEntry[];
 }
 
+/**
+ * IA gọn (Refactor V3 — Phase 4). Nhóm theo luồng vận hành thật:
+ *  Tổng quan → Catalog → Nội dung & AI → Accesstrade → Doanh thu → (Dữ liệu thô sắp gộp).
+ * Đã BỎ khỏi nav các mục sắp cắt ở Phase 5: waitlist, email-drip, reconciliation (cron vẫn chạy).
+ * 4 mục taxonomy (categories/sources/brands/shops) dồn vào 1 nhóm "Dữ liệu thô" de-emphasize,
+ * sẽ gộp về Niche + merchant ở Phase 5.
+ */
 const NAV: NavGroup[] = [
   {
     id: "overview",
@@ -35,10 +42,72 @@ const NAV: NavGroup[] = [
       },
       {
         id: "refinery",
-        label: "Duyệt sản phẩm",
+        label: "Duyệt AI",
         href: "/admin?tab=refinery",
         icon: <RefineryIcon />,
         match: (p, t) => p === "/admin" && t === "refinery"
+      }
+    ]
+  },
+  {
+    id: "catalog",
+    label: "Catalog",
+    entries: [
+      {
+        id: "products",
+        label: "Sản phẩm",
+        href: "/admin/products",
+        icon: <ProductIcon />,
+        match: (p) => p.startsWith("/admin/products")
+      },
+      {
+        id: "niches",
+        label: "Ngành hàng",
+        href: "/admin/niches",
+        icon: <CategoryIcon />,
+        match: (p) => p.startsWith("/admin/niches")
+      },
+      {
+        id: "coupons",
+        label: "Mã giảm giá",
+        href: "/admin/coupons",
+        icon: <CouponIcon />,
+        match: (p) => p.startsWith("/admin/coupons")
+      },
+      {
+        id: "shops",
+        label: "Cửa hàng",
+        href: "/admin/shops",
+        icon: <ShopIcon />,
+        match: (p) => p.startsWith("/admin/shops")
+      }
+    ]
+  },
+  {
+    id: "content-ai",
+    label: "Nội dung & AI",
+    entries: [
+      {
+        id: "tools",
+        label: "Tool AI",
+        href: "/admin/tools",
+        icon: <AiIcon />,
+        match: (p) =>
+          p.startsWith("/admin/tools") && !p.startsWith("/admin/tools/email-drip")
+      },
+      {
+        id: "articles",
+        label: "Bài viết",
+        href: "/admin/articles",
+        icon: <ArticleIcon />,
+        match: (p) => p.startsWith("/admin/articles")
+      },
+      {
+        id: "prompt-studio",
+        label: "Xưởng prompt",
+        href: "/admin?tab=prompt-studio",
+        icon: <PromptIcon />,
+        match: (p, t) => p === "/admin" && t === "prompt-studio"
       }
     ]
   },
@@ -55,86 +124,10 @@ const NAV: NavGroup[] = [
       },
       {
         id: "crawler-logs",
-        label: "Nhật ký lấy sản phẩm",
+        label: "Crawler",
         href: "/admin/crawler-logs",
         icon: <LogIcon />,
         match: (p) => p.startsWith("/admin/crawler-logs")
-      },
-      {
-        id: "reconciliation",
-        label: "Đối soát đơn",
-        href: "/admin/reconciliation",
-        icon: <ReconcileIcon />,
-        match: (p) => p.startsWith("/admin/reconciliation")
-      },
-      {
-        id: "prompt-studio",
-        label: "Xưởng prompt AI",
-        href: "/admin?tab=prompt-studio",
-        icon: <PromptIcon />,
-        match: (p, t) => p === "/admin" && t === "prompt-studio"
-      }
-    ]
-  },
-  {
-    id: "catalog",
-    label: "Danh mục",
-    entries: [
-      {
-        id: "niches",
-        label: "Ngành hàng",
-        href: "/admin/niches",
-        icon: <CategoryIcon />,
-        match: (p) => p.startsWith("/admin/niches")
-      },
-      {
-        id: "categories",
-        label: "Phân loại (AT)",
-        href: "/admin/categories",
-        icon: <CategoryIcon />,
-        match: (p) => p.startsWith("/admin/categories")
-      },
-      {
-        id: "sources",
-        label: "Nguồn bán",
-        href: "/admin/sources",
-        icon: <CategoryIcon />,
-        match: (p) => p.startsWith("/admin/sources")
-      },
-      {
-        id: "brands",
-        label: "Tên miền",
-        href: "/admin/brands",
-        icon: <CategoryIcon />,
-        match: (p) => p.startsWith("/admin/brands")
-      },
-      {
-        id: "shops",
-        label: "Cửa hàng",
-        href: "/admin/shops",
-        icon: <ShopIcon />,
-        match: (p) => p.startsWith("/admin/shops")
-      },
-      {
-        id: "products",
-        label: "Sản phẩm",
-        href: "/admin/products",
-        icon: <ProductIcon />,
-        match: (p) => p.startsWith("/admin/products")
-      },
-      {
-        id: "coupons",
-        label: "Mã giảm giá",
-        href: "/admin/coupons",
-        icon: <CouponIcon />,
-        match: (p) => p.startsWith("/admin/coupons")
-      },
-      {
-        id: "articles",
-        label: "Bài viết",
-        href: "/admin/articles",
-        icon: <ArticleIcon />,
-        match: (p) => p.startsWith("/admin/articles")
       }
     ]
   },
@@ -155,34 +148,6 @@ const NAV: NavGroup[] = [
         href: "/admin/analytics",
         icon: <ChartIcon />,
         match: (p) => p.startsWith("/admin/analytics")
-      }
-    ]
-  },
-  {
-    id: "ai-tool",
-    label: "AI Tool",
-    entries: [
-      {
-        id: "waitlist",
-        label: "Waitlist (Epic 0)",
-        href: "/admin/waitlist",
-        icon: <PromptIcon />,
-        match: (p) => p.startsWith("/admin/waitlist")
-      },
-      {
-        id: "tools",
-        label: "Tool builder",
-        href: "/admin/tools",
-        icon: <PromptIcon />,
-        match: (p) =>
-          p.startsWith("/admin/tools") && !p.startsWith("/admin/tools/email-drip")
-      },
-      {
-        id: "email-drip",
-        label: "Email drip queue",
-        href: "/admin/tools/email-drip",
-        icon: <PromptIcon />,
-        match: (p) => p.startsWith("/admin/tools/email-drip")
       }
     ]
   }
@@ -264,8 +229,8 @@ function AdminShellInner({ children }: { children: React.ReactNode }): React.Rea
             >
               <ExternalIcon /> Xem trang khách
             </Link>
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-700 ring-1 ring-inset ring-emerald-200">
-              <span aria-hidden className="size-1.5 rounded-full bg-emerald-500" />
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-success-soft px-2.5 py-1 text-[11px] font-semibold text-success-ink ring-1 ring-inset ring-success/20">
+              <span aria-hidden className="size-1.5 rounded-full bg-success" />
               Vận hành
             </span>
           </div>
@@ -294,7 +259,7 @@ function SidebarContent({
             d.
           </span>
           <span className="text-sm font-semibold tracking-tight text-admin-ink">
-            deal<span className="text-brand-600">vault</span>
+            deal<span className="text-primary-600">vault</span>
             <span className="ml-1 rounded-full bg-admin-subtle px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-admin-mute">
               admin
             </span>
@@ -335,7 +300,7 @@ function SidebarContent({
                     </span>
                     <span className="flex-1">{entry.label}</span>
                     {entry.badge ? (
-                      <span className="rounded-full bg-brand-600 px-1.5 py-0.5 text-[10px] font-bold text-white">
+                      <span className="rounded-full bg-primary-600 px-1.5 py-0.5 text-[10px] font-bold text-white">
                         {entry.badge}
                       </span>
                     ) : null}
@@ -372,7 +337,7 @@ function SidebarContent({
 
 function Kbd({ children }: { children: React.ReactNode }): React.ReactElement {
   return (
-    <kbd className="rounded border border-admin-line bg-white px-1 py-0.5 font-mono text-[10px] text-admin-ink">
+    <kbd className="rounded border border-admin-line bg-surface px-1 py-0.5 font-mono text-[10px] text-admin-ink">
       {children}
     </kbd>
   );
@@ -441,6 +406,15 @@ function PromptIcon(): React.ReactElement {
   );
 }
 
+function AiIcon(): React.ReactElement {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="size-4">
+      <path d="M12 3l1.6 4.1L18 8.7l-4.4 1.6L12 14l-1.6-3.7L6 8.7l4.4-1.6L12 3Z" />
+      <path d="M19 14l.8 2L22 16.8l-2.2.8L19 20l-.8-2.4L16 16.8l2.2-.8L19 14Z" />
+    </svg>
+  );
+}
+
 function CoinsIcon(): React.ReactElement {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="size-4">
@@ -501,17 +475,6 @@ function LogIcon(): React.ReactElement {
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="size-4">
       <rect x="4" y="4" width="16" height="16" rx="2" />
       <path d="M8 8h8M8 12h8M8 16h5" />
-    </svg>
-  );
-}
-
-function ReconcileIcon(): React.ReactElement {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="size-4">
-      <path d="M3 12a9 9 0 0 1 15-6.7L21 8" />
-      <path d="M21 3v5h-5" />
-      <path d="M21 12a9 9 0 0 1-15 6.7L3 16" />
-      <path d="M3 21v-5h5" />
     </svg>
   );
 }

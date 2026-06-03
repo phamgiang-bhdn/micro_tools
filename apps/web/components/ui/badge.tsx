@@ -1,7 +1,21 @@
 import type React from "react";
 import { cn } from "../../lib/utils";
 
-type Tone = "brand" | "accent" | "neutral" | "warning" | "ink";
+/**
+ * Badge — design system V3. Tone canonical: primary / cta / success / warning / danger / info / neutral / ink.
+ * `brand` + `accent` là alias deprecated (→ primary / success) giữ cho code cũ, xoá ở Phase 6.
+ */
+type Tone =
+  | "primary"
+  | "cta"
+  | "success"
+  | "warning"
+  | "danger"
+  | "info"
+  | "neutral"
+  | "ink"
+  | "brand"
+  | "accent";
 
 interface BadgeProps extends React.HTMLAttributes<HTMLSpanElement> {
   tone?: Tone;
@@ -9,11 +23,17 @@ interface BadgeProps extends React.HTMLAttributes<HTMLSpanElement> {
 }
 
 const TONES: Record<Tone, string> = {
-  brand: "bg-brand-50 text-brand-700 ring-1 ring-inset ring-brand-200",
-  accent: "bg-accent-50 text-accent-700 ring-1 ring-inset ring-accent-200",
-  neutral: "bg-white text-ink-soft ring-1 ring-inset ring-line",
-  warning: "bg-amber-50 text-amber-800 ring-1 ring-inset ring-amber-200",
-  ink: "bg-ink text-white"
+  primary: "bg-primary-50 text-primary-700 ring-1 ring-inset ring-primary-200",
+  cta: "bg-cta-50 text-cta-700 ring-1 ring-inset ring-cta-200",
+  success: "bg-success-soft text-success-ink ring-1 ring-inset ring-success/20",
+  warning: "bg-warning-soft text-warning-ink ring-1 ring-inset ring-warning/20",
+  danger: "bg-danger-soft text-danger-ink ring-1 ring-inset ring-danger/20",
+  info: "bg-info-soft text-info-ink ring-1 ring-inset ring-info/20",
+  neutral: "bg-surface text-ink-soft ring-1 ring-inset ring-border",
+  ink: "bg-ink text-white",
+  // deprecated aliases
+  brand: "bg-primary-50 text-primary-700 ring-1 ring-inset ring-primary-200",
+  accent: "bg-success-soft text-success-ink ring-1 ring-inset ring-success/20"
 };
 
 export function Badge({ tone = "neutral", size = "sm", className, ...props }: BadgeProps): React.ReactElement {

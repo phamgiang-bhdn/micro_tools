@@ -20,10 +20,10 @@ export function ProductCardEnd({ products }: Props): React.ReactElement | null {
   const top = products.slice(0, 3);
 
   return (
-    <section className="mt-12 overflow-hidden rounded-2xl border border-brand-200 bg-gradient-to-br from-brand-50/50 to-card shadow-sm">
-      <div className="border-b border-brand-100 bg-gradient-to-r from-brand-100/60 to-transparent px-5 py-3.5 sm:px-6">
+    <section className="mt-12 overflow-hidden rounded-2xl border border-primary-200 bg-gradient-to-br from-primary-50/50 to-card shadow-sm">
+      <div className="border-b border-primary-100 bg-gradient-to-r from-primary-100/60 to-transparent px-5 py-3.5 sm:px-6">
         <div className="flex items-center gap-2">
-          <span className="grid size-8 place-items-center rounded-full bg-brand-600 text-white">
+          <span className="grid size-8 place-items-center rounded-full bg-primary-600 text-white">
             <Sparkles className="size-4" />
           </span>
           <div>
@@ -41,9 +41,9 @@ export function ProductCardEnd({ products }: Props): React.ReactElement | null {
           const hasHotDeal = typeof pv.discountPercent === "number" && pv.discountPercent >= 15;
           const isTop = idx === 0;
           return (
-            <div key={p.id} className="group relative flex flex-col overflow-hidden rounded-xl border border-line bg-canvas shadow-sm transition hover:border-brand-300 hover:shadow-md">
+            <div key={p.id} className="group relative flex flex-col overflow-hidden rounded-xl border border-line bg-canvas shadow-sm transition hover:border-primary-300 hover:shadow-md">
               {isTop || hasHotDeal ? (
-                <span className="absolute left-2 top-2 z-10 inline-flex items-center gap-1 rounded-full bg-brand-600 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white shadow">
+                <span className="absolute left-2 top-2 z-10 inline-flex items-center gap-1 rounded-full bg-primary-600 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white shadow">
                   {isTop ? <><Sparkles className="size-2.5" /> Top 1</> : <><Flame className="size-2.5" /> Đáng mua</>}
                 </span>
               ) : null}
@@ -62,7 +62,7 @@ export function ProductCardEnd({ products }: Props): React.ReactElement | null {
                 <p className="line-clamp-2 text-[13.5px] font-semibold leading-snug text-ink">{p.name}</p>
                 <div className="mt-2 flex items-baseline gap-2">
                   {typeof pv.price === "number" && pv.price > 0 ? (
-                    <span className="text-[17px] font-bold text-brand-700">{formatMoney(pv.price)}</span>
+                    <span className="text-[17px] font-bold text-primary-700">{formatMoney(pv.price)}</span>
                   ) : (
                     <span className="text-[12px] text-ink-mute">Liên hệ</span>
                   )}
@@ -85,7 +85,7 @@ export function ProductCardEnd({ products }: Props): React.ReactElement | null {
                   <input type="hidden" name="affiliateUrl" value={p.affiliateUrl ?? ""} />
                   <button
                     type="submit"
-                    className="inline-flex w-full items-center justify-center gap-1.5 rounded-md bg-brand-600 px-3 py-2.5 text-[13px] font-semibold text-white shadow-sm transition hover:bg-brand-700 hover:shadow-md group-hover:bg-brand-700"
+                    className="inline-flex w-full items-center justify-center gap-1.5 rounded-md bg-primary-600 px-3 py-2.5 text-[13px] font-semibold text-white shadow-sm transition hover:bg-primary-700 hover:shadow-md group-hover:bg-primary-700"
                   >
                     <ShoppingCart className="size-3.5" /> Xem deal ngay ↗
                   </button>
@@ -96,7 +96,7 @@ export function ProductCardEnd({ products }: Props): React.ReactElement | null {
         })}
       </div>
 
-      <div className="border-t border-brand-100 bg-brand-50/30 px-5 py-2.5 sm:px-6">
+      <div className="border-t border-primary-100 bg-primary-50/30 px-5 py-2.5 sm:px-6">
         <p className="flex items-center gap-1.5 text-[11.5px] text-ink-soft">
           <ShieldCheck className="size-3.5 text-emerald-600" />
           Mua qua link không tốn thêm phí — dealvault nhận hoa hồng nhỏ từ đối tác để duy trì nội dung.

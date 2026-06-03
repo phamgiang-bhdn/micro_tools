@@ -8,9 +8,9 @@ interface EmptyStateProps {
 }
 
 const TONES = {
-  info: "border-line bg-white",
-  warning: "border-amber-200 bg-amber-50",
-  error: "border-red-200 bg-red-50"
+  info: "border-border bg-surface",
+  warning: "border-warning/30 bg-warning-soft",
+  error: "border-danger/30 bg-danger-soft"
 } as const;
 
 export function EmptyState({ title, description, action, tone = "info" }: EmptyStateProps): React.ReactElement {

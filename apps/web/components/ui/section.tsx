@@ -82,7 +82,7 @@ export function PageHero({
 }: PageHeroProps): React.ReactElement {
   const split = Boolean(aside);
   return (
-    <section className={cn("relative overflow-hidden border-b border-line bg-canvas", className)}>
+    <section className={cn("relative overflow-hidden border-b border-border bg-canvas", className)}>
       {mesh ? <div aria-hidden className="absolute inset-0 bg-hero-mesh opacity-80" /> : null}
       <PageContainer className={cn("relative", HERO_PAD[size])}>
         <div
@@ -93,7 +93,7 @@ export function PageHero({
         >
           <div className="space-y-4 animate-fade-up">
             {eyebrow ? (
-              <div className="inline-flex items-center gap-2 rounded-full border border-brand-200 bg-card/80 px-3 py-1 text-xs font-medium text-brand-700 backdrop-blur">
+              <div className="inline-flex items-center gap-2 rounded-full border border-primary-200 bg-surface/80 px-3 py-1 text-xs font-medium text-primary-700 backdrop-blur">
                 {eyebrow}
               </div>
             ) : null}

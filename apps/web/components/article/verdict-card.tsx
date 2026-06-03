@@ -33,7 +33,7 @@ export function VerdictCard({ product: raw, excerpt }: Props): React.ReactElemen
               loading="lazy"
             />
           ) : (
-            <div className="grid size-full place-items-center bg-gradient-to-br from-brand-50 to-accent-50 text-5xl font-bold text-brand-700">
+            <div className="grid size-full place-items-center bg-gradient-to-br from-primary-50 to-accent-50 text-5xl font-bold text-primary-700">
               {product.brand?.[0] ?? "★"}
             </div>
           )}
@@ -46,7 +46,7 @@ export function VerdictCard({ product: raw, excerpt }: Props): React.ReactElemen
 
         {/* Verdict info */}
         <div className="flex flex-col gap-3 p-5 sm:p-6">
-          <p className="text-[11px] font-semibold uppercase tracking-wider text-brand-700">
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-primary-700">
             Verdict — Đánh giá nhanh
           </p>
           {product.brand ? (
@@ -73,7 +73,7 @@ export function VerdictCard({ product: raw, excerpt }: Props): React.ReactElemen
           {product.price !== undefined ? (
             <div className="space-y-0.5">
               <div className="flex flex-wrap items-baseline gap-2">
-                <span className="text-2xl font-bold text-brand-700">
+                <span className="text-2xl font-bold text-primary-700">
                   {formatMoney(product.price, product.currency)}
                 </span>
                 {product.originalPrice && product.originalPrice > product.price ? (

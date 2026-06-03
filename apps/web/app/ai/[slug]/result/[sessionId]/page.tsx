@@ -99,7 +99,7 @@ export default async function ResultPage({ params }: PageProps): Promise<React.R
           <div className="mt-10 rounded-2xl border border-line bg-white p-8 text-center">
             <p className="text-base text-ink">
               Không tìm thấy sản phẩm phù hợp.{" "}
-              <Link href={`/ai/${slug}`} className="font-semibold text-google-blue hover:underline">
+              <Link href={`/ai/${slug}`} className="font-semibold text-primary-600 hover:underline">
                 Thử lại với nhu cầu khác →
               </Link>
             </p>
@@ -158,15 +158,15 @@ function TrustSection({
       </h3>
       <ul className="mt-3 space-y-1.5 text-ink">
         <li className="flex items-start gap-2">
-          <span className="text-google-blue">✓</span>
+          <span className="text-primary-600">✓</span>
           <span>Database {sessionTool.niche.name.toLowerCase()} đã admin duyệt từng sản phẩm</span>
         </li>
         <li className="flex items-start gap-2">
-          <span className="text-google-blue">✓</span>
+          <span className="text-primary-600">✓</span>
           <span>Spec từ trang chính hãng + crawler Accesstrade</span>
         </li>
         <li className="flex items-start gap-2">
-          <span className="text-google-blue">✓</span>
+          <span className="text-primary-600">✓</span>
           <span>Giá hôm nay từ Tiki/Shopee/Lazada</span>
         </li>
       </ul>

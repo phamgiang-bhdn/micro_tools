@@ -37,7 +37,7 @@ export function StickyProductCta({ products, articleId }: Props) {
         type="button"
         onClick={() => setOpen(true)}
         aria-label="Xem sản phẩm trong bài"
-        className={`fixed bottom-5 right-5 z-40 inline-flex items-center gap-2 rounded-full bg-brand-600 px-4 py-3 text-sm font-semibold text-white shadow-lg ring-1 ring-black/5 transition-all hover:bg-brand-700 hover:shadow-xl sm:bottom-8 sm:right-8 sm:px-5 ${
+        className={`fixed bottom-5 right-5 z-40 inline-flex items-center gap-2 rounded-full bg-primary-600 px-4 py-3 text-sm font-semibold text-white shadow-lg ring-1 ring-black/5 transition-all hover:bg-primary-700 hover:shadow-xl sm:bottom-8 sm:right-8 sm:px-5 ${
           visible ? "translate-y-0 opacity-100" : "pointer-events-none translate-y-4 opacity-0"
         }`}
       >
@@ -98,7 +98,7 @@ export function StickyProductCta({ products, articleId }: Props) {
                           <p className="line-clamp-2 text-[13.5px] font-semibold leading-snug text-ink">{p.name}</p>
                           <div className="mt-1 flex items-baseline gap-2">
                             {typeof pv.price === "number" && pv.price > 0 ? (
-                              <span className="text-[15px] font-bold text-brand-700">{formatMoney(pv.price)}</span>
+                              <span className="text-[15px] font-bold text-primary-700">{formatMoney(pv.price)}</span>
                             ) : null}
                             {typeof pv.originalPrice === "number" && pv.originalPrice > (pv.price ?? 0) ? (
                               <span className="text-[11.5px] text-ink-mute line-through">{formatMoney(pv.originalPrice)}</span>
@@ -109,7 +109,7 @@ export function StickyProductCta({ products, articleId }: Props) {
                               </span>
                             ) : null}
                           </div>
-                          <span className="mt-1 inline-block text-[11px] font-medium text-brand-700">Xem deal ↗</span>
+                          <span className="mt-1 inline-block text-[11px] font-medium text-primary-700">Xem deal ↗</span>
                         </div>
                       </button>
                     </form>

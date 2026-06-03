@@ -112,7 +112,7 @@ function SummaryStat({
 }): React.ReactElement {
   const cls =
     tone === "brand"
-      ? "text-brand-700"
+      ? "text-primary-700"
       : tone === "accent"
       ? "text-emerald-600"
       : tone === "warning"

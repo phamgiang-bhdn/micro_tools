@@ -14,7 +14,7 @@ export function ReviewQuoteBlock({ body, author, rating, sourceUrl, sourceName, 
   return (
     <aside className="my-2 rounded-2xl border border-line bg-card-soft p-5 sm:p-6">
       <div className="flex items-start gap-3">
-        <span aria-hidden className="grid size-9 shrink-0 place-items-center rounded-full bg-brand-100 text-brand-700">
+        <span aria-hidden className="grid size-9 shrink-0 place-items-center rounded-full bg-primary-100 text-primary-700">
           <svg viewBox="0 0 24 24" fill="currentColor" className="size-4">
             <path d="M9.17 6A4.17 4.17 0 0 0 5 10.17V18h6v-6.83A4.17 4.17 0 0 0 9.17 6Zm9 0A4.17 4.17 0 0 0 14 10.17V18h6v-6.83A4.17 4.17 0 0 0 18.17 6Z" />
           </svg>
@@ -35,7 +35,7 @@ export function ReviewQuoteBlock({ body, author, rating, sourceUrl, sourceName, 
               </span>
             ) : null}
             {sourceUrl ? (
-              <a href={sourceUrl} target="_blank" rel="nofollow noreferrer" className="ml-auto text-brand-700 hover:underline">
+              <a href={sourceUrl} target="_blank" rel="nofollow noreferrer" className="ml-auto text-primary-700 hover:underline">
                 {sourceName ?? "Nguồn"} ↗
               </a>
             ) : null}

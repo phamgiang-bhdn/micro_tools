@@ -26,8 +26,8 @@ export function CouponInlinePill({ coupon }: Props) {
     <span
       className={
         urgent
-          ? "inline-flex items-center gap-1 rounded-md bg-red-50 px-1.5 py-0.5 text-[10.5px] font-semibold text-red-700 ring-1 ring-red-200"
-          : "inline-flex items-center gap-1 rounded-md bg-amber-50 px-1.5 py-0.5 text-[10.5px] font-semibold text-amber-800 ring-1 ring-amber-200"
+          ? "inline-flex items-center gap-1 rounded-md bg-danger-soft px-1.5 py-0.5 text-[10.5px] font-semibold text-danger-ink ring-1 ring-danger/20"
+          : "inline-flex items-center gap-1 rounded-md bg-warning-soft px-1.5 py-0.5 text-[10.5px] font-semibold text-warning-ink ring-1 ring-warning/20"
       }
     >
       <span aria-hidden="true">🎟</span>

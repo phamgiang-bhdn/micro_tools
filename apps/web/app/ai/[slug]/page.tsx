@@ -124,13 +124,13 @@ export default async function ToolLandingPage({
           </h3>
           <ol className="mt-3 space-y-2 text-ink">
             <li>
-              <span className="font-bold text-google-blue">1.</span> Trả lời 3 câu (hoặc mô tả tự nhiên).
+              <span className="font-bold text-primary-600">1.</span> Trả lời 3 câu (hoặc mô tả tự nhiên).
             </li>
             <li>
-              <span className="font-bold text-google-blue">2.</span> AI phân tích từ database spec thật + giá hôm nay.
+              <span className="font-bold text-primary-600">2.</span> AI phân tích từ database spec thật + giá hôm nay.
             </li>
             <li>
-              <span className="font-bold text-google-blue">3.</span> Nhận 3 gợi ý kèm lý do AI giải thích vì sao hợp với
+              <span className="font-bold text-primary-600">3.</span> Nhận 3 gợi ý kèm lý do AI giải thích vì sao hợp với
               bạn.
             </li>
           </ol>

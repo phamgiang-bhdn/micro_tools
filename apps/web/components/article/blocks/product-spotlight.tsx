@@ -34,7 +34,7 @@ export function ProductSpotlightBlock({
             // eslint-disable-next-line @next/next/no-img-element
             <img src={heroImage} alt={product.name} loading="lazy" className="size-full object-cover" />
           ) : (
-            <div className="grid size-full place-items-center bg-gradient-to-br from-brand-50 to-accent-50 text-5xl font-bold text-brand-700">
+            <div className="grid size-full place-items-center bg-gradient-to-br from-primary-50 to-accent-50 text-5xl font-bold text-primary-700">
               {product.brand?.[0] ?? "★"}
             </div>
           )}
@@ -47,7 +47,7 @@ export function ProductSpotlightBlock({
 
         <div className="flex flex-col gap-4 p-6 sm:p-8">
           <div>
-            <p className="text-[11px] font-semibold uppercase tracking-wider text-brand-700">Spotlight</p>
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-primary-700">Spotlight</p>
             <p className="mt-1 text-sm font-medium text-ink-soft">{angle}</p>
           </div>
 
@@ -61,7 +61,7 @@ export function ProductSpotlightBlock({
           {product.price !== undefined ? (
             <div className="space-y-0.5">
               <div className="flex flex-wrap items-baseline gap-2">
-                <span className="text-2xl font-bold text-brand-700">
+                <span className="text-2xl font-bold text-primary-700">
                   {formatMoney(product.price, product.currency)}
                 </span>
                 {product.originalPrice && product.originalPrice > product.price ? (

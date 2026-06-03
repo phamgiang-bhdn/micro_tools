@@ -23,7 +23,7 @@ export function ComparisonTable({ products: raw, schemaConfig }: Props): React.R
   return (
     <aside className="not-prose my-10 overflow-hidden rounded-3xl border border-line bg-card shadow-card">
       <header className="border-b border-line bg-canvas px-5 py-4 sm:px-6">
-        <p className="text-[11px] font-semibold uppercase tracking-wider text-brand-700">So sánh nhanh</p>
+        <p className="text-[11px] font-semibold uppercase tracking-wider text-primary-700">So sánh nhanh</p>
         <h2 className="mt-0.5 text-xl font-bold tracking-tight text-ink">Đặt cạnh nhau</h2>
       </header>
       <div className="overflow-x-auto">
@@ -39,7 +39,7 @@ export function ComparisonTable({ products: raw, schemaConfig }: Props): React.R
                         // eslint-disable-next-line @next/next/no-img-element
                         <img src={view.image} alt={view.name} loading="lazy" className="aspect-[4/3] w-full object-cover" />
                       ) : (
-                        <div className="grid aspect-[4/3] w-full place-items-center bg-gradient-to-br from-brand-50 to-accent-50 text-2xl font-bold text-brand-700">
+                        <div className="grid aspect-[4/3] w-full place-items-center bg-gradient-to-br from-primary-50 to-accent-50 text-2xl font-bold text-primary-700">
                           {view.brand?.[0] ?? "★"}
                         </div>
                       )}
@@ -60,7 +60,7 @@ export function ComparisonTable({ products: raw, schemaConfig }: Props): React.R
                 <td key={r.id} className="px-4 py-3">
                   {view.price !== undefined ? (
                     <div className="flex flex-col gap-0.5">
-                      <span className="text-base font-bold text-brand-700">{formatMoney(view.price, view.currency)}</span>
+                      <span className="text-base font-bold text-primary-700">{formatMoney(view.price, view.currency)}</span>
                       {view.originalPrice && view.originalPrice > view.price ? (
                         <span className="text-[11px] text-ink-mute line-through">
                           {formatMoney(view.originalPrice, view.currency)}

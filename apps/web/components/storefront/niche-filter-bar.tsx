@@ -112,8 +112,8 @@ function FilterChipRow({
               className={cn(
                 "inline-flex items-center rounded-full px-2.5 py-1 text-[12px] font-medium transition",
                 active
-                  ? "bg-brand-600 text-white shadow-sm"
-                  : "border border-line bg-card text-ink-soft hover:border-brand-300 hover:text-brand-700"
+                  ? "bg-primary-600 text-white shadow-sm"
+                  : "border border-line bg-card text-ink-soft hover:border-primary-300 hover:text-primary-700"
               )}
             >
               {it.label}

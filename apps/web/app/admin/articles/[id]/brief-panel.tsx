@@ -53,7 +53,7 @@ export function BriefPanel({ brief, authorName }: Props) {
         onClick={() => setOpen((v) => !v)}
         className="flex w-full items-center gap-2 border-b border-admin-line bg-admin-subtle/50 px-4 py-2.5 text-left transition hover:bg-admin-subtle"
       >
-        <Target className="size-4 text-brand-600" />
+        <Target className="size-4 text-primary-600" />
         <span className="text-[13px] font-bold text-admin-ink">Định hướng bài</span>
         {brief.intent ? (
           <span className="rounded bg-admin-surface px-1.5 py-0.5 text-[10.5px] font-semibold uppercase tracking-wider text-admin-ink">
@@ -70,8 +70,8 @@ export function BriefPanel({ brief, authorName }: Props) {
         <div className="space-y-4 p-4">
           {/* Thesis — đập vào mắt */}
           {brief.thesis ? (
-            <div className="rounded-md border-l-4 border-brand-500 bg-brand-50/40 px-4 py-3">
-              <div className="text-[10.5px] font-bold uppercase tracking-wider text-brand-700">
+            <div className="rounded-md border-l-4 border-primary-500 bg-primary-50/40 px-4 py-3">
+              <div className="text-[10.5px] font-bold uppercase tracking-wider text-primary-700">
                 Luận điểm chính
               </div>
               <p className="mt-1.5 text-[14px] font-medium leading-snug text-admin-ink">
@@ -161,7 +161,7 @@ export function BriefPanel({ brief, authorName }: Props) {
                 {brief.targetKeywords.map((kw) => (
                   <span
                     key={kw}
-                    className="inline-flex items-center rounded-full border border-brand-200 bg-brand-50 px-2.5 py-0.5 text-[12px] font-medium text-brand-800"
+                    className="inline-flex items-center rounded-full border border-primary-200 bg-primary-50 px-2.5 py-0.5 text-[12px] font-medium text-primary-800"
                   >
                     {kw}
                   </span>
@@ -174,7 +174,7 @@ export function BriefPanel({ brief, authorName }: Props) {
         // Collapsed preview: 1 dòng thesis
         <div className="px-4 py-2.5">
           <p className="line-clamp-1 text-[13px] text-admin-ink">
-            <Sparkles className="mr-1.5 inline size-3.5 text-brand-500" />
+            <Sparkles className="mr-1.5 inline size-3.5 text-primary-500" />
             {brief.thesis || "(chưa có luận điểm)"}
           </p>
         </div>

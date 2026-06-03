@@ -24,7 +24,7 @@ export function RelatedArticles({ articles, currentNicheName }: Props): React.Re
           <Link
             key={a.id}
             href={`/blog/${a.slug}`}
-            className="group overflow-hidden rounded-xl border border-line bg-card transition hover:border-brand-300 hover:shadow-md"
+            className="group overflow-hidden rounded-xl border border-line bg-card transition hover:border-primary-300 hover:shadow-md"
           >
             <div className="aspect-[16/10] overflow-hidden bg-card-soft">
               {a.coverImage ? (
@@ -38,11 +38,11 @@ export function RelatedArticles({ articles, currentNicheName }: Props): React.Re
               ) : null}
             </div>
             <div className="p-3.5">
-              <div className="flex items-center gap-1.5 text-[10.5px] font-semibold uppercase tracking-wider text-brand-600">
+              <div className="flex items-center gap-1.5 text-[10.5px] font-semibold uppercase tracking-wider text-primary-600">
                 {a.type === "REVIEW" ? "Đánh giá" : "Cẩm nang"}
                 {a.niche ? <span className="text-ink-mute">· {a.niche.name}</span> : null}
               </div>
-              <h3 className="mt-1.5 line-clamp-2 text-[14.5px] font-semibold leading-snug text-ink group-hover:text-brand-700">
+              <h3 className="mt-1.5 line-clamp-2 text-[14.5px] font-semibold leading-snug text-ink group-hover:text-primary-700">
                 {a.title}
               </h3>
               {a.excerpt ? (

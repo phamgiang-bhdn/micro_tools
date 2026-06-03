@@ -23,7 +23,7 @@ export function NicheFaq({ items }: Props): React.ReactElement | null {
           key={i}
           className="group border-b border-line/60 px-4 py-3 last:border-b-0 sm:px-5"
         >
-          <summary className="flex cursor-pointer items-center justify-between gap-3 text-[14px] font-semibold text-ink hover:text-brand-700">
+          <summary className="flex cursor-pointer items-center justify-between gap-3 text-[14px] font-semibold text-ink hover:text-primary-700">
             <span>{item.q}</span>
             <svg
               aria-hidden

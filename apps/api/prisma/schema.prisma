@@ -186,8 +186,6 @@ model Niche {
   products       Product[]
   articles       Article[]
   coupons        Coupon[]
-  /// STORY-04: keyword cross-ref cho "Cơ hội tuần" widget.
-  keywordMatches KeywordNicheMatch[]
   /// TOOL: tools thuộc về niche này (vd "Chọn máy lọc nước"). Mỗi niche có 0-N tool.
   tools          Tool[]
   /// TOOL: waitlist signup cho niche pre-launch (Epic 0).
@@ -195,46 +193,6 @@ model Niche {
 }
 
 /// AT taxonomy bucket — auto-populated từ `offer.atCategorySlug` (raw AT `cate`).
-/// Mỗi offer crawled tự upsert 1 row Category theo `slug` (normalized).
-/// `displayName` admin tự điền sau — storefront chỉ filter theo Category có displayName.
-/// KHÔNG phải Niche (Niche = SEO/curate layer, Category = AT raw taxonomy để admin lọc sản phẩm).
-model Category {
-  id          String    @id @default(uuid()) @db.Uuid
-  slug        String    @unique
-  rawValue    String
-  displayName String?
-  source      String    @default("accesstrade")
-  createdAt   DateTime  @default(now())
-  products    Product[]
-}
-
-/// "Nơi bán" — auto-populated từ hostname của `offer.affiliateUrl` (vd "shopee.vn", "lazada.vn").
-/// Mỗi domain unique → 1 row Source. Admin điền `displayName` ("Shopee VN", "Lazada VN") sau.
-/// Storefront chỉ hiện Source có displayName trong filter (hide khi null).
-model Source {
-  id          String    @id @default(uuid()) @db.Uuid
-  slug        String    @unique
-  rawValue    String
-  displayName String?
-  source      String    @default("accesstrade")
-  createdAt   DateTime  @default(now())
-  products    Product[]
-}
-
-/// "Domain" — auto-populated từ `offer.domain` (vd "shopee.vn", "lazada.vn").
-/// Mỗi domain unique → 1 row Brand. Admin điền `displayName` ("Shopee Vietnam") sau.
-/// Storefront chỉ hiện row có displayName trong filter (hide khi null).
-/// **Lưu ý**: model name vẫn là `Brand` để tránh refactor lớn; ngữ nghĩa hiện tại là Domain.
-model Brand {
-  id          String    @id @default(uuid()) @db.Uuid
-  slug        String    @unique
-  rawValue    String
-  displayName String?
-  source      String    @default("accesstrade")
-  createdAt   DateTime  @default(now())
-  products    Product[]
-}
-
 /// Shop — admin tự tạo + gán tay cho từng Product (AT KHÔNG trả shop info).
 /// Khác Domain (Brand): Domain là technical (auto từ offer.domain); Shop là cửa hàng cụ thể admin quản lý.
 /// Hiển thị trên storefront thay cho campaign info.
@@ -255,12 +213,6 @@ model Product {
   /// Niche assigned by admin (PR4 — manual gán tay). NULL = chưa gán → ẩn khỏi storefront.
   /// Crawler KHÔNG tự gán nicheId; admin assign trong /admin/products (bulk hoặc per-row).
   nicheId       String?             @db.Uuid
-  /// AT taxonomy bucket (PR2). Auto-populated từ `offer.atCategorySlug`. Khác `nicheId` (SEO layer).
-  categoryId    String?             @db.Uuid
-  /// Nơi bán (PR3). Auto-populated từ hostname của `affiliateUrl`.
-  sourceId      String?             @db.Uuid
-  /// Domain (model name `Brand` legacy). Auto-populated từ `offer.domain` (vd "shopee.vn").
-  brandId       String?             @db.Uuid
   /// Shop — admin gán tay (AT không trả). NULL = chưa gán.
   shopId        String?             @db.Uuid
   network       AffiliateNetwork    @default(ACCESSTRADE)
@@ -273,25 +225,18 @@ model Product {
   createdAt     DateTime            @default(now())
   updatedAt     DateTime            @updatedAt
   niche         Niche?              @relation(fields: [nicheId], references: [id], onDelete: SetNull)
-  category      Category?           @relation(fields: [categoryId], references: [id], onDelete: SetNull)
-  source        Source?             @relation(fields: [sourceId], references: [id], onDelete: SetNull)
-  brand         Brand?              @relation(fields: [brandId], references: [id], onDelete: SetNull)
   shop          Shop?               @relation(fields: [shopId], references: [id], onDelete: SetNull)
   campaign      Campaign?           @relation(fields: [campaignId], references: [id], onDelete: SetNull)
   clickLogs     ClickLog[]
   extractions   ProductExtraction[]
   coupons       Coupon[]
   reviews       ProductReview[]
-  priceWatches  PriceWatch[]
   /// STORY-05: matched order-product lines.
   orderProducts OrderProduct[]
 
   @@unique([nicheId, slug])
   @@index([nicheId])
   @@index([campaignId])
-  @@index([categoryId])
-  @@index([sourceId])
-  @@index([brandId])
   @@index([shopId])
 }
 
@@ -632,27 +577,9 @@ model Subscriber {
   unsubscribedAt  DateTime?
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
-  watches         PriceWatch[]
 
   @@index([source])
   @@index([status])
-}
-
-model PriceWatch {
-  id                String     @id @default(uuid()) @db.Uuid
-  subscriberId      String     @db.Uuid
-  subscriber        Subscriber @relation(fields: [subscriberId], references: [id], onDelete: Cascade)
-  productId         String     @db.Uuid
-  product           Product    @relation(fields: [productId], references: [id], onDelete: Cascade)
-  basePrice         Int
-  notifyDropPercent Int        @default(5)
-  lastNotifiedAt    DateTime?
-  lastNotifiedPrice Int?
-  status            String     @default("ACTIVE")
-  createdAt         DateTime   @default(now())
-
-  @@unique([subscriberId, productId])
-  @@index([productId, status])
 }
 
 // === STORY-02: Manual sync mode tracking ===
@@ -671,56 +598,6 @@ model LastSyncStatus {
   updatedAt            DateTime  @updatedAt
 
   @@index([isStale])
-}
-
-// === STORY-04: Commission rank + Keyword radar (Loop 1 "Cơ hội tuần") ===
-/// Cashback campaign rank pulled từ AT `/v1/cashback/campaigns`. Purge old batch on refresh.
-model CommissionRank {
-  id                String   @id @default(uuid()) @db.Uuid
-  atCampaignId      String
-  campaignName      String
-  merchant          String
-  atCategoryName    String?
-  atSubCategoryName String?
-  minCommission     Float
-  maxCommission     Float
-  commissionType    String
-  allCommissions    Json     @db.JsonB
-  fetchedAt         DateTime @default(now())
-  syncBatchId       String
-
-  @@index([syncBatchId])
-  @@index([maxCommission])
-  @@index([atCampaignId])
-}
-
-/// Trending keyword pulled từ AT `/v1/offers_informations/keyword_list`.
-model KeywordTrend {
-  id          String              @id @default(uuid()) @db.Uuid
-  atKeywordId String              @unique
-  iconText    String
-  merchant    String
-  totalOffer  Int
-  fetchedAt   DateTime            @default(now())
-  syncBatchId String
-  matches     KeywordNicheMatch[]
-
-  @@index([syncBatchId])
-  @@index([totalOffer])
-}
-
-/// Cross-ref keyword × niche (computed). matchScore 0-1 + reason để debug.
-model KeywordNicheMatch {
-  id             String       @id @default(uuid()) @db.Uuid
-  keywordTrendId String       @db.Uuid
-  keyword        KeywordTrend @relation(fields: [keywordTrendId], references: [id], onDelete: Cascade)
-  nicheId        String?      @db.Uuid
-  niche          Niche?       @relation(fields: [nicheId], references: [id], onDelete: SetNull)
-  matchScore     Float
-  matchReason    String?
-
-  @@index([nicheId])
-  @@index([keywordTrendId])
 }
 
 // === STORY-05: Real-bestseller per-order product lines (Loop 2) ===
@@ -751,21 +628,6 @@ model OrderProduct {
   @@unique([conversionWebhookId, atOrderProductId])
   @@index([matchedProductId])
   @@index([salesTime])
-}
-
-// === STORY-06: Ad spend per channel × week (Loop 3 ROAS calc) ===
-/// AdSpend — operator nhập tay weekly. ROAS = revenue / spend.
-model AdSpend {
-  id            String   @id @default(uuid()) @db.Uuid
-  channel       String
-  weekStartDate DateTime @db.Date
-  amount        Int
-  notes         String?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-
-  @@unique([channel, weekStartDate])
-  @@index([weekStartDate])
 }
 
 // === TOOL MODULE: AI-visible decision engine ===
@@ -874,39 +736,6 @@ model WaitlistSignup {
   @@index([source])
 }
 
-enum EmailDripStatus {
-  PENDING
-  SENT
-  FAILED
-  CANCELLED
-}
-
-/// ToolEmailDrip — Story 6.5 post-click follow-up email queue.
-/// Khi user click affiliate có email → enqueue 2 drip (day3 follow-up + day7 new deals).
-/// Cron daily check + send qua Resend/SendGrid (chưa wire, phase 2).
-model ToolEmailDrip {
-  id            String          @id @default(uuid()) @db.Uuid
-  email         String
-  quizSessionId String?         @db.Uuid
-  toolId        String?         @db.Uuid
-  productId     String?         @db.Uuid
-  /// Type: "day3-followup" | "day7-newdeals" | "thay-loi-6thang" | ...
-  dripType      String
-  scheduledFor  DateTime
-  sentAt        DateTime?
-  status        EmailDripStatus @default(PENDING)
-  /// Payload cached cho render (product name, niche, deal info...) tránh join phức tạp.
-  payload       Json?           @db.JsonB
-  errorReason   String?
-  createdAt     DateTime        @default(now())
-  updatedAt     DateTime        @updatedAt
-
-  @@index([status, scheduledFor])
-  @@index([email])
-  @@index([quizSessionId])
-  @@index([dripType])
-}
-
 /// ReasoningCache — cache AI-generated reasoning per (product × user profile hash).
 /// Giảm AI cost 60-70% (user input tương tự → cùng reasoning).
 /// TTL 30 ngày qua createdAt (cron clean stale).
@@ -929,35 +758,3 @@ model ReasoningCache {
   @@index([createdAt])
 }
 
-// === STORY-08: TrackedLink for off-site post (Loop 5) ===
-/// TrackedLink — AT-generated short link cho URL bất kỳ. Operator post FB/Zalo/email.
-/// conversionCount + revenue update qua reconciler khi sub2 match.
-model TrackedLink {
-  id               String    @id @default(uuid()) @db.Uuid
-  title            String
-  originUrl        String
-  atCampaignId     String
-  atAffLink        String
-  atShortLink      String
-  channel          String
-  sub1             String?
-  sub2             String?
-  sub3             String?
-  sub4             String?
-  utmSource        String?
-  utmMedium        String?
-  utmCampaign      String?
-  utmContent       String?
-  notes            String?
-  isActive         Boolean   @default(true)
-  createdAt        DateTime  @default(now())
-  createdBy        String?
-  clickCount       Int       @default(0)
-  conversionCount  Int       @default(0)
-  revenue          Float     @default(0)
-  lastConversionAt DateTime?
-
-  @@index([channel])
-  @@index([createdAt])
-  @@index([atCampaignId])
-}

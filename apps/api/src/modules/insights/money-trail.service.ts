@@ -6,13 +6,12 @@ export interface ChannelRow {
   clicks: number;
   orders: number;
   revenue: number;
-  spend: number;
-  roas: number | null;
 }
 
 /**
- * Loop 3: aggregate ClickLog + ConversionWebhook per channel + AdSpend → ROAS.
+ * Loop 3: aggregate ClickLog + ConversionWebhook per channel.
  * Channel = "organic" | "fb" | "zalo" | "email" | "direct" | "other".
+ * (AdSpend/ROAS đã cắt ở Refactor V3 — không track chi phí quảng cáo.)
  */
 @Injectable()
 export class MoneyTrailService {
@@ -40,15 +39,9 @@ export class MoneyTrailService {
       GROUP BY COALESCE("channel", 'direct')
     `;
 
-    const weekStart = computeMondayVN();
-    const adSpend = await this.prisma.adSpend.findMany({
-      where: { weekStartDate: weekStart }
-    });
-
     const allChannels = new Set<string>([
       ...clickAgg.map((c) => c.channel),
-      ...conversionAgg.map((c) => c.channel),
-      ...adSpend.map((a) => a.channel)
+      ...conversionAgg.map((c) => c.channel)
     ]);
 
     return Array.from(allChannels)
@@ -57,20 +50,8 @@ export class MoneyTrailService {
         const conv = conversionAgg.find((c) => c.channel === channel);
         const orders = conv?.orders ?? 0;
         const revenue = conv?.revenue ?? 0;
-        const spend = adSpend.find((a) => a.channel === channel)?.amount ?? 0;
-        const roas = spend > 0 ? revenue / spend : null;
-        return { channel, clicks, orders, revenue, spend, roas };
+        return { channel, clicks, orders, revenue };
       })
       .sort((a, b) => b.revenue - a.revenue);
   }
-}
-
-function computeMondayVN(): Date {
-  const now = new Date();
-  const day = now.getDay(); // 0 = Sunday
-  const diff = day === 0 ? 6 : day - 1;
-  const monday = new Date(now);
-  monday.setDate(now.getDate() - diff);
-  monday.setUTCHours(0, 0, 0, 0);
-  return monday;
 }

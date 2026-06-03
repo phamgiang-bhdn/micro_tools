@@ -113,7 +113,7 @@ export function ToolHero({
     return (
       <div className="mt-8 rounded-3xl border border-line bg-white p-8 shadow-card">
         <div className="text-center">
-          <Sparkles className="mx-auto size-8 animate-pulse text-google-blue" />
+          <Sparkles className="mx-auto size-8 animate-pulse text-primary-600" />
           <h2 className="mt-3 text-lg font-semibold text-ink">AI đang phân tích...</h2>
           <p className="mt-1 text-xs text-ink-soft">Chỉ mất vài giây.</p>
         </div>
@@ -135,7 +135,7 @@ export function ToolHero({
     <form onSubmit={handleSubmit} className="mt-8 space-y-6">
       <div className="rounded-3xl border border-line bg-white p-5 shadow-card sm:p-6">
         <div className="flex items-center gap-2 text-sm font-semibold text-ink">
-          <ListChecks className="size-4 text-google-blue" />
+          <ListChecks className="size-4 text-primary-600" />
           Trả lời nhanh 3 câu
         </div>
 
@@ -174,11 +174,11 @@ export function ToolHero({
 
       <div className="rounded-3xl border border-line bg-white p-5 shadow-card sm:p-6">
         <label className="flex items-center gap-2 text-sm font-semibold text-ink">
-          <MessageSquare className="size-4 text-google-blue" />
+          <MessageSquare className="size-4 text-primary-600" />
           Mô tả nhu cầu bằng câu của bạn
         </label>
         <textarea
-          className="mt-3 w-full rounded-xl border border-line bg-canvas px-4 py-3 text-sm text-ink outline-none focus:border-google-blue"
+          className="mt-3 w-full rounded-xl border border-line bg-canvas px-4 py-3 text-sm text-ink outline-none focus:border-primary-600"
           rows={2}
           value={chatMessage}
           onChange={(e) => {
@@ -199,7 +199,7 @@ export function ToolHero({
       </div>
 
       {errorMsg && (
-        <p className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+        <p className="rounded-lg border border-danger/30 bg-danger-soft p-3 text-sm text-danger-ink">
           {errorMsg}
         </p>
       )}
@@ -240,8 +240,8 @@ function QuestionBlock({
               onClick={() => onChange(opt.value)}
               className={
                 selected
-                  ? "rounded-full border border-google-blue bg-google-blue px-3.5 py-1.5 text-sm font-medium text-white"
-                  : "rounded-full border border-line bg-white px-3.5 py-1.5 text-sm text-ink transition hover:border-google-blue hover:text-google-blue"
+                  ? "rounded-full border border-primary-600 bg-primary-600 px-3.5 py-1.5 text-sm font-medium text-white"
+                  : "rounded-full border border-line bg-white px-3.5 py-1.5 text-sm text-ink transition hover:border-primary-600 hover:text-primary-600"
               }
             >
               {opt.icon && <span className="mr-1">{opt.icon}</span>}

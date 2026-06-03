@@ -96,7 +96,7 @@ export default async function ArticlePreviewPage({ params }: PageProps): Promise
       </div>
 
       {/* Thin brand accent ở top — giữ identity nhẹ, không choáng */}
-      <div className="h-1 bg-gradient-to-r from-brand-500 via-brand-600 to-accent-500" />
+      <div className="h-1 bg-gradient-to-r from-primary-500 via-primary-600 to-accent-500" />
 
       <header className="border-b border-line bg-canvas">
         <div className="mx-auto max-w-6xl px-4 py-7 sm:px-6 sm:py-10">
@@ -118,7 +118,7 @@ export default async function ArticlePreviewPage({ params }: PageProps): Promise
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={article.author.avatarUrl} alt={article.author.name} className="size-7 rounded-full object-cover" />
                 ) : (
-                  <span className="grid size-7 place-items-center rounded-full bg-brand-50 text-[11px] font-bold text-brand-700">
+                  <span className="grid size-7 place-items-center rounded-full bg-primary-50 text-[11px] font-bold text-primary-700">
                     {article.author.name.slice(0, 1)}
                   </span>
                 )}
@@ -149,7 +149,7 @@ export default async function ArticlePreviewPage({ params }: PageProps): Promise
                   className="mb-14 scroll-mt-24 first:mt-0"
                 >
                   <div className="flex items-baseline gap-3">
-                    <span className="text-[12px] font-semibold tabular-nums text-brand-600">
+                    <span className="text-[12px] font-semibold tabular-nums text-primary-600">
                       {String(idx + 1).padStart(2, "0")}
                     </span>
                     <span className="h-px flex-1 bg-line" />

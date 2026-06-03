@@ -21,9 +21,6 @@ interface ProductsPageProps {
   searchParams: Promise<{
     nicheId?: string;
     nicheStatus?: "assigned" | "unassigned";
-    categoryId?: string;
-    sourceId?: string;
-    brandId?: string;
     shopId?: string;
     shopStatus?: "assigned" | "unassigned";
     network?: string;
@@ -43,14 +40,6 @@ const SHOP_STATUS_OPTIONS = [
   { value: "assigned", label: "Đã gán shop" }
 ];
 
-interface LookupLite {
-  id: string;
-  slug: string;
-  rawValue: string;
-  displayName: string | null;
-  _count: { products: number };
-}
-
 interface ShopLite {
   id: string;
   slug: string;
@@ -65,9 +54,6 @@ export default async function ProductsPage({
   const qs = new URLSearchParams();
   if (filters.nicheId) qs.set("nicheId", filters.nicheId);
   if (filters.nicheStatus) qs.set("nicheStatus", filters.nicheStatus);
-  if (filters.categoryId) qs.set("categoryId", filters.categoryId);
-  if (filters.sourceId) qs.set("sourceId", filters.sourceId);
-  if (filters.brandId) qs.set("brandId", filters.brandId);
   if (filters.shopId) qs.set("shopId", filters.shopId);
   if (filters.shopStatus) qs.set("shopStatus", filters.shopStatus);
   if (filters.network) qs.set(ADMIN_PARAMS.network, filters.network);
@@ -75,12 +61,9 @@ export default async function ProductsPage({
   if (filters.search) qs.set(ADMIN_PARAMS.search, filters.search);
   qs.set("limit", "500");
 
-  const [products, niches, categories, sources, brands, shops] = await Promise.all([
+  const [products, niches, shops] = await Promise.all([
     adminGet<ProductRow[]>(`/admin/products?${qs.toString()}`),
     adminGet<NicheLite[]>("/admin/niches"),
-    adminGet<LookupLite[]>("/admin/categories"),
-    adminGet<LookupLite[]>("/admin/sources"),
-    adminGet<LookupLite[]>("/admin/brands"),
     adminGet<ShopLite[]>("/admin/shops")
   ]);
 
@@ -91,9 +74,6 @@ export default async function ProductsPage({
     const params = new URLSearchParams();
     if (filters.nicheId) params.set("nicheId", filters.nicheId);
     if (filters.nicheStatus) params.set("nicheStatus", filters.nicheStatus);
-    if (filters.categoryId) params.set("categoryId", filters.categoryId);
-    if (filters.sourceId) params.set("sourceId", filters.sourceId);
-    if (filters.brandId) params.set("brandId", filters.brandId);
     if (filters.shopId) params.set("shopId", filters.shopId);
     if (filters.shopStatus) params.set("shopStatus", filters.shopStatus);
     if (filters.network) params.set(ADMIN_PARAMS.network, filters.network);
@@ -108,9 +88,6 @@ export default async function ProductsPage({
     filters.search ||
       filters.nicheId ||
       filters.nicheStatus ||
-      filters.categoryId ||
-      filters.sourceId ||
-      filters.brandId ||
       filters.shopId ||
       filters.shopStatus ||
       filters.network ||
@@ -122,15 +99,6 @@ export default async function ProductsPage({
   const networkCount = new Set(products.map((p) => p.network)).size;
 
   const nicheOptions = niches.map((c) => ({ value: c.id, label: c.name }));
-  const lookupToOption = (c: LookupLite): { value: string; label: string } => ({
-    value: c.id,
-    label: c.displayName
-      ? `${c.displayName} (${c._count.products})`
-      : `${c.rawValue} — chưa đặt tên (${c._count.products})`
-  });
-  const categoryOptions = categories.map(lookupToOption);
-  const sourceOptions = sources.map(lookupToOption);
-  const brandOptions = brands.map(lookupToOption);
   const shopOptions = shops.map((s) => ({
     value: s.id,
     label: `${s.name} (${s._count.products})`
@@ -181,9 +149,6 @@ export default async function ProductsPage({
             [
               { key: "nicheStatus", label: "Trạng thái niche", options: NICHE_STATUS_OPTIONS },
               { key: "nicheId", label: "Ngành hàng", options: nicheOptions },
-              { key: "categoryId", label: "Phân loại (AT)", options: categoryOptions },
-              { key: "sourceId", label: "Nguồn bán", options: sourceOptions },
-              { key: "brandId", label: "Tên miền", options: brandOptions },
               { key: "shopStatus", label: "Trạng thái shop", options: SHOP_STATUS_OPTIONS },
               { key: "shopId", label: "Cửa hàng", options: shopOptions },
               {

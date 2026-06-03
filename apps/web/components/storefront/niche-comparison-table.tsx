@@ -31,10 +31,10 @@ export function NicheComparisonTable({
   const specColumns = pickComparisonColumns(schemaConfig, rawRows, 5);
 
   return (
-    <div className="overflow-x-auto rounded-2xl border border-line bg-card shadow-card">
+    <div className="overflow-x-auto rounded-2xl border border-border bg-surface shadow-card">
       <table className="w-full min-w-[640px] text-[13px]">
         <thead className="bg-canvas text-[11.5px] uppercase tracking-wider text-ink-mute">
-          <tr className="border-b border-line">
+          <tr className="border-b border-border">
             <th scope="col" className="sticky left-0 z-10 bg-canvas px-3 py-2.5 text-left font-semibold">
               Sản phẩm
             </th>
@@ -54,8 +54,8 @@ export function NicheComparisonTable({
               product.slug && product.slug.length > 0 ? product.slug : slugify(product.name) || product.id;
             const detailHref = `/categories/${product.nicheSlug}/${detailKey}`;
             return (
-              <tr key={product.id} className="border-b border-line last:border-b-0 hover:bg-canvas/60">
-                <th scope="row" className="sticky left-0 z-10 bg-card px-3 py-3 text-left font-medium">
+              <tr key={product.id} className="border-b border-border last:border-b-0 hover:bg-canvas/60">
+                <th scope="row" className="sticky left-0 z-10 bg-surface px-3 py-3 text-left font-medium">
                   <Link href={detailHref} className="flex items-center gap-2.5 ring-focus">
                     <span className="grid size-12 shrink-0 place-items-center overflow-hidden rounded-lg bg-canvas">
                       {product.image ? (
@@ -67,24 +67,24 @@ export function NicheComparisonTable({
                           className="size-full object-cover"
                         />
                       ) : (
-                        <span className="text-[10px] font-bold text-brand-700">
+                        <span className="text-[10px] font-bold text-primary-700">
                           {product.name.slice(0, 2).toUpperCase()}
                         </span>
                       )}
                     </span>
-                    <span className="line-clamp-2 max-w-[200px] text-[13px] font-medium text-ink hover:text-brand-700">
+                    <span className="line-clamp-2 max-w-[200px] text-[13px] font-medium text-ink hover:text-primary-700">
                       {product.name}
                     </span>
                   </Link>
                 </th>
-                <td className="whitespace-nowrap px-3 py-3 text-right font-semibold text-brand-700">
+                <td className="whitespace-nowrap px-3 py-3 text-right font-semibold text-ink">
                   {typeof product.price === "number" && product.price > 0
                     ? formatMoney(product.price, product.currency)
                     : "—"}
                 </td>
                 <td className="whitespace-nowrap px-3 py-3 text-right">
                   {typeof product.discountPercent === "number" && product.discountPercent > 0 ? (
-                    <span className="inline-flex items-center rounded bg-red-100 px-1.5 py-0.5 text-[11px] font-bold text-red-700">
+                    <span className="inline-flex items-center rounded bg-cta-100 px-1.5 py-0.5 text-[11px] font-bold text-cta-700">
                       -{product.discountPercent}%
                     </span>
                   ) : (
@@ -103,7 +103,7 @@ export function NicheComparisonTable({
                       <input type="hidden" name="affiliateUrl" value={product.affiliateUrl} />
                       <button
                         type="submit"
-                        className="inline-flex items-center justify-center gap-1 rounded-md bg-brand-600 px-3 py-1.5 text-[12px] font-semibold text-white shadow-sm transition hover:bg-brand-700 ring-focus"
+                        className="inline-flex items-center justify-center gap-1 rounded-md bg-cta-500 px-3 py-1.5 text-[12px] font-semibold text-ink shadow-sm transition hover:bg-cta-400 ring-focus"
                       >
                         Mua ↗
                       </button>
@@ -111,7 +111,7 @@ export function NicheComparisonTable({
                   ) : (
                     <Link
                       href={detailHref}
-                      className="inline-flex items-center justify-center gap-1 rounded-md border border-line bg-card px-3 py-1.5 text-[12px] font-semibold text-ink-soft transition hover:border-brand-300 hover:text-brand-700"
+                      className="inline-flex items-center justify-center gap-1 rounded-md border border-border bg-surface px-3 py-1.5 text-[12px] font-semibold text-ink-soft transition hover:border-primary-300 hover:text-primary-700"
                     >
                       Xem
                     </Link>

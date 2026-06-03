@@ -84,8 +84,8 @@ export function WaitlistForm({
                 onClick={() => setSurveyAnswer(opt)}
                 className={`rounded-full border px-3 py-1.5 text-sm transition ${
                   surveyAnswer === opt
-                    ? "border-google-blue bg-google-blue text-white"
-                    : "border-line bg-white text-ink hover:border-google-blue"
+                    ? "border-primary-600 bg-primary-600 text-white"
+                    : "border-line bg-white text-ink hover:border-primary-600"
                 }`}
               >
                 {opt}
@@ -106,7 +106,7 @@ export function WaitlistForm({
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           placeholder="you@example.com"
-          className="mt-1 w-full rounded-xl border border-line px-4 py-3 text-base text-ink outline-none focus:border-google-blue"
+          className="mt-1 w-full rounded-xl border border-line px-4 py-3 text-base text-ink outline-none focus:border-primary-600"
         />
       </div>
 
@@ -146,7 +146,7 @@ function ShareBox({ nicheName }: { nicheName: string }): React.ReactElement {
           href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`}
           target="_blank"
           rel="noopener noreferrer"
-          className="rounded-full border border-line bg-white px-4 py-2 text-sm text-ink hover:border-google-blue"
+          className="rounded-full border border-line bg-white px-4 py-2 text-sm text-ink hover:border-primary-600"
         >
           Facebook
         </a>
@@ -154,14 +154,14 @@ function ShareBox({ nicheName }: { nicheName: string }): React.ReactElement {
           href={`https://zalo.me/share?u=${encodeURIComponent(shareUrl)}&t=${encodeURIComponent(shareText)}`}
           target="_blank"
           rel="noopener noreferrer"
-          className="rounded-full border border-line bg-white px-4 py-2 text-sm text-ink hover:border-google-blue"
+          className="rounded-full border border-line bg-white px-4 py-2 text-sm text-ink hover:border-primary-600"
         >
           Zalo
         </a>
         <button
           type="button"
           onClick={handleCopy}
-          className="rounded-full border border-line bg-white px-4 py-2 text-sm text-ink hover:border-google-blue"
+          className="rounded-full border border-line bg-white px-4 py-2 text-sm text-ink hover:border-primary-600"
         >
           Copy link
         </button>

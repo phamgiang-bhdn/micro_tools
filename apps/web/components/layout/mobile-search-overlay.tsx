@@ -81,7 +81,7 @@ export function MobileSearchOverlay({ open, onClose }: Props): React.ReactElemen
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Tìm deal, brand, danh mục…"
             aria-label="Tìm sản phẩm"
-            className="h-11 w-full rounded-full border border-line bg-card pl-10 pr-3 text-sm text-ink placeholder:text-ink-mute focus:border-brand-300 focus:bg-canvas focus:outline-none focus:ring-2 focus:ring-brand-500/20"
+            className="h-11 w-full rounded-full border border-line bg-card pl-10 pr-3 text-sm text-ink placeholder:text-ink-mute focus:border-primary-300 focus:bg-canvas focus:outline-none focus:ring-2 focus:ring-primary-500/20"
           />
         </form>
         <button
@@ -102,7 +102,7 @@ export function MobileSearchOverlay({ open, onClose }: Props): React.ReactElemen
                 key={q}
                 href={`/?q=${encodeURIComponent(q)}`}
                 onClick={onClose}
-                className="inline-flex items-center rounded-full border border-line bg-card px-3 py-1.5 text-[12.5px] font-medium text-ink-soft hover:border-brand-300 hover:text-brand-700"
+                className="inline-flex items-center rounded-full border border-line bg-card px-3 py-1.5 text-[12.5px] font-medium text-ink-soft hover:border-primary-300 hover:text-primary-700"
               >
                 {q}
               </Link>
@@ -117,9 +117,9 @@ export function MobileSearchOverlay({ open, onClose }: Props): React.ReactElemen
                 key={href}
                 href={href}
                 onClick={onClose}
-                className="flex items-center gap-3 rounded-xl border border-line bg-card p-3 text-[14px] font-semibold text-ink hover:border-brand-300 hover:text-brand-700"
+                className="flex items-center gap-3 rounded-xl border border-line bg-card p-3 text-[14px] font-semibold text-ink hover:border-primary-300 hover:text-primary-700"
               >
-                <span className="grid size-9 place-items-center rounded-lg bg-brand-50 text-brand-700">
+                <span className="grid size-9 place-items-center rounded-lg bg-primary-50 text-primary-700">
                   <Icon className="size-4" />
                 </span>
                 {label}

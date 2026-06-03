@@ -18,7 +18,8 @@ export interface ImportResult {
  * Tự sinh slug từ name (unique scope toàn DB; vì nicheId nullable, slug uniqueness về URL chỉ
  * relevant sau khi admin gán niche → slug có thể bị collide nếu 2 product unassigned cùng slug,
  * nhưng KHÔNG vỡ vì storefront chỉ render product có nicheId).
- * Auto-upsert Campaign / Category / Source / Brand từ offer raw values.
+ * Auto-upsert Campaign từ offer raw values. (Taxonomy Category/Source/Brand đã cắt ở Refactor V3 —
+ * phân loại/nguồn/domain giờ đọc thẳng từ scrapedData khi cần, không còn bảng + FK riêng.)
  */
 @Injectable()
 export class ImportService {
@@ -46,9 +47,6 @@ export class ImportService {
 
       const network = networkFromSource(offer.source);
       const campaignId = offer.campaignDbId ?? (await this.resolveCampaignId(network, offer));
-      const categoryId = await this.resolveCategoryId(offer);
-      const sourceId = await this.resolveSourceId(offer.affiliateUrl);
-      const brandId = await this.resolveDomainId(offer.domain);
 
       const existing = await this.prisma.product.findFirst({
         where: { affiliateUrl: offer.affiliateUrl }
@@ -90,16 +88,13 @@ export class ImportService {
       };
 
       if (existing) {
-        // Đã có row — làm mới name/scrapedData/categoryId/sourceId/brandId, GIỮ slug cũ (URL không đổi → không vỡ index SEO).
+        // Đã có row — làm mới name/scrapedData, GIỮ slug cũ (URL không đổi → không vỡ index SEO).
         // campaignId chỉ set nếu chưa có (admin có thể đã gán tay; không ghi đè).
         await this.prisma.product.update({
           where: { id: existing.id },
           data: {
             name: offer.name,
             scrapedData: scrapedData as Prisma.InputJsonValue,
-            ...(categoryId ? { categoryId } : {}),
-            ...(sourceId ? { sourceId } : {}),
-            ...(brandId ? { brandId } : {}),
             ...(existing.campaignId ? {} : campaignId ? { campaignId } : {})
           }
         });
@@ -115,9 +110,6 @@ export class ImportService {
       const newProduct = await this.prisma.product.create({
         data: {
           nicheId: null,
-          categoryId: categoryId ?? null,
-          sourceId: sourceId ?? null,
-          brandId: brandId ?? null,
           network,
           campaignId: campaignId ?? null,
           name: offer.name,
@@ -226,93 +218,5 @@ export class ImportService {
       select: { id: true }
     });
     return campaign.id;
-  }
-
-  /**
-   * Idempotent upsert AT Category theo `slug` (normalized từ `offer.atCategorySlug`).
-   * Giữ `rawValue` đầu tiên (KHÔNG ghi đè ở update — admin có thể đã đặt displayName dựa trên rawValue cũ).
-   * Khi offer không có atCategorySlug → return null, Product.categoryId stays null.
-   */
-  private async resolveCategoryId(offer: NormalizedOffer): Promise<string | null> {
-    const raw = offer.atCategorySlug?.trim();
-    if (!raw) return null;
-    const slug = normalizeLookupSlug(raw);
-    if (!slug) return null;
-    const category = await this.prisma.category.upsert({
-      where: { slug },
-      create: {
-        slug,
-        rawValue: raw,
-        source: "accesstrade"
-      },
-      update: {},
-      select: { id: true }
-    });
-    return category.id;
-  }
-
-  /**
-   * Idempotent upsert Source theo hostname của `affiliateUrl` (vd "shopee.vn").
-   * Source = "nơi bán" (sàn). KHÔNG ghi đè `displayName` ở update (admin có thể đã đặt).
-   */
-  private async resolveSourceId(affiliateUrl: string): Promise<string | null> {
-    const domain = parseDomain(affiliateUrl);
-    if (!domain) return null;
-    const source = await this.prisma.source.upsert({
-      where: { slug: domain },
-      create: {
-        slug: domain,
-        rawValue: domain,
-        source: "accesstrade"
-      },
-      update: {},
-      select: { id: true }
-    });
-    return source.id;
-  }
-
-  /**
-   * Idempotent upsert Brand (model giờ đại diện cho "Domain") theo `offer.domain` (vd "shopee.vn").
-   * Empty / whitespace → return null (Product.brandId = null).
-   * Lưu slug + rawValue = domain lowercase (strip www). Admin điền `displayName` sau.
-   */
-  private async resolveDomainId(rawDomain?: string): Promise<string | null> {
-    const trimmed = rawDomain?.trim().toLowerCase().replace(/^www\./, "");
-    if (!trimmed) return null;
-    const brand = await this.prisma.brand.upsert({
-      where: { slug: trimmed },
-      create: {
-        slug: trimmed,
-        rawValue: trimmed,
-        source: "accesstrade"
-      },
-      update: {},
-      select: { id: true }
-    });
-    return brand.id;
-  }
-}
-
-/**
- * Normalize chuỗi raw từ AT (vd "Điện tử & Điện lạnh", "Samsung Electronics") thành slug ổn định.
- * Dùng làm unique key cho Category / Brand. `rawValue` lưu nguyên bản để admin biết AT đã trả gì.
- */
-function normalizeLookupSlug(raw: string): string {
-  return raw
-    .trim()
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "")
-    .replace(/đ/g, "d")
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
-}
-
-/** Parse hostname từ URL, lowercase, bỏ "www.". Trả null nếu URL không parse được. */
-function parseDomain(url: string): string | null {
-  try {
-    return new URL(url).hostname.toLowerCase().replace(/^www\./, "");
-  } catch {
-    return null;
   }
 }

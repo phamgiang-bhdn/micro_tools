@@ -23,17 +23,12 @@ import { CouponSyncService } from "../crawler/coupon-sync.service";
 import { CrawlerService } from "../crawler/crawler.service";
 import { filterRulesSchema } from "../crawler/dto/filter-rules.dto";
 import { TopProductsSyncService } from "../crawler/top-products-sync.service";
-import { CommissionRankService } from "../insights/commission-rank.service";
-import { KeywordRadarService } from "../insights/keyword-radar.service";
 import { MoneyTrailService } from "../insights/money-trail.service";
-import { OpportunityService } from "../insights/opportunity.service";
 import { RealBestsellerService } from "../insights/real-bestseller.service";
-import { TrackedLinkService } from "../insights/tracked-link.service";
 import { ReconciliationService } from "../reconciliation/reconciliation.service";
 import { RefineryService } from "../refinery/refinery.service";
 import { ToolScoringService } from "../tool/scoring.service";
 import { InventoryCheckService } from "../tool/inventory-check.service";
-import { ToolEmailDripService } from "../tool/email-drip.service";
 import { slugify, uniqueSlugWithin } from "../../utils/slug.util";
 
 // === at-money-flows-v1 schemas ===
@@ -41,29 +36,7 @@ const bulkApproveSchema = z.object({
   ids: z.array(z.string().uuid()).min(1).max(100)
 });
 
-const adSpendSchema = z.object({
-  channel: z.string().min(1).max(40),
-  weekStartDate: z.string(),
-  amount: z.number().int().nonnegative(),
-  notes: z.string().max(500).optional().nullable()
-});
-
-const createTrackedLinkSchema = z.object({
-  title: z.string().min(1).max(200),
-  originUrl: z.string().url(),
-  channel: z.enum(["fb", "zalo", "email", "tiktok", "other"]),
-  atCampaignId: z.string().optional().nullable(),
-  sub2: z.string().max(80).optional().nullable(),
-  sub3: z.string().max(80).optional().nullable(),
-  sub4: z.string().max(80).optional().nullable(),
-  utmSource: z.string().max(80).optional().nullable(),
-  utmMedium: z.string().max(80).optional().nullable(),
-  utmCampaign: z.string().max(80).optional().nullable(),
-  utmContent: z.string().max(80).optional().nullable(),
-  notes: z.string().max(1000).optional().nullable()
-});
-
-const SYNC_NAMES = ["crawler", "reconcile", "coupon", "top_products", "commission_rank", "keyword_radar"] as const;
+const SYNC_NAMES = ["crawler", "reconcile", "coupon", "top_products"] as const;
 type SyncName = (typeof SYNC_NAMES)[number];
 
 const promptTestSchema = z.object({
@@ -207,14 +180,6 @@ const bulkCouponSchema = z.object({
   action: z.enum(["approve", "archive", "activate", "deactivate", "delete"])
 });
 
-const updateCategorySchema = z.object({
-  displayName: z.string().trim().min(1).max(120).nullable().optional()
-});
-
-const updateLookupDisplayNameSchema = z.object({
-  displayName: z.string().trim().min(1).max(120).nullable().optional()
-});
-
 const createShopSchema = z.object({
   name: z.string().trim().min(1).max(160),
   slug: z
@@ -273,16 +238,11 @@ export class AdminController {
     private readonly couponSync: CouponSyncService,
     private readonly topProducts: TopProductsSyncService,
     private readonly crawler: CrawlerService,
-    private readonly commissionRank: CommissionRankService,
-    private readonly keywordRadar: KeywordRadarService,
-    private readonly opportunity: OpportunityService,
     private readonly realBestseller: RealBestsellerService,
     private readonly moneyTrail: MoneyTrailService,
-    private readonly trackedLinks: TrackedLinkService,
     private readonly refinery: RefineryService,
     private readonly toolScoring: ToolScoringService,
-    private readonly inventoryCheck: InventoryCheckService,
-    private readonly emailDrip: ToolEmailDripService
+    private readonly inventoryCheck: InventoryCheckService
   ) {}
 
   private authorize(
@@ -1363,146 +1323,6 @@ export class AdminController {
     return { success: true, count: result.count };
   }
 
-  // ───── Categories (AT taxonomy — PR2) ─────
-  //
-  // Auto-populated bởi crawler khi import offer (theo offer.atCategorySlug).
-  // Admin chỉ cần điền `displayName` để storefront hiện filter — không tạo/xoá manual ở phase này.
-
-  @Get("categories")
-  async listCategories(
-    @Query("hasDisplayName") hasDisplayName?: string,
-    @Query("search") search?: string,
-    @Headers("x-admin-role") role?: string,
-    @Headers("x-admin-key") apiKey?: string
-  ) {
-    this.authorize(role, apiKey, ["viewer", "reviewer", "admin"]);
-    const where: Prisma.CategoryWhereInput = {};
-    if (hasDisplayName === "true") where.displayName = { not: null };
-    if (hasDisplayName === "false") where.displayName = null;
-    if (search) {
-      where.OR = [
-        { slug: { contains: search, mode: "insensitive" } },
-        { rawValue: { contains: search, mode: "insensitive" } },
-        { displayName: { contains: search, mode: "insensitive" } }
-      ];
-    }
-    return this.prisma.category.findMany({
-      where,
-      orderBy: [{ displayName: { sort: "asc", nulls: "first" } }, { rawValue: "asc" }],
-      include: { _count: { select: { products: true } } }
-    });
-  }
-
-  @Put("categories/:id")
-  async updateCategoryDisplayName(
-    @Param("id") id: string,
-    @Body() payload: unknown,
-    @Headers("x-admin-role") role?: string,
-    @Headers("x-admin-key") apiKey?: string
-  ) {
-    this.authorize(role, apiKey, ["reviewer", "admin"]);
-    const parsed = updateCategorySchema.safeParse(payload);
-    if (!parsed.success) {
-      throw new HttpException(parsed.error.flatten(), HttpStatus.BAD_REQUEST);
-    }
-    return this.prisma.category.update({
-      where: { id },
-      data: {
-        displayName: parsed.data.displayName ?? null
-      }
-    });
-  }
-
-  // ───── Sources (nơi bán — PR3) ─────
-
-  @Get("sources")
-  async listSources(
-    @Query("hasDisplayName") hasDisplayName?: string,
-    @Query("search") search?: string,
-    @Headers("x-admin-role") role?: string,
-    @Headers("x-admin-key") apiKey?: string
-  ) {
-    this.authorize(role, apiKey, ["viewer", "reviewer", "admin"]);
-    const where: Prisma.SourceWhereInput = {};
-    if (hasDisplayName === "true") where.displayName = { not: null };
-    if (hasDisplayName === "false") where.displayName = null;
-    if (search) {
-      where.OR = [
-        { slug: { contains: search, mode: "insensitive" } },
-        { rawValue: { contains: search, mode: "insensitive" } },
-        { displayName: { contains: search, mode: "insensitive" } }
-      ];
-    }
-    return this.prisma.source.findMany({
-      where,
-      orderBy: [{ displayName: { sort: "asc", nulls: "first" } }, { rawValue: "asc" }],
-      include: { _count: { select: { products: true } } }
-    });
-  }
-
-  @Put("sources/:id")
-  async updateSourceDisplayName(
-    @Param("id") id: string,
-    @Body() payload: unknown,
-    @Headers("x-admin-role") role?: string,
-    @Headers("x-admin-key") apiKey?: string
-  ) {
-    this.authorize(role, apiKey, ["reviewer", "admin"]);
-    const parsed = updateLookupDisplayNameSchema.safeParse(payload);
-    if (!parsed.success) {
-      throw new HttpException(parsed.error.flatten(), HttpStatus.BAD_REQUEST);
-    }
-    return this.prisma.source.update({
-      where: { id },
-      data: { displayName: parsed.data.displayName ?? null }
-    });
-  }
-
-  // ───── Brands (model legacy — ngữ nghĩa hiện tại = Domain, auto từ offer.domain) ─────
-
-  @Get("brands")
-  async listBrands(
-    @Query("hasDisplayName") hasDisplayName?: string,
-    @Query("search") search?: string,
-    @Headers("x-admin-role") role?: string,
-    @Headers("x-admin-key") apiKey?: string
-  ) {
-    this.authorize(role, apiKey, ["viewer", "reviewer", "admin"]);
-    const where: Prisma.BrandWhereInput = {};
-    if (hasDisplayName === "true") where.displayName = { not: null };
-    if (hasDisplayName === "false") where.displayName = null;
-    if (search) {
-      where.OR = [
-        { slug: { contains: search, mode: "insensitive" } },
-        { rawValue: { contains: search, mode: "insensitive" } },
-        { displayName: { contains: search, mode: "insensitive" } }
-      ];
-    }
-    return this.prisma.brand.findMany({
-      where,
-      orderBy: [{ displayName: { sort: "asc", nulls: "first" } }, { rawValue: "asc" }],
-      include: { _count: { select: { products: true } } }
-    });
-  }
-
-  @Put("brands/:id")
-  async updateBrandDisplayName(
-    @Param("id") id: string,
-    @Body() payload: unknown,
-    @Headers("x-admin-role") role?: string,
-    @Headers("x-admin-key") apiKey?: string
-  ) {
-    this.authorize(role, apiKey, ["reviewer", "admin"]);
-    const parsed = updateLookupDisplayNameSchema.safeParse(payload);
-    if (!parsed.success) {
-      throw new HttpException(parsed.error.flatten(), HttpStatus.BAD_REQUEST);
-    }
-    return this.prisma.brand.update({
-      where: { id },
-      data: { displayName: parsed.data.displayName ?? null }
-    });
-  }
-
   // ───── Shops (admin manual CRUD — AT không trả shop) ─────
 
   @Get("shops")
@@ -1628,9 +1448,6 @@ export class AdminController {
   async listProducts(
     @Query("nicheId") nicheId?: string,
     @Query("nicheStatus") nicheStatus?: string,
-    @Query("categoryId") productCategoryId?: string,
-    @Query("sourceId") sourceId?: string,
-    @Query("brandId") brandId?: string,
     @Query("shopId") shopId?: string,
     @Query("shopStatus") shopStatus?: string,
     @Query("network") network?: string,
@@ -1645,9 +1462,6 @@ export class AdminController {
     if (nicheId) where.nicheId = nicheId;
     if (nicheStatus === "unassigned") where.nicheId = null;
     if (nicheStatus === "assigned") where.nicheId = { not: null };
-    if (productCategoryId) where.categoryId = productCategoryId;
-    if (sourceId) where.sourceId = sourceId;
-    if (brandId) where.brandId = brandId;
     if (shopId) where.shopId = shopId;
     if (shopStatus === "assigned") where.shopId = { not: null };
     if (shopStatus === "unassigned") where.shopId = null;
@@ -1661,9 +1475,6 @@ export class AdminController {
       where,
       include: {
         niche: { select: { id: true, slug: true, name: true } },
-        category: { select: { id: true, slug: true, rawValue: true, displayName: true } },
-        source: { select: { id: true, slug: true, rawValue: true, displayName: true } },
-        brand: { select: { id: true, slug: true, rawValue: true, displayName: true } },
         shop: { select: { id: true, slug: true, name: true, logoUrl: true } },
         campaign: { select: { id: true, name: true, atCampaignId: true } },
         _count: { select: { clickLogs: true, extractions: true } }
@@ -2581,9 +2392,7 @@ export class AdminController {
       ["crawler", () => this.crawler.runFullCycle("manual")],
       ["reconcile", () => this.reconciliation.runReconcileCycle("manual")],
       ["coupon", () => this.couponSync.syncFromAccesstrade()],
-      ["top_products", () => this.topProducts.syncDailySnapshot()],
-      ["commission_rank", () => this.commissionRank.refresh()],
-      ["keyword_radar", () => this.keywordRadar.refresh()]
+      ["top_products", () => this.topProducts.syncDailySnapshot()]
     ];
 
     const results: Record<string, { ok: boolean; ms: number; data?: unknown; error?: string }> = {};
@@ -2632,12 +2441,6 @@ export class AdminController {
           break;
         case "top_products":
           data = await this.topProducts.syncDailySnapshot();
-          break;
-        case "commission_rank":
-          data = await this.commissionRank.refresh();
-          break;
-        case "keyword_radar":
-          data = await this.keywordRadar.refresh();
           break;
       }
       return { ok: true, ms: Date.now() - t0, data };
@@ -2710,18 +2513,6 @@ export class AdminController {
     };
   }
 
-  // --- STORY-04: opportunities ---
-
-  @Get("opportunities/weekly")
-  async getWeeklyOpportunities(
-    @Query("limit") limit?: string,
-    @Headers("x-admin-role") role?: string,
-    @Headers("x-admin-key") apiKey?: string
-  ) {
-    this.authorize(role, apiKey, ["viewer", "reviewer", "admin"]);
-    return this.opportunity.getTopOpportunities(limit ? parseInt(limit, 10) : 5);
-  }
-
   // --- STORY-05: real-bestseller insight ---
 
   @Get("insights/real-bestseller")
@@ -2740,7 +2531,7 @@ export class AdminController {
     });
   }
 
-  // --- STORY-06: money trail by channel + ad spend ---
+  // --- STORY-06: money trail by channel ---
 
   @Get("money-trail/channels")
   async getMoneyTrailChannels(
@@ -2750,113 +2541,6 @@ export class AdminController {
   ) {
     this.authorize(role, apiKey, ["viewer", "reviewer", "admin"]);
     return this.moneyTrail.getByChannel({ days: days ? parseInt(days, 10) : 7 });
-  }
-
-  @Post("ad-spend")
-  async upsertAdSpend(
-    @Body() payload: unknown,
-    @Headers("x-admin-role") role?: string,
-    @Headers("x-admin-key") apiKey?: string
-  ) {
-    this.authorize(role, apiKey, ["reviewer", "admin"]);
-    const parsed = adSpendSchema.safeParse(payload);
-    if (!parsed.success) {
-      throw new HttpException(parsed.error.flatten(), HttpStatus.BAD_REQUEST);
-    }
-    const weekStartDate = new Date(parsed.data.weekStartDate);
-    return this.prisma.adSpend.upsert({
-      where: {
-        channel_weekStartDate: { channel: parsed.data.channel, weekStartDate }
-      },
-      create: {
-        channel: parsed.data.channel,
-        weekStartDate,
-        amount: parsed.data.amount,
-        notes: parsed.data.notes ?? null
-      },
-      update: {
-        amount: parsed.data.amount,
-        notes: parsed.data.notes ?? null
-      }
-    });
-  }
-
-  @Get("ad-spend")
-  async listAdSpend(
-    @Query("weekStart") weekStart?: string,
-    @Headers("x-admin-role") role?: string,
-    @Headers("x-admin-key") apiKey?: string
-  ) {
-    this.authorize(role, apiKey, ["viewer", "reviewer", "admin"]);
-    return this.prisma.adSpend.findMany({
-      where: weekStart ? { weekStartDate: new Date(weekStart) } : undefined,
-      orderBy: [{ weekStartDate: "desc" }, { channel: "asc" }]
-    });
-  }
-
-  // --- STORY-08: tracked links ---
-
-  @Post("tracked-links")
-  async createTrackedLink(
-    @Body() payload: unknown,
-    @Headers("x-admin-role") role?: string,
-    @Headers("x-admin-key") apiKey?: string
-  ) {
-    this.authorize(role, apiKey, ["reviewer", "admin"]);
-    const parsed = createTrackedLinkSchema.safeParse(payload);
-    if (!parsed.success) {
-      throw new HttpException(parsed.error.flatten(), HttpStatus.BAD_REQUEST);
-    }
-    return this.trackedLinks.create({
-      ...parsed.data,
-      atCampaignId: parsed.data.atCampaignId ?? undefined,
-      sub2: parsed.data.sub2 ?? undefined,
-      sub3: parsed.data.sub3 ?? undefined,
-      sub4: parsed.data.sub4 ?? undefined,
-      utmSource: parsed.data.utmSource ?? undefined,
-      utmMedium: parsed.data.utmMedium ?? undefined,
-      utmCampaign: parsed.data.utmCampaign ?? undefined,
-      utmContent: parsed.data.utmContent ?? undefined,
-      notes: parsed.data.notes ?? undefined,
-      createdBy: role
-    });
-  }
-
-  @Get("tracked-links")
-  async listTrackedLinks(
-    @Query("channel") channel?: string,
-    @Query("limit") limit?: string,
-    @Query("offset") offset?: string,
-    @Headers("x-admin-role") role?: string,
-    @Headers("x-admin-key") apiKey?: string
-  ) {
-    this.authorize(role, apiKey, ["viewer", "reviewer", "admin"]);
-    return this.trackedLinks.list({
-      channel,
-      limit: limit ? parseInt(limit, 10) : 50,
-      offset: offset ? parseInt(offset, 10) : 0
-    });
-  }
-
-  @Get("tracked-links/kpi")
-  async getTrackedLinkKpi(
-    @Query("days") days?: string,
-    @Headers("x-admin-role") role?: string,
-    @Headers("x-admin-key") apiKey?: string
-  ) {
-    this.authorize(role, apiKey, ["viewer", "reviewer", "admin"]);
-    return this.trackedLinks.getKpi({ days: days ? parseInt(days, 10) : 7 });
-  }
-
-  @Delete("tracked-links/:id")
-  async archiveTrackedLink(
-    @Param("id") id: string,
-    @Headers("x-admin-role") role?: string,
-    @Headers("x-admin-key") apiKey?: string
-  ) {
-    this.authorize(role, apiKey, ["admin"]);
-    await this.trackedLinks.setActive(id, false);
-    return { ok: true };
   }
 
   // --- STORY-09: refinery v2 (bulk approve + un-approve) ---
@@ -3230,40 +2914,6 @@ export class AdminController {
       );
       throw new HttpException("Inventory check failed", HttpStatus.INTERNAL_SERVER_ERROR);
     }
-  }
-
-  @Post("tools/email-drip-flush")
-  async flushEmailDrip(
-    @Headers("x-admin-role") role?: string,
-    @Headers("x-admin-key") apiKey?: string
-  ) {
-    this.authorize(role, apiKey, ["admin"]);
-    try {
-      const result = await this.emailDrip.flushDue();
-      return { success: true, ...result };
-    } catch (error: unknown) {
-      this.logger.error(
-        "Email drip flush failed",
-        error instanceof Error ? error.stack : String(error)
-      );
-      throw new HttpException("Email drip flush failed", HttpStatus.INTERNAL_SERVER_ERROR);
-    }
-  }
-
-  @Get("tools/email-drip")
-  async listEmailDrip(
-    @Query("status") status?: string,
-    @Query("limit") limit?: string,
-    @Headers("x-admin-role") role?: string,
-    @Headers("x-admin-key") apiKey?: string
-  ) {
-    this.authorize(role, apiKey, ["viewer", "reviewer", "admin"]);
-    const take = Math.min(Math.max(Number(limit ?? 100), 1), 500);
-    return this.prisma.toolEmailDrip.findMany({
-      where: status ? { status: status as never } : undefined,
-      orderBy: { scheduledFor: "desc" },
-      take
-    });
   }
 
   @Get("tools/:id/analytics")

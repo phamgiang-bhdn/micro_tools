@@ -41,14 +41,14 @@ export default async function BlogIndexPage({ searchParams }: BlogProps): Promis
         className="bg-card"
         eyebrow={
           <>
-            <span aria-hidden className="size-1.5 rounded-full bg-brand-500" />
+            <span aria-hidden className="size-1.5 rounded-full bg-primary-500" />
             Cẩm nang dealvault
           </>
         }
         title={
           <>
             Đọc trước khi{" "}
-            <span className="bg-gradient-to-r from-brand-600 to-orange-500 bg-clip-text text-transparent">
+            <span className="bg-gradient-to-r from-primary-600 to-orange-500 bg-clip-text text-transparent">
               xuống tiền
             </span>
             .
@@ -67,7 +67,7 @@ export default async function BlogIndexPage({ searchParams }: BlogProps): Promis
             description={
               <p>
                 Vào{" "}
-                <Link href="/admin/articles" className="text-brand-700 hover:underline">
+                <Link href="/admin/articles" className="text-primary-700 hover:underline">
                   admin/articles
                 </Link>{" "}
                 để tạo bài đầu tiên bằng AI, sau đó duyệt và publish.

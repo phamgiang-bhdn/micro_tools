@@ -69,9 +69,9 @@ export function SessionRestoreBanner({
   const relTime = hoursAgo < 24 ? `${hoursAgo} giờ trước` : `${Math.round(hoursAgo / 24)} ngày trước`;
 
   return (
-    <div className="mt-4 flex items-center justify-between gap-3 rounded-xl border border-google-blue/30 bg-google-blue/5 px-4 py-3 text-sm">
+    <div className="mt-4 flex items-center justify-between gap-3 rounded-xl border border-primary-600/30 bg-primary-600/5 px-4 py-3 text-sm">
       <div className="flex min-w-0 items-center gap-2">
-        <RotateCw className="size-4 shrink-0 text-google-blue" />
+        <RotateCw className="size-4 shrink-0 text-primary-600" />
         <span className="truncate text-ink">
           👋 Bạn đã làm quiz <strong>{session.nicheName}</strong> {relTime}.
         </span>
@@ -79,7 +79,7 @@ export function SessionRestoreBanner({
       <div className="flex shrink-0 items-center gap-2">
         <Link
           href={`/ai/${session.toolSlug}/result/${session.sessionId}`}
-          className="rounded-full bg-google-blue px-3 py-1 text-xs font-medium text-white hover:bg-google-blue-hover"
+          className="rounded-full bg-primary-600 px-3 py-1 text-xs font-medium text-white hover:bg-primary-700"
         >
           Xem lại kết quả
         </Link>

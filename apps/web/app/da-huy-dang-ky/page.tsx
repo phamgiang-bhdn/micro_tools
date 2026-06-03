@@ -19,7 +19,7 @@ export default function UnsubscribedPage(): React.ReactElement {
       <div className="mt-6">
         <Link
           href="/"
-          className="inline-flex items-center justify-center rounded-full bg-brand-600 px-5 py-2.5 text-sm font-semibold text-white"
+          className="inline-flex items-center justify-center rounded-full bg-primary-600 px-5 py-2.5 text-sm font-semibold text-white"
         >
           Về trang chủ
         </Link>

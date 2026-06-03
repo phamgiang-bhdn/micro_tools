@@ -557,9 +557,9 @@ function ProductSlotReadOnly({ block }: { block: AnyBlock }) {
   const hint = typeof block.hint === "string" ? block.hint : "";
   const productId = typeof block.productId === "string" ? block.productId : "";
   return (
-    <div className="rounded-md border border-brand-200 bg-brand-50/40 p-3">
+    <div className="rounded-md border border-primary-200 bg-primary-50/40 p-3">
       <div className="flex items-start gap-2">
-        <ShoppingBag className="size-4 text-brand-600" />
+        <ShoppingBag className="size-4 text-primary-600" />
         <div className="flex-1 min-w-0 space-y-1.5 text-[13px]">
           <div>
             <span className="font-bold text-admin-ink">Slot:</span>{" "}

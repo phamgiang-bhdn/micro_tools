@@ -2,7 +2,17 @@ import * as React from "react";
 import { Slot } from "@radix-ui/react-slot";
 import { cn } from "../../lib/utils";
 
-type Variant = "primary" | "secondary" | "ghost" | "outline" | "brand";
+/**
+ * Button — design system V3.
+ *  - `primary`   : blue, hành động chính (lưu, tiếp tục, xem chi tiết).
+ *  - `cta`       : amber, CHỈ cho conversion ("Xem deal", "Mua ngay"). Đừng dùng tràn lan.
+ *  - `secondary` : ink đậm, hành động phụ nổi bật.
+ *  - `outline`   : viền, hành động trung tính.
+ *  - `ghost`     : không nền, hành động nhẹ.
+ *  - `danger`    : đỏ, hành động phá huỷ.
+ *  - `brand`     : @deprecated alias → primary (giữ cho code cũ, xoá ở Phase 6).
+ */
+type Variant = "primary" | "cta" | "secondary" | "outline" | "ghost" | "danger" | "brand";
 type Size = "sm" | "md" | "lg";
 
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
@@ -12,14 +22,17 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
 }
 
 const BASE =
-  "inline-flex items-center justify-center gap-2 rounded-full font-medium transition active:translate-y-px disabled:pointer-events-none disabled:opacity-40 ring-focus";
+  "inline-flex items-center justify-center gap-2 rounded-full font-semibold transition active:translate-y-px disabled:pointer-events-none disabled:opacity-40 ring-focus";
 
 const VARIANTS: Record<Variant, string> = {
-  primary: "bg-google-blue text-white shadow-card hover:bg-google-blue-hover",
-  brand: "bg-brand-gradient text-white shadow-glow hover:brightness-110",
-  secondary: "bg-ink text-white shadow-card hover:bg-ink/90",
-  outline: "border border-line bg-white text-ink hover:border-brand-300 hover:text-brand-700",
-  ghost: "text-ink-soft hover:bg-white"
+  primary: "bg-primary-600 text-white shadow-card hover:bg-primary-700",
+  cta: "bg-cta-500 text-ink shadow-card hover:bg-cta-400",
+  secondary: "bg-ink text-white shadow-card hover:bg-ink-soft",
+  outline: "border border-border-strong bg-surface text-ink hover:border-primary-400 hover:text-primary-700",
+  ghost: "text-ink-soft hover:bg-surface-2",
+  danger: "bg-danger text-white shadow-card hover:brightness-95",
+  // deprecated → primary
+  brand: "bg-primary-600 text-white shadow-card hover:bg-primary-700"
 };
 
 const SIZES: Record<Size, string> = {
