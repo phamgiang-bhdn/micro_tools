@@ -16,6 +16,64 @@ async function safeFetch<T>(path: string): Promise<T> {
   return (await response.json()) as T;
 }
 
+// ───────── Tool (AI-visible decision engine) ─────────
+
+export interface ToolDetailResponse {
+  id: string;
+  slug: string;
+  name: string;
+  description: string | null;
+  tagline: string | null;
+  quizSchema: unknown;
+  scoringRules: unknown;
+  resultTemplate: unknown;
+  status: "DRAFT" | "PUBLISHED" | "ARCHIVED";
+  seoTitle: string | null;
+  seoDescription: string | null;
+  niche: { slug: string; name: string; status: "ACTIVE" | "INACTIVE" };
+}
+
+export interface ToolSessionResponse {
+  id: string;
+  toolId: string;
+  userInput: { mode: "chat" | "quiz"; chatMessage?: string | null; quizAnswers?: Record<string, unknown> | null };
+  parsedAttributes: Record<string, unknown>;
+  recommendedProductIds: string[];
+  aiReasonings: Record<string, { reasoning: string; fromCache: boolean; fromFallback: boolean }> | null;
+  source: string | null;
+  shareSlug: string | null;
+  reasoningMode: string | null;
+  createdAt: string;
+  tool: ToolDetailResponse;
+}
+
+export async function fetchToolBySlug(slug: string): Promise<ToolDetailResponse | null> {
+  try {
+    return await safeFetch<ToolDetailResponse>(`/tool/by-slug/${encodeURIComponent(slug)}`);
+  } catch (err) {
+    console.error(`fetchToolBySlug(${slug}) failed:`, err);
+    return null;
+  }
+}
+
+export async function fetchToolSession(id: string): Promise<ToolSessionResponse | null> {
+  try {
+    return await safeFetch<ToolSessionResponse>(`/tool/sessions/${id}`);
+  } catch (err) {
+    console.error(`fetchToolSession(${id}) failed:`, err);
+    return null;
+  }
+}
+
+export async function fetchToolSessionByShareSlug(shareSlug: string): Promise<ToolSessionResponse | null> {
+  try {
+    return await safeFetch<ToolSessionResponse>(`/tool/share/${encodeURIComponent(shareSlug)}`);
+  } catch (err) {
+    console.error(`fetchToolSessionByShareSlug(${shareSlug}) failed:`, err);
+    return null;
+  }
+}
+
 export type FetchNichesResult = {
   niches: NicheItem[];
   loadError: string | null;

@@ -18,6 +18,8 @@ import { TrustStrip } from "../components/storefront/trust-strip";
 import { HomeHero } from "../components/storefront/home-hero";
 import { CuratedNicheGrid } from "../components/storefront/curated-niche-grid";
 import { SocialProofStrip } from "../components/storefront/social-proof-strip";
+import { AiToolBanner } from "../components/storefront/ai-tool-banner";
+import { SessionRestoreBanner } from "../components/storefront/session-restore-banner";
 import { CouponPreview } from "../components/storefront/coupon-preview";
 import { ArticleCard } from "../components/storefront/article-card";
 import { CURATED_NICHES } from "../lib/curated-niches";
@@ -79,6 +81,12 @@ export default async function HomePage({ searchParams }: HomeProps): Promise<Rea
         savingsTotal={totalSavings}
         featuredDeal={topDeals[0] ?? null}
       />
+
+      <AiToolBanner />
+
+      <div className="mx-auto max-w-6xl px-4">
+        <SessionRestoreBanner />
+      </div>
 
       <PageSection padding="tight" className="bg-canvas">
         <SocialProofStrip

@@ -37,6 +37,145 @@ async function post(path: string, body: Record<string, unknown> = {}): Promise<v
   await adminFetch(path, "POST", body);
 }
 
+// ───────── Tool Builder (Epic 2) ─────────
+
+interface ToolCreateBody {
+  slug: string;
+  nicheId: string;
+  name: string;
+  description?: string | null;
+  tagline?: string | null;
+  quizSchema: unknown;
+  scoringRules: unknown;
+  resultTemplate: unknown;
+  seoTitle?: string | null;
+  seoDescription?: string | null;
+}
+
+export async function createToolAction(input: ToolCreateBody): Promise<{ ok: boolean; id?: string; error?: string }> {
+  try {
+    const result = await adminFetch<{ id: string }>("/admin/tools", "POST", input as unknown as Record<string, unknown>);
+    revalidatePath("/admin/tools");
+    return { ok: true, id: result.id };
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : "Tạo tool thất bại" };
+  }
+}
+
+export async function updateToolAction(
+  id: string,
+  patch: Partial<ToolCreateBody & { status: "DRAFT" | "PUBLISHED" | "ARCHIVED" }>
+): Promise<{ ok: boolean; error?: string }> {
+  try {
+    await adminFetch(`/admin/tools/${id}`, "PUT", patch as unknown as Record<string, unknown>);
+    revalidatePath("/admin/tools");
+    revalidatePath(`/admin/tools/${id}`);
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : "Update thất bại" };
+  }
+}
+
+export async function publishToolAction(formData: FormData): Promise<void> {
+  const id = String(formData.get("id") ?? "");
+  if (!id) return;
+  await post(`/admin/tools/${id}/publish`);
+  revalidatePath("/admin/tools");
+  revalidatePath(`/admin/tools/${id}`);
+}
+
+export async function archiveToolAction(formData: FormData): Promise<void> {
+  const id = String(formData.get("id") ?? "");
+  if (!id) return;
+  await post(`/admin/tools/${id}/archive`);
+  revalidatePath("/admin/tools");
+  revalidatePath(`/admin/tools/${id}`);
+}
+
+export async function deleteToolAction(formData: FormData): Promise<void> {
+  const id = String(formData.get("id") ?? "");
+  if (!id) return;
+  await adminFetch(`/admin/tools/${id}`, "DELETE");
+  revalidatePath("/admin/tools");
+}
+
+interface PreviewToolScoreInput {
+  toolId: string;
+  toolSlug: string;
+  nicheId: string;
+  nicheSlug: string;
+  userAttributes: Record<string, unknown>;
+}
+
+interface PreviewToolScoreResult {
+  ok: boolean;
+  error?: string;
+  scored?: unknown[];
+  products?: unknown[];
+}
+
+export async function runInventoryCheckAction(): Promise<{
+  ok: boolean;
+  checked?: number;
+  flaggedOOS?: number;
+  flaggedUnknown?: number;
+  error?: string;
+}> {
+  try {
+    const result = await adminFetch<{
+      checked: number;
+      flaggedOOS: number;
+      flaggedUnknown: number;
+    }>("/admin/tools/inventory-check", "POST");
+    revalidatePath("/admin/tools");
+    return { ok: true, ...result };
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : "Inventory check failed" };
+  }
+}
+
+export async function flushEmailDripAction(): Promise<{
+  ok: boolean;
+  found?: number;
+  sent?: number;
+  failed?: number;
+  error?: string;
+}> {
+  try {
+    const result = await adminFetch<{ found: number; sent: number; failed: number }>(
+      "/admin/tools/email-drip-flush",
+      "POST"
+    );
+    return { ok: true, ...result };
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : "Email drip flush failed" };
+  }
+}
+
+export async function previewToolScoreAction(
+  input: PreviewToolScoreInput
+): Promise<PreviewToolScoreResult> {
+  try {
+    const result = await adminFetch<PreviewToolScoreResult>(
+      `/admin/tools/${input.toolId}/preview-score`,
+      "POST",
+      { userAttributes: input.userAttributes }
+    );
+    return { ok: true, ...result };
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : "Preview thất bại" };
+  }
+}
+
+// ───────── Waitlist (Epic 0 pre-launch validation) ─────────
+
+export async function deleteWaitlistEntryAction(formData: FormData): Promise<void> {
+  const id = String(formData.get("id") ?? "");
+  if (!id) return;
+  await adminFetch(`/admin/waitlist/${id}`, "DELETE");
+  revalidatePath("/admin/waitlist");
+}
+
 export async function approveExtractionAction(formData: FormData): Promise<void> {
   const extractionId = String(formData.get("extractionId") ?? "");
   const reviewer = String(formData.get("reviewer") ?? "admin");

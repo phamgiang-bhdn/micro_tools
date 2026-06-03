@@ -12,6 +12,11 @@ export interface TrackingInput {
   affiliateUrl: string;
   /** STORY-07: signal cho A/B uplift coupon-inline pill. */
   hasInlineCoupon?: boolean;
+  /** Tool tracking (AI-visible refactor). Có khi click từ /ai/[slug]/result/[id]. */
+  toolId?: string;
+  quizSessionId?: string;
+  /** Sàn user chọn click (tiki | shopee | lazada | tiktokshop) — multi-network. */
+  marketplace?: string;
 }
 
 export interface TrackingResult {
@@ -107,7 +112,10 @@ export async function createTrackingRedirect(input: TrackingInput): Promise<Trac
         userAgent,
         channel: detection.channel,
         attributionSource: detection.source,
-        hasInlineCoupon: Boolean(input.hasInlineCoupon)
+        hasInlineCoupon: Boolean(input.hasInlineCoupon),
+        toolId: input.toolId,
+        quizSessionId: input.quizSessionId,
+        marketplace: input.marketplace
       }),
       cache: "no-store",
       signal: controller.signal

@@ -157,6 +157,34 @@ const NAV: NavGroup[] = [
         match: (p) => p.startsWith("/admin/analytics")
       }
     ]
+  },
+  {
+    id: "ai-tool",
+    label: "AI Tool",
+    entries: [
+      {
+        id: "waitlist",
+        label: "Waitlist (Epic 0)",
+        href: "/admin/waitlist",
+        icon: <PromptIcon />,
+        match: (p) => p.startsWith("/admin/waitlist")
+      },
+      {
+        id: "tools",
+        label: "Tool builder",
+        href: "/admin/tools",
+        icon: <PromptIcon />,
+        match: (p) =>
+          p.startsWith("/admin/tools") && !p.startsWith("/admin/tools/email-drip")
+      },
+      {
+        id: "email-drip",
+        label: "Email drip queue",
+        href: "/admin/tools/email-drip",
+        icon: <PromptIcon />,
+        match: (p) => p.startsWith("/admin/tools/email-drip")
+      }
+    ]
   }
 ];
 

@@ -43,7 +43,7 @@ export class NichesController {
         }
       });
 
-      if (!niche) {
+      if (!niche || niche.status !== "ACTIVE") {
         throw new HttpException("Niche not found", HttpStatus.NOT_FOUND);
       }
 

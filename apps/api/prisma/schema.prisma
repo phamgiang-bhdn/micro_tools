@@ -188,6 +188,10 @@ model Niche {
   coupons        Coupon[]
   /// STORY-04: keyword cross-ref cho "Cơ hội tuần" widget.
   keywordMatches KeywordNicheMatch[]
+  /// TOOL: tools thuộc về niche này (vd "Chọn máy lọc nước"). Mỗi niche có 0-N tool.
+  tools          Tool[]
+  /// TOOL: waitlist signup cho niche pre-launch (Epic 0).
+  waitlistSignups WaitlistSignup[]
 }
 
 /// AT taxonomy bucket — auto-populated từ `offer.atCategorySlug` (raw AT `cate`).
@@ -304,13 +308,23 @@ model ClickLog {
   attributionSource String?
   /// STORY-07: A/B uplift signal — true nếu card render coupon inline pill khi click.
   hasInlineCoupon   Boolean             @default(false)
+  /// TOOL: Tool nào sinh ra click này (null = direct product click, không qua Tool).
+  toolId            String?             @db.Uuid
+  /// TOOL: QuizSession user click từ. Cho phép trace full funnel quiz → click → conversion.
+  quizSessionId     String?             @db.Uuid
+  /// TOOL: Sàn user chọn click (tiki | shopee | lazada | tiktokshop). Cho multi-network price compare.
+  marketplace       String?
   createdAt         DateTime            @default(now())
   product           Product             @relation(fields: [productId], references: [id], onDelete: Cascade)
+  tool              Tool?               @relation(fields: [toolId], references: [id], onDelete: SetNull)
+  quizSession       QuizSession?        @relation(fields: [quizSessionId], references: [id], onDelete: SetNull)
   conversionHooks   ConversionWebhook[]
 
   @@index([productId, createdAt])
   @@index([channel])
   @@index([createdAt, channel])
+  @@index([toolId, createdAt])
+  @@index([quizSessionId])
 }
 
 model ConversionWebhook {
@@ -752,6 +766,167 @@ model AdSpend {
 
   @@unique([channel, weekStartDate])
   @@index([weekStartDate])
+}
+
+// === TOOL MODULE: AI-visible decision engine ===
+// Tool = interactive quiz/chat → AI recommendation. Niche-agnostic via Json config.
+// Khác Article (content) và Product (catalog) — Tool là decision layer.
+
+enum ToolStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+/// Tool — 1 niche có thể có nhiều tool (vd: "Chọn máy lọc nước" + "Tính chi phí 5 năm").
+/// quizSchema + scoringRules dạng Json để admin tự soạn qua Tool Builder UI, không cần code.
+/// Storefront route: `/tools/[slug]`. Status PUBLISHED mới hiện public.
+model Tool {
+  id             String        @id @default(uuid()) @db.Uuid
+  slug           String        @unique
+  nicheId        String        @db.Uuid
+  name           String
+  description    String?
+  /// Tagline hiển thị hero (vd: "AI chọn máy lọc nước trong 60 giây").
+  tagline        String?
+  /// Quiz schema: list câu hỏi + options + attribute mapping. Cap 3 required + 2 optional.
+  /// Shape: { questions: [{ id, question, type, required, options[], defaultValue?, attributeKey, weight }] }
+  quizSchema     Json          @db.JsonB
+  /// Scoring rules: cách tính score per product. Shape:
+  /// { rules: [{ userAttribute, productAttributePath, weight, matchType, params? }] }
+  scoringRules   Json          @db.JsonB
+  /// Result template: số card hiện, layout, label confidence theo threshold.
+  /// Shape: { topN: 3, hierarchy: "1+2" | "equal", confidenceLabels: {high: "Rất phù hợp", ...} }
+  resultTemplate Json          @db.JsonB
+  status         ToolStatus    @default(DRAFT)
+  /// SEO meta riêng cho /tools/[slug].
+  seoTitle       String?
+  seoDescription String?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  niche          Niche         @relation(fields: [nicheId], references: [id], onDelete: Cascade)
+  sessions       QuizSession[]
+  clickLogs      ClickLog[]
+
+  @@index([nicheId, status])
+  @@index([status])
+}
+
+/// QuizSession — mỗi user làm quiz/chat = 1 session. Track full funnel cho analytics.
+/// shareSlug cho viral share (/r/[slug]). email capture optional.
+model QuizSession {
+  id                  String     @id @default(uuid()) @db.Uuid
+  toolId              String     @db.Uuid
+  /// Raw input: { mode: "chat" | "quiz", chatMessage?, quizAnswers? }
+  userInput           Json       @db.JsonB
+  /// Parsed structured attributes sau khi AI parse (chat) hoặc form submit (quiz).
+  /// Shape: { [attributeKey]: value }
+  parsedAttributes    Json       @db.JsonB
+  /// Top 3 product ids được recommend, sorted by score desc.
+  recommendedProductIds String[] @db.Uuid
+  /// AI reasonings per product: { [productId]: { reasoning, fallback, model, confidenceLabel } }
+  aiReasonings        Json?      @db.JsonB
+  /// utm_source từ URL khi user vào (vd: "tiktok-v1", "fb-group-x", "email-drip-d3").
+  source              String?
+  /// referrer URL nếu có
+  referrer            String?
+  /// Email capture (optional, từ inline form Story 4.4).
+  email               String?
+  /// Short slug cho share link /r/[shareSlug]. 6-8 char.
+  shareSlug           String?    @unique
+  /// IP hash + UA cho rate limit + analytics (không lưu raw IP).
+  ipHash              String?
+  userAgent           String?
+  /// A/B test flag (Story 6.4): reasoning từ AI thật vs template fallback.
+  reasoningMode       String?    // "ai" | "template"
+  createdAt           DateTime   @default(now())
+  /// Reasoning generation completed time (cho perceived performance metric).
+  reasoningReadyAt    DateTime?
+  tool                Tool       @relation(fields: [toolId], references: [id], onDelete: Cascade)
+  clickLogs           ClickLog[]
+
+  @@index([toolId, createdAt])
+  @@index([source])
+  @@index([email])
+}
+
+/// WaitlistSignup — Epic 0 pre-launch validation. Đo demand trước khi build tool full.
+/// Khi tool launch → migrate sang Subscriber (email drip).
+model WaitlistSignup {
+  id             String   @id @default(uuid()) @db.Uuid
+  email          String
+  nicheId        String?  @db.Uuid
+  nicheSlug      String
+  /// Câu khảo sát ngắn (vd: "Bạn đang cần chọn loại nào?")
+  surveyAnswer   String?
+  /// utm_source: voz | fb-group-x | reddit | ...
+  source         String?
+  ipHash         String?
+  userAgent      String?
+  /// Đã được notify khi tool launch chưa.
+  notified       Boolean  @default(false)
+  notifiedAt     DateTime?
+  createdAt      DateTime @default(now())
+  niche          Niche?   @relation(fields: [nicheId], references: [id], onDelete: SetNull)
+
+  @@unique([email, nicheSlug])
+  @@index([nicheSlug, createdAt])
+  @@index([source])
+}
+
+enum EmailDripStatus {
+  PENDING
+  SENT
+  FAILED
+  CANCELLED
+}
+
+/// ToolEmailDrip — Story 6.5 post-click follow-up email queue.
+/// Khi user click affiliate có email → enqueue 2 drip (day3 follow-up + day7 new deals).
+/// Cron daily check + send qua Resend/SendGrid (chưa wire, phase 2).
+model ToolEmailDrip {
+  id            String          @id @default(uuid()) @db.Uuid
+  email         String
+  quizSessionId String?         @db.Uuid
+  toolId        String?         @db.Uuid
+  productId     String?         @db.Uuid
+  /// Type: "day3-followup" | "day7-newdeals" | "thay-loi-6thang" | ...
+  dripType      String
+  scheduledFor  DateTime
+  sentAt        DateTime?
+  status        EmailDripStatus @default(PENDING)
+  /// Payload cached cho render (product name, niche, deal info...) tránh join phức tạp.
+  payload       Json?           @db.JsonB
+  errorReason   String?
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  @@index([status, scheduledFor])
+  @@index([email])
+  @@index([quizSessionId])
+  @@index([dripType])
+}
+
+/// ReasoningCache — cache AI-generated reasoning per (product × user profile hash).
+/// Giảm AI cost 60-70% (user input tương tự → cùng reasoning).
+/// TTL 30 ngày qua createdAt (cron clean stale).
+model ReasoningCache {
+  id           String   @id @default(uuid()) @db.Uuid
+  productId    String   @db.Uuid
+  /// sha256(sorted JSON userAttributes). Tune granularity sau khi có 100 session.
+  profileHash  String
+  /// Generated reasoning text (1-2 câu VN + điểm trừ inline).
+  reasoning    String
+  /// Model dùng (vd "gemini-2.0-flash") — track cost + invalidate khi đổi model.
+  model        String
+  /// Số lần hit cache (analytics).
+  hitCount     Int      @default(1)
+  createdAt    DateTime @default(now())
+  lastHitAt    DateTime @default(now())
+
+  @@unique([productId, profileHash, model])
+  @@index([productId])
+  @@index([createdAt])
 }
 
 // === STORY-08: TrackedLink for off-site post (Loop 5) ===

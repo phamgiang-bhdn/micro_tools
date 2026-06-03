@@ -15,7 +15,9 @@ import { CrawlerModule } from "./crawler/crawler.module";
 import { InsightsModule } from "./insights/insights.module";
 import { ReconciliationModule } from "./reconciliation/reconciliation.module";
 import { RefineryModule } from "./refinery/refinery.module";
+import { ToolModule } from "./tool/tool.module";
 import { TrackingController } from "./tracking/tracking.controller";
+import { WaitlistController } from "./waitlist/waitlist.controller";
 import { WebhooksController } from "./webhooks/webhooks.controller";
 
 @Module({
@@ -27,7 +29,8 @@ import { WebhooksController } from "./webhooks/webhooks.controller";
     CrawlerModule,
     InsightsModule,
     ReconciliationModule,
-    ArticlePipelineModule
+    ArticlePipelineModule,
+    ToolModule
   ],
   controllers: [
     WebhooksController,
@@ -37,6 +40,7 @@ import { WebhooksController } from "./webhooks/webhooks.controller";
     CouponsController,
     TopProductsController,
     SubscribersController,
+    WaitlistController,
     AdminController
   ],
   providers: [PrismaService, ScraperService, AiService, ArticleNotificationService]

@@ -31,6 +31,9 @@ import { RealBestsellerService } from "../insights/real-bestseller.service";
 import { TrackedLinkService } from "../insights/tracked-link.service";
 import { ReconciliationService } from "../reconciliation/reconciliation.service";
 import { RefineryService } from "../refinery/refinery.service";
+import { ToolScoringService } from "../tool/scoring.service";
+import { InventoryCheckService } from "../tool/inventory-check.service";
+import { ToolEmailDripService } from "../tool/email-drip.service";
 import { slugify, uniqueSlugWithin } from "../../utils/slug.util";
 
 // === at-money-flows-v1 schemas ===
@@ -276,7 +279,10 @@ export class AdminController {
     private readonly realBestseller: RealBestsellerService,
     private readonly moneyTrail: MoneyTrailService,
     private readonly trackedLinks: TrackedLinkService,
-    private readonly refinery: RefineryService
+    private readonly refinery: RefineryService,
+    private readonly toolScoring: ToolScoringService,
+    private readonly inventoryCheck: InventoryCheckService,
+    private readonly emailDrip: ToolEmailDripService
   ) {}
 
   private authorize(
@@ -2931,7 +2937,450 @@ export class AdminController {
     });
     return fallback;
   }
+
+  // ============================================================
+  // WAITLIST — Epic 0 pre-launch validation
+  // ============================================================
+
+  @Get("waitlist")
+  async listWaitlist(
+    @Query("nicheSlug") nicheSlug?: string,
+    @Query("limit") limit?: string,
+    @Headers("x-admin-role") role?: string,
+    @Headers("x-admin-key") apiKey?: string
+  ) {
+    this.authorize(role, apiKey, ["viewer", "reviewer", "admin"]);
+    const take = Math.min(Math.max(Number(limit ?? 200), 1), 1000);
+    return this.prisma.waitlistSignup.findMany({
+      where: nicheSlug ? { nicheSlug } : undefined,
+      orderBy: { createdAt: "desc" },
+      take,
+      include: { niche: { select: { name: true, slug: true, status: true } } }
+    });
+  }
+
+  @Get("waitlist/stats")
+  async waitlistStats(
+    @Query("nicheSlug") nicheSlug?: string,
+    @Headers("x-admin-role") role?: string,
+    @Headers("x-admin-key") apiKey?: string
+  ) {
+    this.authorize(role, apiKey, ["viewer", "reviewer", "admin"]);
+    const where = nicheSlug ? { nicheSlug } : {};
+
+    const [total, byNicheGroup, bySourceGroup, bySurveyGroup, recent7d] = await Promise.all([
+      this.prisma.waitlistSignup.count({ where }),
+      this.prisma.waitlistSignup.groupBy({
+        by: ["nicheSlug"],
+        _count: { _all: true },
+        where,
+        orderBy: { _count: { nicheSlug: "desc" } }
+      }),
+      this.prisma.waitlistSignup.groupBy({
+        by: ["source"],
+        _count: { _all: true },
+        where,
+        orderBy: { _count: { source: "desc" } }
+      }),
+      this.prisma.waitlistSignup.groupBy({
+        by: ["surveyAnswer"],
+        _count: { _all: true },
+        where: { ...where, surveyAnswer: { not: null } },
+        orderBy: { _count: { surveyAnswer: "desc" } }
+      }),
+      this.prisma.waitlistSignup.count({
+        where: { ...where, createdAt: { gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) } }
+      })
+    ]);
+
+    return {
+      total,
+      recent7d,
+      byNiche: byNicheGroup.map((g) => ({ nicheSlug: g.nicheSlug, count: g._count._all })),
+      bySource: bySourceGroup.map((g) => ({ source: g.source ?? "(unknown)", count: g._count._all })),
+      bySurvey: bySurveyGroup.map((g) => ({
+        answer: g.surveyAnswer ?? "(blank)",
+        count: g._count._all
+      }))
+    };
+  }
+
+  @Delete("waitlist/:id")
+  async deleteWaitlistEntry(
+    @Param("id") id: string,
+    @Headers("x-admin-role") role?: string,
+    @Headers("x-admin-key") apiKey?: string
+  ) {
+    this.authorize(role, apiKey, ["admin"]);
+    try {
+      await this.prisma.waitlistSignup.delete({ where: { id } });
+      return { success: true };
+    } catch (error: unknown) {
+      this.logger.error("Failed to delete waitlist entry", error instanceof Error ? error.stack : String(error));
+      throw new HttpException("Failed to delete", HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+  }
+
+  // ============================================================
+  // TOOL BUILDER — Epic 2 AI-visible decision engine
+  // ============================================================
+
+  @Get("tools")
+  async listTools(
+    @Query("nicheId") nicheId?: string,
+    @Query("status") status?: "DRAFT" | "PUBLISHED" | "ARCHIVED",
+    @Headers("x-admin-role") role?: string,
+    @Headers("x-admin-key") apiKey?: string
+  ) {
+    this.authorize(role, apiKey, ["viewer", "reviewer", "admin"]);
+    return this.prisma.tool.findMany({
+      where: {
+        ...(nicheId ? { nicheId } : {}),
+        ...(status ? { status } : {})
+      },
+      include: {
+        niche: { select: { slug: true, name: true, status: true } },
+        _count: { select: { sessions: true, clickLogs: true } }
+      },
+      orderBy: { updatedAt: "desc" }
+    });
+  }
+
+  @Get("tools/:id")
+  async getTool(
+    @Param("id") id: string,
+    @Headers("x-admin-role") role?: string,
+    @Headers("x-admin-key") apiKey?: string
+  ) {
+    this.authorize(role, apiKey, ["viewer", "reviewer", "admin"]);
+    const tool = await this.prisma.tool.findUnique({
+      where: { id },
+      include: {
+        niche: { select: { id: true, slug: true, name: true, status: true, schemaConfig: true } },
+        _count: { select: { sessions: true, clickLogs: true } }
+      }
+    });
+    if (!tool) {
+      throw new HttpException("Tool not found", HttpStatus.NOT_FOUND);
+    }
+    return tool;
+  }
+
+  @Post("tools")
+  async createTool(
+    @Body() body: unknown,
+    @Headers("x-admin-role") role?: string,
+    @Headers("x-admin-key") apiKey?: string
+  ) {
+    this.authorize(role, apiKey, ["admin"]);
+    const parsed = toolCreateSchema.safeParse(body);
+    if (!parsed.success) {
+      throw new HttpException(parsed.error.flatten(), HttpStatus.BAD_REQUEST);
+    }
+    try {
+      return await this.prisma.tool.create({
+        data: {
+          slug: parsed.data.slug,
+          nicheId: parsed.data.nicheId,
+          name: parsed.data.name,
+          description: parsed.data.description ?? null,
+          tagline: parsed.data.tagline ?? null,
+          quizSchema: parsed.data.quizSchema as Prisma.InputJsonValue,
+          scoringRules: parsed.data.scoringRules as Prisma.InputJsonValue,
+          resultTemplate: parsed.data.resultTemplate as Prisma.InputJsonValue,
+          status: "DRAFT",
+          seoTitle: parsed.data.seoTitle ?? null,
+          seoDescription: parsed.data.seoDescription ?? null
+        }
+      });
+    } catch (error: unknown) {
+      this.logger.error("Failed to create Tool", error instanceof Error ? error.stack : String(error));
+      throw new HttpException("Failed to create tool (slug đã tồn tại?)", HttpStatus.BAD_REQUEST);
+    }
+  }
+
+  @Put("tools/:id")
+  async updateTool(
+    @Param("id") id: string,
+    @Body() body: unknown,
+    @Headers("x-admin-role") role?: string,
+    @Headers("x-admin-key") apiKey?: string
+  ) {
+    this.authorize(role, apiKey, ["admin"]);
+    const parsed = toolUpdateSchema.safeParse(body);
+    if (!parsed.success) {
+      throw new HttpException(parsed.error.flatten(), HttpStatus.BAD_REQUEST);
+    }
+    const data: Prisma.ToolUpdateInput = {};
+    if (parsed.data.name !== undefined) data.name = parsed.data.name;
+    if (parsed.data.slug !== undefined) data.slug = parsed.data.slug;
+    if (parsed.data.description !== undefined) data.description = parsed.data.description;
+    if (parsed.data.tagline !== undefined) data.tagline = parsed.data.tagline;
+    if (parsed.data.quizSchema !== undefined)
+      data.quizSchema = parsed.data.quizSchema as Prisma.InputJsonValue;
+    if (parsed.data.scoringRules !== undefined)
+      data.scoringRules = parsed.data.scoringRules as Prisma.InputJsonValue;
+    if (parsed.data.resultTemplate !== undefined)
+      data.resultTemplate = parsed.data.resultTemplate as Prisma.InputJsonValue;
+    if (parsed.data.status !== undefined) data.status = parsed.data.status;
+    if (parsed.data.seoTitle !== undefined) data.seoTitle = parsed.data.seoTitle;
+    if (parsed.data.seoDescription !== undefined) data.seoDescription = parsed.data.seoDescription;
+
+    try {
+      return await this.prisma.tool.update({ where: { id }, data });
+    } catch (error: unknown) {
+      this.logger.error("Failed to update Tool", error instanceof Error ? error.stack : String(error));
+      throw new HttpException("Failed to update tool", HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+  }
+
+  @Post("tools/:id/publish")
+  async publishTool(
+    @Param("id") id: string,
+    @Headers("x-admin-role") role?: string,
+    @Headers("x-admin-key") apiKey?: string
+  ) {
+    this.authorize(role, apiKey, ["admin"]);
+    return this.prisma.tool.update({ where: { id }, data: { status: "PUBLISHED" } });
+  }
+
+  @Post("tools/:id/archive")
+  async archiveTool(
+    @Param("id") id: string,
+    @Headers("x-admin-role") role?: string,
+    @Headers("x-admin-key") apiKey?: string
+  ) {
+    this.authorize(role, apiKey, ["admin"]);
+    return this.prisma.tool.update({ where: { id }, data: { status: "ARCHIVED" } });
+  }
+
+  @Delete("tools/:id")
+  async deleteTool(
+    @Param("id") id: string,
+    @Headers("x-admin-role") role?: string,
+    @Headers("x-admin-key") apiKey?: string
+  ) {
+    this.authorize(role, apiKey, ["admin"]);
+    const sessionCount = await this.prisma.quizSession.count({ where: { toolId: id } });
+    if (sessionCount > 0) {
+      throw new HttpException(
+        `Không xoá được — Tool đã có ${sessionCount} session. Hãy archive thay vì delete.`,
+        HttpStatus.CONFLICT
+      );
+    }
+    await this.prisma.tool.delete({ where: { id } });
+    return { success: true };
+  }
+
+  @Post("tools/:id/preview-score")
+  async previewToolScore(
+    @Param("id") id: string,
+    @Body() body: unknown,
+    @Headers("x-admin-role") role?: string,
+    @Headers("x-admin-key") apiKey?: string
+  ) {
+    this.authorize(role, apiKey, ["reviewer", "admin"]);
+    const parsed = previewScoreSchema.safeParse(body);
+    if (!parsed.success) {
+      throw new HttpException(parsed.error.flatten(), HttpStatus.BAD_REQUEST);
+    }
+
+    const tool = await this.prisma.tool.findUnique({
+      where: { id },
+      include: { niche: { select: { id: true } } }
+    });
+    if (!tool) throw new HttpException("Tool not found", HttpStatus.NOT_FOUND);
+
+    const products = await this.prisma.product.findMany({
+      where: { nicheId: tool.niche.id, isPublic: true },
+      select: { id: true, name: true, scrapedData: true },
+      take: 200
+    });
+
+    const scored = this.toolScoring.scoreProducts({
+      quizSchema: tool.quizSchema as never,
+      scoringRules: tool.scoringRules as never,
+      resultTemplate: tool.resultTemplate as never,
+      userAttributes: parsed.data.userAttributes,
+      products: products.map((p) => ({ id: p.id, name: p.name, scrapedData: p.scrapedData }))
+    });
+
+    return {
+      ok: true,
+      scored,
+      products: products
+        .filter((p) => scored.some((s) => s.productId === p.id))
+        .map((p) => ({ id: p.id, name: p.name, scrapedData: p.scrapedData }))
+    };
+  }
+
+  @Post("tools/inventory-check")
+  async runInventoryCheck(
+    @Headers("x-admin-role") role?: string,
+    @Headers("x-admin-key") apiKey?: string
+  ) {
+    this.authorize(role, apiKey, ["admin"]);
+    try {
+      const result = await this.inventoryCheck.runCheck();
+      return { success: true, ...result };
+    } catch (error: unknown) {
+      this.logger.error(
+        "Inventory check failed",
+        error instanceof Error ? error.stack : String(error)
+      );
+      throw new HttpException("Inventory check failed", HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+  }
+
+  @Post("tools/email-drip-flush")
+  async flushEmailDrip(
+    @Headers("x-admin-role") role?: string,
+    @Headers("x-admin-key") apiKey?: string
+  ) {
+    this.authorize(role, apiKey, ["admin"]);
+    try {
+      const result = await this.emailDrip.flushDue();
+      return { success: true, ...result };
+    } catch (error: unknown) {
+      this.logger.error(
+        "Email drip flush failed",
+        error instanceof Error ? error.stack : String(error)
+      );
+      throw new HttpException("Email drip flush failed", HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+  }
+
+  @Get("tools/email-drip")
+  async listEmailDrip(
+    @Query("status") status?: string,
+    @Query("limit") limit?: string,
+    @Headers("x-admin-role") role?: string,
+    @Headers("x-admin-key") apiKey?: string
+  ) {
+    this.authorize(role, apiKey, ["viewer", "reviewer", "admin"]);
+    const take = Math.min(Math.max(Number(limit ?? 100), 1), 500);
+    return this.prisma.toolEmailDrip.findMany({
+      where: status ? { status: status as never } : undefined,
+      orderBy: { scheduledFor: "desc" },
+      take
+    });
+  }
+
+  @Get("tools/:id/analytics")
+  async toolAnalytics(
+    @Param("id") id: string,
+    @Query("days") days?: string,
+    @Headers("x-admin-role") role?: string,
+    @Headers("x-admin-key") apiKey?: string
+  ) {
+    this.authorize(role, apiKey, ["viewer", "reviewer", "admin"]);
+
+    const daysNum = Math.min(Math.max(Number(days ?? 30), 1), 365);
+    const since = new Date(Date.now() - daysNum * 24 * 60 * 60 * 1000);
+
+    const tool = await this.prisma.tool.findUnique({
+      where: { id },
+      include: { niche: { select: { slug: true, name: true } } }
+    });
+    if (!tool) throw new HttpException("Tool not found", HttpStatus.NOT_FOUND);
+
+    const [totalSessions, sessionsInRange, chatSessions, totalClicks, conversions, bySource, topProducts] =
+      await Promise.all([
+        this.prisma.quizSession.count({ where: { toolId: id } }),
+        this.prisma.quizSession.count({ where: { toolId: id, createdAt: { gte: since } } }),
+        this.prisma.quizSession.count({
+          where: {
+            toolId: id,
+            createdAt: { gte: since },
+            userInput: { path: ["mode"], equals: "chat" }
+          }
+        }),
+        this.prisma.clickLog.count({ where: { toolId: id, createdAt: { gte: since } } }),
+        this.prisma.conversionWebhook.count({
+          where: {
+            clickLog: { toolId: id },
+            receivedAt: { gte: since }
+          }
+        }),
+        this.prisma.quizSession.groupBy({
+          by: ["source"],
+          _count: { _all: true },
+          where: { toolId: id, createdAt: { gte: since } },
+          orderBy: { _count: { source: "desc" } }
+        }),
+        this.prisma.clickLog.groupBy({
+          by: ["productId"],
+          _count: { _all: true },
+          where: { toolId: id, createdAt: { gte: since } },
+          orderBy: { _count: { productId: "desc" } },
+          take: 5
+        })
+      ]);
+
+    const productIds = topProducts.map((p) => p.productId);
+    const productDetails =
+      productIds.length > 0
+        ? await this.prisma.product.findMany({
+            where: { id: { in: productIds } },
+            select: { id: true, name: true, slug: true }
+          })
+        : [];
+
+    const clickRate = sessionsInRange > 0 ? (totalClicks / sessionsInRange) * 100 : 0;
+    const conversionRate = totalClicks > 0 ? (conversions / totalClicks) * 100 : 0;
+
+    return {
+      tool: { id: tool.id, name: tool.name, slug: tool.slug, niche: tool.niche, status: tool.status },
+      periodDays: daysNum,
+      since: since.toISOString(),
+      totals: {
+        sessionsAllTime: totalSessions,
+        sessionsInRange,
+        chatSessions,
+        quizSessions: sessionsInRange - chatSessions,
+        clicks: totalClicks,
+        conversions,
+        clickRate: Number(clickRate.toFixed(2)),
+        conversionRate: Number(conversionRate.toFixed(2))
+      },
+      bySource: bySource.map((s) => ({ source: s.source ?? "(direct)", count: s._count._all })),
+      topProducts: topProducts.map((p) => {
+        const d = productDetails.find((pd) => pd.id === p.productId);
+        return { productId: p.productId, name: d?.name ?? "(unknown)", slug: d?.slug ?? null, clicks: p._count._all };
+      })
+    };
+  }
 }
+
+const toolCreateSchema = z.object({
+  slug: z.string().min(1).max(120).regex(/^[a-z0-9-]+$/, "slug phải lowercase + dash"),
+  nicheId: z.string().uuid(),
+  name: z.string().min(1).max(200),
+  description: z.string().max(2000).nullable().optional(),
+  tagline: z.string().max(200).nullable().optional(),
+  quizSchema: z.record(z.unknown()),
+  scoringRules: z.record(z.unknown()),
+  resultTemplate: z.record(z.unknown()),
+  seoTitle: z.string().max(200).nullable().optional(),
+  seoDescription: z.string().max(500).nullable().optional()
+});
+
+const previewScoreSchema = z.object({
+  userAttributes: z.record(z.unknown())
+});
+
+const toolUpdateSchema = z.object({
+  slug: z.string().min(1).max(120).regex(/^[a-z0-9-]+$/).optional(),
+  name: z.string().min(1).max(200).optional(),
+  description: z.string().max(2000).nullable().optional(),
+  tagline: z.string().max(200).nullable().optional(),
+  quizSchema: z.record(z.unknown()).optional(),
+  scoringRules: z.record(z.unknown()).optional(),
+  resultTemplate: z.record(z.unknown()).optional(),
+  status: z.enum(["DRAFT", "PUBLISHED", "ARCHIVED"]).optional(),
+  seoTitle: z.string().max(200).nullable().optional(),
+  seoDescription: z.string().max(500).nullable().optional()
+});
 
 function countBlocksWords(blocks: unknown): number {
   if (!Array.isArray(blocks)) return 0;

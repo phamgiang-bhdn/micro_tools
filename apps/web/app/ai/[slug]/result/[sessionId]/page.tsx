@@ -1,0 +1,175 @@
+import type { Metadata } from "next";
+import { notFound } from "next/navigation";
+import Link from "next/link";
+import { fetchToolBySlug, fetchToolSession } from "../../../../../lib/api";
+import { normalizeProduct } from "../../../../../lib/format";
+import { ResultCards, type ResultCardsProps } from "./result-cards";
+
+export const dynamic = "force-dynamic";
+
+interface PageProps {
+  params: Promise<{ slug: string; sessionId: string }>;
+}
+
+export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+  const { slug } = await params;
+  const tool = await fetchToolBySlug(slug);
+  return {
+    title: `Kết quả AI · ${tool?.name ?? "DealVault"}`,
+    description: `AI gợi ý 3 sản phẩm phù hợp nhất với nhu cầu của bạn.`,
+    robots: { index: false, follow: false } // Result pages per-user, không index
+  };
+}
+
+export default async function ResultPage({ params }: PageProps): Promise<React.ReactElement> {
+  const { slug, sessionId } = await params;
+  const session = await fetchToolSession(sessionId);
+
+  if (!session || session.tool.slug !== slug) {
+    notFound();
+  }
+
+  // Fetch product detail cho recommended IDs
+  const apiBase = process.env.API_BASE_URL ?? "http://localhost:4000/api/v1";
+  const productPromises = session.recommendedProductIds.map(async (id) => {
+    try {
+      const res = await fetch(`${apiBase}/niches/${session.tool.niche.slug}`, { cache: "no-store" });
+      if (!res.ok) return null;
+      const niche = (await res.json()) as { products: unknown[] };
+      const products = (niche.products ?? []) as { id: string; [k: string]: unknown }[];
+      return products.find((p) => p.id === id) ?? null;
+    } catch {
+      return null;
+    }
+  });
+  const productList = (await Promise.all(productPromises)).filter(Boolean) as Array<{
+    id: string;
+    [k: string]: unknown;
+  }>;
+
+  // Dedupe + normalize
+  const seen = new Set<string>();
+  const normalized: ResultCardsProps["products"] = [];
+  for (const p of productList) {
+    if (seen.has(p.id)) continue;
+    seen.add(p.id);
+    const view = normalizeProduct(p as never);
+    normalized.push({
+      id: p.id,
+      view,
+      affiliateUrl: (p as { affiliateUrl?: string }).affiliateUrl ?? "",
+      raw: p as Record<string, unknown>
+    });
+  }
+
+  // Sort theo order of recommendedProductIds (top score first)
+  normalized.sort(
+    (a, b) =>
+      session.recommendedProductIds.indexOf(a.id) - session.recommendedProductIds.indexOf(b.id)
+  );
+
+  return (
+    <main className="min-h-screen bg-canvas pb-24">
+      <header className="border-b border-line bg-white">
+        <div className="mx-auto flex max-w-3xl items-center justify-between px-4 py-3">
+          <Link href="/" className="text-sm font-semibold text-ink">
+            🤖 DealVault
+          </Link>
+          <Link href={`/ai/${slug}`} className="text-xs text-ink-soft hover:text-ink">
+            Làm lại quiz →
+          </Link>
+        </div>
+      </header>
+
+      <section className="mx-auto max-w-3xl px-4 py-6 sm:py-10">
+        <div className="text-center">
+          <div className="inline-flex items-center gap-2 rounded-full bg-brand-gradient px-3 py-1 text-xs font-medium text-white">
+            <span className="inline-block size-1.5 animate-pulse rounded-full bg-white" />
+            AI đã chọn cho bạn
+          </div>
+          <h1 className="mt-3 text-2xl font-bold text-ink sm:text-3xl">
+            🤖 {normalized.length} {session.tool.niche.name.toLowerCase()} hợp với nhu cầu của bạn
+          </h1>
+          <p className="mt-2 text-sm text-ink-soft">
+            Dựa trên: <ProfileSummary attributes={session.parsedAttributes} />
+          </p>
+        </div>
+
+        {normalized.length === 0 ? (
+          <div className="mt-10 rounded-2xl border border-line bg-white p-8 text-center">
+            <p className="text-base text-ink">
+              Không tìm thấy sản phẩm phù hợp.{" "}
+              <Link href={`/ai/${slug}`} className="font-semibold text-google-blue hover:underline">
+                Thử lại với nhu cầu khác →
+              </Link>
+            </p>
+          </div>
+        ) : (
+          <ResultCards
+            products={normalized}
+            session={session}
+            toolSlug={slug}
+          />
+        )}
+
+        <TrustSection toolSlug={slug} sessionTool={session.tool} />
+
+        <p className="mt-8 text-center text-[11px] text-ink-soft">
+          Affiliate disclosure: chúng tôi nhận hoa hồng từ sàn khi bạn mua qua link. AI rank theo độ
+          phù hợp, không theo hoa hồng.
+        </p>
+      </section>
+    </main>
+  );
+}
+
+function ProfileSummary({ attributes }: { attributes: Record<string, unknown> }): React.ReactElement {
+  const filtered = Object.entries(attributes).filter(
+    ([k, v]) =>
+      k !== "_confidence" &&
+      v !== null &&
+      v !== undefined &&
+      v !== "" &&
+      v !== "unknown"
+  );
+  if (filtered.length === 0) {
+    return <span className="font-medium text-ink">nhu cầu của bạn</span>;
+  }
+  return (
+    <span className="font-medium text-ink">
+      {filtered
+        .slice(0, 4)
+        .map(([_, v]) => (typeof v === "object" ? JSON.stringify(v) : String(v)))
+        .join(" · ")}
+    </span>
+  );
+}
+
+function TrustSection({
+  sessionTool
+}: {
+  toolSlug: string;
+  sessionTool: { niche: { name: string } };
+}): React.ReactElement {
+  return (
+    <section className="mt-10 rounded-2xl border border-line bg-white/60 p-5 text-sm">
+      <h3 className="text-xs font-semibold uppercase tracking-wide text-ink-soft">
+        🤖 AI dựa trên đâu?
+      </h3>
+      <ul className="mt-3 space-y-1.5 text-ink">
+        <li className="flex items-start gap-2">
+          <span className="text-google-blue">✓</span>
+          <span>Database {sessionTool.niche.name.toLowerCase()} đã admin duyệt từng sản phẩm</span>
+        </li>
+        <li className="flex items-start gap-2">
+          <span className="text-google-blue">✓</span>
+          <span>Spec từ trang chính hãng + crawler Accesstrade</span>
+        </li>
+        <li className="flex items-start gap-2">
+          <span className="text-google-blue">✓</span>
+          <span>Giá hôm nay từ Tiki/Shopee/Lazada</span>
+        </li>
+      </ul>
+    </section>
+  );
+}

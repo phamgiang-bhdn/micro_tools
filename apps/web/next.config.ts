@@ -18,7 +18,8 @@ const nextConfig: NextConfig = {
   },
 
   // Permanent redirects from the legacy /tools URL scheme to /categories.
-  // The entity was renamed Tool -> Category; the public URL changed to match.
+  // The entity was renamed Tool -> Category (niche); the public URL changed to match.
+  // NOTE: new AI Tool storefront dùng /ai/[slug], không phải /tools/[slug] (clash legacy).
   async redirects() {
     return [
       {
@@ -30,6 +31,24 @@ const nextConfig: NextConfig = {
         source: "/tools/:slug/:productSlug",
         destination: "/categories/:slug/:productSlug",
         permanent: true
+      },
+      // Short URL aliases cho TikTok/FB bio. Mỗi niche launch thêm 1 entry ở đây.
+      // Format: /<short-niche> → /ai/<full-tool-slug>
+      // Sample Tool seed sinh slug "chon-<niche-slug>" — đồng bộ ở đây.
+      {
+        source: "/loc-nuoc",
+        destination: "/ai/chon-may-loc-nuoc",
+        permanent: false
+      },
+      {
+        source: "/loc-khong-khi",
+        destination: "/ai/chon-may-loc-khong-khi",
+        permanent: false
+      },
+      {
+        source: "/robot",
+        destination: "/ai/chon-robot-hut-bui-lau-nha",
+        permanent: false
       }
     ];
   }

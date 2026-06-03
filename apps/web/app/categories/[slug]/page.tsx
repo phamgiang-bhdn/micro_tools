@@ -31,6 +31,26 @@ import { CuratedNicheGrid } from "../../../components/storefront/curated-niche-g
 import { ArticleCard } from "../../../components/storefront/article-card";
 import { CURATED_NICHES } from "../../../lib/curated-niches";
 
+const API_BASE_URL = process.env.API_BASE_URL ?? "http://localhost:4000/api/v1";
+
+interface CategoryToolLink {
+  slug: string;
+  name: string;
+  tagline: string | null;
+  niche: { slug: string };
+}
+
+async function fetchToolForNiche(nicheSlug: string): Promise<CategoryToolLink | null> {
+  try {
+    const res = await fetch(`${API_BASE_URL}/tool/active?limit=20`, { cache: "no-store" });
+    if (!res.ok) return null;
+    const all = (await res.json()) as CategoryToolLink[];
+    return all.find((t) => t.niche.slug === nicheSlug) ?? null;
+  } catch {
+    return null;
+  }
+}
+
 export const revalidate = 300;
 
 const SITE_URL = process.env.SITE_URL ?? "http://localhost:3100";
@@ -63,11 +83,12 @@ export default async function NicheDetailPage({
 }: NichePageProps): Promise<React.ReactElement> {
   const { slug } = await params;
   const { price, store, sort = "top" } = await searchParams;
-  const [niche, nichesList, articles, faqItems] = await Promise.all([
+  const [niche, nichesList, articles, faqItems, activeTool] = await Promise.all([
     fetchNicheBySlug(slug),
     fetchNiches(),
     fetchArticles({ nicheSlug: slug, limit: 3 }),
-    fetchNicheFaqFromArticle(slug)
+    fetchNicheFaqFromArticle(slug),
+    fetchToolForNiche(slug)
   ]);
   if (!niche) notFound();
 
@@ -128,6 +149,32 @@ export default async function NicheDetailPage({
 
   return (
     <div>
+      {activeTool && (
+        <section className="border-b border-line bg-brand-gradient">
+          <PageContainer className="py-4 sm:py-5">
+            <Link
+              href={`/ai/${activeTool.slug}`}
+              className="group flex flex-col items-start gap-3 text-white sm:flex-row sm:items-center sm:justify-between"
+            >
+              <div className="flex items-start gap-3 sm:items-center">
+                <span className="text-2xl">🤖</span>
+                <div>
+                  <div className="text-xs font-medium uppercase tracking-wider opacity-90">
+                    AI Tool có sẵn cho ngành này
+                  </div>
+                  <p className="mt-0.5 text-base font-semibold sm:text-lg">
+                    {activeTool.tagline ?? `Trả 3 câu — AI gợi ý ${niche.name.toLowerCase()} hợp với bạn`}
+                  </p>
+                </div>
+              </div>
+              <div className="self-end rounded-full bg-white/25 px-4 py-2 text-sm font-medium transition group-hover:bg-white/35 sm:self-auto">
+                Thử AI Tool →
+              </div>
+            </Link>
+          </PageContainer>
+        </section>
+      )}
+
       <section className="relative overflow-hidden border-b border-line bg-canvas">
         <div aria-hidden className="absolute inset-0 bg-hero-mesh opacity-70" />
         <PageContainer className="relative py-8 sm:py-10">

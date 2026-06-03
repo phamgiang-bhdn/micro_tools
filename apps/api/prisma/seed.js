@@ -3,16 +3,25 @@ const { PrismaClient } = require("@prisma/client");
 const prisma = new PrismaClient();
 
 /**
- * Seed v2 — Niche-only.
+ * Seed v3 — Niche + Tool (AI-visible refactor 2026-05-26).
  *
  * Sản phẩm hoàn toàn đến từ crawler Accesstrade (sprint at-source-of-truth).
- * Seed này chỉ tạo:
- *   1. 12 Niche làm presentation layer — admin onboard campaign vào Niche.
- *   2. PromptTemplate hệ thống (default-parser cho extraction, article-buying-guide & article-review cho blog AI).
- *   3. Dọn legacy product IDs từ seed v1 (hardcoded a1000001-* / b2000001-*).
+ * Seed này tạo:
+ *   1. 100 Niche làm presentation layer — admin onboard campaign vào Niche.
+ *   2. **Chỉ ACTIVE_NICHE_SLUGS được set status=ACTIVE** (Epic 1.2 launch-1-niche).
+ *      Còn lại set INACTIVE (giữ data, ẩn khỏi storefront).
+ *   3. PromptTemplate hệ thống (default-parser + article-buying-guide + article-review + tool.parseUserInput + tool.generateReasoning).
+ *   4. 1 sample Tool DRAFT cho `may-loc-nuoc` (admin publish thủ công khi sẵn sàng).
+ *   5. Dọn legacy product IDs từ seed v1 (hardcoded a1000001-* / b2000001-*).
  *
- * KHÔNG seed Product / ClickLog / ConversionWebhook. Data đó phát sinh tự nhiên từ crawler + user click.
+ * KHÔNG seed Product / ClickLog / ConversionWebhook / QuizSession. Data đó phát sinh tự nhiên.
+ *
+ * ENV override để bật niche khác: `LAUNCH_NICHE_SLUG=may-loc-khong-khi npm run prisma:seed --workspace api`
  */
+
+/** Default launch niche slug — đổi env LAUNCH_NICHE_SLUG hoặc edit dưới đây. */
+const LAUNCH_NICHE_SLUG = process.env.LAUNCH_NICHE_SLUG || "may-loc-nuoc";
+const ACTIVE_NICHE_SLUGS = new Set([LAUNCH_NICHE_SLUG]);
 
 /**
  * 100 niche phủ rộng affiliate market VN. Mỗi niche có schemaConfig dynamic định
@@ -90,7 +99,33 @@ const NICHES = [
   // ─── SMART HOME (10) ───
   { slug: "robot-hut-bui-lau-nha", name: "Robot hút bụi - lau nhà", schemaConfig: { suctionPower: "number", batteryMinutes: "number", maxArea: "number", mopFunction: "boolean", selfEmpty: "boolean", mapping: "string", appControl: "boolean" } },
   { slug: "may-loc-khong-khi", name: "Máy lọc không khí", schemaConfig: { coverageArea: "number", cadr: "number", filterType: "string", noiseDbMax: "number", smartControl: "boolean", sensors: "string" } },
-  { slug: "may-loc-nuoc", name: "Máy lọc nước", schemaConfig: { filterStages: "number", capacityLph: "number", filterType: "string", waterTankL: "number", hotColdFunction: "boolean", smartControl: "boolean" } },
+  {
+    slug: "may-loc-nuoc",
+    name: "Máy lọc nước",
+    /**
+     * Schema extended cho Tool module (AI-visible refactor).
+     * - Original spec fields: filterStages, capacityLph, filterType, waterTankL, hotColdFunction, smartControl
+     * - Tool-required fields (matchType paths trong tool.scoringRules):
+     *   - priceVnd: số tiền VND (cho budget_max LTE rule)
+     *   - recommendedHouseholdSize: "1-2" | "3-4" | "5+" hoặc range "2-5" (cho household_size range_overlap)
+     *   - supportedSources: ["tap", "well"] (cho water_source tag_match)
+     *   - inventoryStatus: "IN_STOCK" | "OOS" | "UNKNOWN" (cho hardFilter, set bởi InventoryCheckService)
+     *   - marketplaceListings: [{marketplace, price, url, lastChecked}] (cho multi-network price comparison)
+     */
+    schemaConfig: {
+      filterStages: "number",
+      capacityLph: "number",
+      filterType: "string",
+      waterTankL: "number",
+      hotColdFunction: "boolean",
+      smartControl: "boolean",
+      priceVnd: "number",
+      recommendedHouseholdSize: "string",
+      supportedSources: "array",
+      inventoryStatus: "string",
+      marketplaceListings: "array"
+    }
+  },
   { slug: "camera-an-ninh-nha", name: "Camera an ninh nhà", schemaConfig: { resolutionMp: "number", nightVision: "boolean", twoWayAudio: "boolean", motionDetection: "boolean", localStorage: "string", appControl: "boolean" } },
   { slug: "khoa-cua-thong-minh", name: "Khoá cửa thông minh", schemaConfig: { unlockMethods: "string", batteryMonths: "number", camera: "boolean", remoteUnlock: "boolean", emergencyKey: "boolean" } },
   { slug: "den-thong-minh", name: "Đèn thông minh / smart bulb", schemaConfig: { wattage: "number", lumens: "number", colorChanging: "boolean", protocol: "string", dimmable: "boolean" } },
@@ -257,22 +292,29 @@ async function main() {
   await seedLastSyncStatus();
 
   for (const nicheSpec of NICHES) {
+    const isLaunch = ACTIVE_NICHE_SLUGS.has(nicheSpec.slug);
     await prisma.niche.upsert({
       where: { slug: nicheSpec.slug },
       update: {
         name: nicheSpec.name,
         schemaConfig: nicheSpec.schemaConfig,
-        status: "ACTIVE"
+        // KHÔNG tự overwrite status cho niche đã tồn tại — admin có thể đã flip thủ công
+        ...(isLaunch ? { status: "ACTIVE" } : {})
       },
       create: {
         slug: nicheSpec.slug,
         name: nicheSpec.name,
-        status: "ACTIVE",
+        status: isLaunch ? "ACTIVE" : "INACTIVE",
         schemaConfig: nicheSpec.schemaConfig
       }
     });
   }
-  console.log(`[seed] Upserted ${NICHES.length} niche(s).`);
+  console.log(
+    `[seed] Upserted ${NICHES.length} niche(s). Launch niche: ${LAUNCH_NICHE_SLUG} (ACTIVE). Others created as INACTIVE.`
+  );
+
+  await seedToolPromptTemplates();
+  await seedSampleTool();
 
   await prisma.promptTemplate.upsert({
     where: { name: "default-parser" },
@@ -626,6 +668,223 @@ Redmi Turbo 5 là lựa chọn đáng cân nhắc nhất tầm 8 triệu đồng
   });
 
   console.log(`Seeded ${authors.length} authors + phrase-blacklist template.`);
+}
+
+// ============================================================
+// TOOL MODULE seed (AI-visible refactor 2026-05-26)
+// ============================================================
+
+async function seedToolPromptTemplates() {
+  const PARSE_PROMPT = `Bạn là AI giúp parse mô tả tự nhiên của user về nhu cầu mua sản phẩm thành dạng structured.
+
+Quiz schema (mỗi attribute có id, type, optional choices):
+{schemaDescription}
+
+User message (tiếng Việt):
+"""
+{userMessage}
+"""
+
+Trả về JSON đúng format sau (KHÔNG markdown, KHÔNG giải thích):
+{
+  "attributes": {
+    "<attribute_id>": <value khớp type/choice>,
+    ...
+  },
+  "confidence": {
+    "<attribute_id>": <0.0-1.0>,
+    ...
+  }
+}
+
+Quy tắc:
+- Chỉ điền attribute mà user mention rõ. Không suy đoán quá nhiều.
+- Với single/picture: value phải khớp 1 trong choices.
+- Với number/range: parse số từ tiếng Việt ("tám triệu" → 8000000).
+- Với multi: trả array.
+- Nếu user không nói rõ → bỏ qua attribute đó (không điền null/empty).
+- Confidence: 1.0 = user nói trực tiếp, 0.5 = suy luận, 0.3 = đoán.`;
+
+  const REASONING_PROMPT = `Bạn là AI tư vấn mua đồ điện máy cho người Việt. Viết 1 câu duy nhất (≤25 từ) giải thích vì sao sản phẩm này hợp với nhu cầu của user. Có thể thêm 1 câu "điểm trừ" ngắn inline với prefix "💡 " nếu cần.
+
+User profile:
+{userProfile}
+
+Tiêu chí khớp:
+{matched}
+
+Tiêu chí KHÔNG khớp:
+{unmatched}
+
+Sản phẩm:
+{productSummary}
+
+Output JSON (KHÔNG markdown):
+{
+  "reasoning": "<1 câu lý do + optional điểm trừ inline>"
+}
+
+Quy tắc cứng:
+- Phải reference ≥1 thông tin cụ thể từ user profile (vd "nhà 4 người", "ngân sách 8tr").
+- KHÔNG dùng từ marketing rỗng ("siêu phẩm", "tốt nhất", "đỉnh cao").
+- Mobile-friendly: đọc trong 3 giây.
+- Tiếng Việt tự nhiên, ngôi "bạn".`;
+
+  for (const tpl of [
+    { name: "tool.parseUserInput", content: PARSE_PROMPT },
+    { name: "tool.generateReasoning", content: REASONING_PROMPT }
+  ]) {
+    await prisma.promptTemplate.upsert({
+      where: { name: tpl.name },
+      update: { content: tpl.content, isActive: true, version: 1, activatedAt: new Date() },
+      create: {
+        name: tpl.name,
+        content: tpl.content,
+        isActive: true,
+        version: 1,
+        activatedAt: new Date(),
+        createdBy: "seed"
+      }
+    });
+  }
+  console.log("[seed] Upserted 2 Tool PromptTemplate row(s).");
+}
+
+async function seedSampleTool() {
+  const launchNiche = await prisma.niche.findUnique({ where: { slug: LAUNCH_NICHE_SLUG } });
+  if (!launchNiche) {
+    console.log(`[seed] Launch niche ${LAUNCH_NICHE_SLUG} không tồn tại — bỏ qua sample Tool.`);
+    return;
+  }
+
+  const sampleSlug = `chon-${LAUNCH_NICHE_SLUG}`;
+  const existing = await prisma.tool.findUnique({ where: { slug: sampleSlug } });
+  if (existing) {
+    console.log(`[seed] Sample Tool ${sampleSlug} đã tồn tại — bỏ qua.`);
+    return;
+  }
+
+  const quizSchema = {
+    questions: [
+      {
+        id: "household_size",
+        question: "Nhà bạn có mấy người dùng?",
+        type: "single",
+        required: true,
+        weight: 10,
+        defaultValue: "3-4",
+        options: [
+          { value: "1-2", label: "1-2 người", icon: "👤" },
+          { value: "3-4", label: "3-4 người", icon: "👨‍👩‍👧" },
+          { value: "5+", label: "5 người trở lên", icon: "👨‍👩‍👧‍👦" }
+        ]
+      },
+      {
+        id: "water_source",
+        question: "Nguồn nước nhà bạn?",
+        type: "single",
+        required: true,
+        weight: 9,
+        options: [
+          { value: "tap", label: "Nước máy", icon: "🚰" },
+          { value: "well", label: "Giếng khoan", icon: "⛲" },
+          { value: "unknown", label: "Không rõ", icon: "❓" }
+        ]
+      },
+      {
+        id: "budget_max",
+        question: "Ngân sách tối đa?",
+        type: "single",
+        required: true,
+        weight: 8,
+        options: [
+          { value: 5000000, label: "Dưới 5tr", icon: "💵" },
+          { value: 10000000, label: "5-10tr", icon: "💰" },
+          { value: 20000000, label: "10-20tr", icon: "💎" },
+          { value: 99000000, label: "Không giới hạn", icon: "✨" }
+        ]
+      },
+      {
+        id: "needs_hot_cold",
+        question: "Có cần nước nóng/lạnh sẵn không?",
+        type: "single",
+        required: false,
+        weight: 5,
+        options: [
+          { value: "yes", label: "Có" },
+          { value: "no", label: "Không cần" }
+        ]
+      }
+    ]
+  };
+
+  const scoringRules = {
+    rules: [
+      {
+        userAttribute: "household_size",
+        productAttributePath: "scrapedData.recommendedHouseholdSize",
+        weight: 10,
+        matchType: "range_overlap"
+      },
+      {
+        userAttribute: "water_source",
+        productAttributePath: "scrapedData.supportedSources",
+        weight: 9,
+        matchType: "tag_match"
+      },
+      {
+        userAttribute: "budget_max",
+        productAttributePath: "scrapedData.priceVnd",
+        weight: 8,
+        matchType: "lte"
+      },
+      {
+        userAttribute: "needs_hot_cold",
+        productAttributePath: "scrapedData.hotColdFunction",
+        weight: 5,
+        matchType: "exact"
+      }
+    ],
+    hardFilters: [
+      {
+        productAttributePath: "scrapedData.inventoryStatus",
+        matchType: "neq",
+        value: "OOS"
+      }
+    ]
+  };
+
+  const resultTemplate = {
+    topN: 3,
+    hierarchy: "1+2",
+    highThreshold: 0.85,
+    mediumThreshold: 0.65,
+    confidenceLabels: {
+      high: "Rất phù hợp",
+      medium: "Phù hợp",
+      low: "Có thể cân nhắc"
+    }
+  };
+
+  await prisma.tool.create({
+    data: {
+      slug: sampleSlug,
+      nicheId: launchNiche.id,
+      name: `AI chọn ${launchNiche.name.toLowerCase()}`,
+      description: `Tool giúp gia đình chọn ${launchNiche.name.toLowerCase()} phù hợp với số người, nguồn nước, ngân sách. 4 câu — AI gợi ý 3 sản phẩm hợp nhất.`,
+      tagline: `🤖 AI chọn ${launchNiche.name.toLowerCase()} trong 60 giây`,
+      quizSchema,
+      scoringRules,
+      resultTemplate,
+      status: "DRAFT", // Admin publish thủ công khi sẵn sàng
+      seoTitle: `AI chọn ${launchNiche.name.toLowerCase()} trong 60 giây — DealVault`,
+      seoDescription: `Trả lời 4 câu — AI gợi ý 3 ${launchNiche.name.toLowerCase()} hợp với gia đình bạn. Không quảng cáo, dựa trên spec thật.`
+    }
+  });
+
+  console.log(
+    `[seed] Created sample Tool: ${sampleSlug} (DRAFT). Vào /admin/tools để publish.`
+  );
 }
 
 main()
