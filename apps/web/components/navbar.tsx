@@ -57,7 +57,7 @@ export function Navbar(): React.ReactElement | null {
           </button>
 
           <Link href="/" className="flex shrink-0 items-center gap-2 rounded-lg px-1 py-0.5 ring-focus">
-            <span className="flex size-9 items-center justify-center rounded-xl bg-brand-gradient text-base font-bold text-white shadow-glow">
+            <span className="flex size-9 items-center justify-center rounded-xl bg-primary-600 text-base font-bold text-white">
               d.
             </span>
             <span className="hidden flex-col sm:flex">

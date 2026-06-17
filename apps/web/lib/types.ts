@@ -11,6 +11,25 @@ export interface NicheItem {
   };
 }
 
+/** V4: verdict deal — khớp enum backend (price-intelligence.types.ts). */
+export type PriceVerdict = "GIA_TOT" | "GIA_AO" | "DAY_GIA" | "BINH_THUONG" | "THIEU_DU_LIEU";
+
+/** V4: summary giá real-time, derived từ PriceSnapshot, lưu trên Product.priceIntel. */
+export interface PriceIntel {
+  verdict: PriceVerdict;
+  currentPrice: number | null;
+  lowest30d: number | null;
+  lowest90d: number | null;
+  highest90d: number | null;
+  avg30d: number | null;
+  dropFromAvgPct: number | null;
+  isAtLowest: boolean;
+  sampleCount: number;
+  spanDays: number;
+  firstSeenAt: string | null;
+  computedAt: string;
+}
+
 export interface ProductItem {
   id: string;
   nicheId: string;
@@ -19,6 +38,8 @@ export interface ProductItem {
   slug?: string | null;
   affiliateUrl: string;
   scrapedData: Record<string, unknown>;
+  /** V4: price-intelligence summary (null khi chưa có lịch sử). */
+  priceIntel?: PriceIntel | null;
   updatedAt?: string;
   shop?: {
     id: string;
@@ -64,6 +85,8 @@ export interface ProductView {
   storeTier?: "mall" | "regular" | null;
   /** ISO string từ Product.updatedAt — dùng cho verified-price chip. */
   updatedAt?: string;
+  /** V4: price-intelligence summary (verdict thật/ảo/đáy + lowest/avg). Null khi chưa đủ lịch sử. */
+  priceIntel?: PriceIntel | null;
   /** Affiliate URL gốc — copy từ ProductItem.affiliateUrl để inline CTA form action. */
   affiliateUrl?: string;
   /** Shop admin gán tay (replace cho campaign trên storefront). */

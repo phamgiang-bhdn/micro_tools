@@ -1,28 +1,13 @@
 import type React from "react";
 import Link from "next/link";
-import {
-  fetchActiveCoupons,
-  fetchActiveTools,
-  fetchAllProductsFlat,
-  fetchArticles,
-  fetchNiches,
-  fetchTopProducts
-} from "../lib/api";
+import { fetchAllProductsFlat, fetchNiches } from "../lib/api";
 import { EmptyState } from "../components/ui/empty-state";
-import { Icon } from "../components/ui/icon";
 import { PageSection, SectionHeading } from "../components/ui/section";
 import { FilterChip, FilterChipRow } from "../components/ui/filter-chip";
 import { ProductGrid } from "../components/storefront/product-grid";
-import { TopProductCard } from "../components/storefront/top-product-card";
 import { SortControl } from "../components/storefront/sort-control";
-import { TrustStrip } from "../components/storefront/trust-strip";
-import { HomeHero } from "../components/storefront/home-hero";
-import { AiHero } from "../components/storefront/ai-hero";
+import { AiAssistant } from "../components/storefront/ai-assistant";
 import { CuratedNicheGrid } from "../components/storefront/curated-niche-grid";
-import { SocialProofStrip } from "../components/storefront/social-proof-strip";
-import { SessionRestoreBanner } from "../components/storefront/session-restore-banner";
-import { CouponPreview } from "../components/storefront/coupon-preview";
-import { ArticleCard } from "../components/storefront/article-card";
 import { CURATED_NICHES } from "../lib/curated-niches";
 
 export const revalidate = 300;
@@ -33,13 +18,7 @@ interface HomeProps {
 
 export default async function HomePage({ searchParams }: HomeProps): Promise<React.ReactElement> {
   const { category: activeSlug, sort = "top", q = "" } = await searchParams;
-  const [{ niches, loadError }, topProducts, activeCoupons, latestArticles, aiTools] = await Promise.all([
-    fetchNiches(),
-    fetchTopProducts(12),
-    fetchActiveCoupons(3),
-    fetchArticles({ limit: 3 }),
-    fetchActiveTools(6)
-  ]);
+  const { niches, loadError } = await fetchNiches();
   const allProducts = loadError ? [] : await fetchAllProductsFlat(niches);
 
   const query = q.trim().toLowerCase();
@@ -52,15 +31,6 @@ export default async function HomePage({ searchParams }: HomeProps): Promise<Rea
     );
   }
   const sorted = sortProducts(filtered, sort);
-
-  const topDeals = [...allProducts]
-    .sort((a, b) => (b.discountPercent ?? 0) - (a.discountPercent ?? 0))
-    .slice(0, 8);
-
-  const totalSavings = allProducts.reduce((sum, p) => {
-    if (p.originalPrice && p.price && p.originalPrice > p.price) return sum + (p.originalPrice - p.price);
-    return sum;
-  }, 0);
 
   const curatedTiles = CURATED_NICHES.map((curated) => {
     const niche = niches.find((n) => n.slug === curated.slug);
@@ -77,33 +47,7 @@ export default async function HomePage({ searchParams }: HomeProps): Promise<Rea
 
   return (
     <div>
-      {aiTools.length > 0 ? (
-        <AiHero
-          tools={aiTools}
-          featuredDeal={topDeals[0] ?? null}
-          productCount={allProducts.length}
-          hotDealCount={topProducts.length}
-        />
-      ) : (
-        <HomeHero
-          topDealsCount={allProducts.length}
-          hotDealCount={topProducts.length}
-          savingsTotal={totalSavings}
-          featuredDeal={topDeals[0] ?? null}
-        />
-      )}
-
-      <div className="mx-auto max-w-6xl px-4">
-        <SessionRestoreBanner />
-      </div>
-
-      <PageSection padding="tight" className="bg-canvas">
-        <SocialProofStrip
-          verifiedDealCount={allProducts.length}
-          activeCouponCount={activeCoupons.length > 0 ? activeCoupons.length : 0}
-          lastUpdatedAt={pickLatestProductUpdate(allProducts)}
-        />
-      </PageSection>
+      <AiAssistant />
 
       {loadError ? (
         <PageSection padding="default">
@@ -123,21 +67,6 @@ export default async function HomePage({ searchParams }: HomeProps): Promise<Rea
         </PageSection>
       ) : null}
 
-      {topDeals.length > 0 ? (
-        <PageSection padding="default" id="hot-deals" className="bg-canvas">
-          <SectionHeading
-            title="🔥 Deal hot trong tuần"
-            description={`Sắp theo % giảm sâu nhất · ${topDeals.length} sản phẩm`}
-            trailing={
-              <Link href="#all-deals" className="font-semibold text-primary-700 hover:underline">
-                Xem thêm →
-              </Link>
-            }
-          />
-          <ProductGrid products={topDeals} />
-        </PageSection>
-      ) : null}
-
       <PageSection padding="default" className="bg-canvas">
         <SectionHeading
           title="Khám phá theo danh mục"
@@ -152,55 +81,6 @@ export default async function HomePage({ searchParams }: HomeProps): Promise<Rea
         />
         <CuratedNicheGrid niches={curatedTiles} />
       </PageSection>
-
-      {topProducts.length > 0 ? (
-        <PageSection padding="default" className="bg-canvas">
-          <SectionHeading
-            title="Đang hot tuần này"
-            description="Top bán chạy từ Accesstrade, cập nhật hàng ngày."
-            trailing={<>{topProducts.length} sản phẩm</>}
-          />
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-            {topProducts.map((p) => (
-              <TopProductCard key={p.id} product={p} />
-            ))}
-          </div>
-        </PageSection>
-      ) : null}
-
-      {activeCoupons.length > 0 ? (
-        <PageSection padding="default" id="coupons" className="bg-canvas">
-          <SectionHeading
-            title="Mã giảm giá nóng"
-            description="Ưu tiên mã sắp hết hạn."
-            trailing={
-              <Link href="/khuyen-mai" className="font-semibold text-primary-700 hover:underline">
-                Xem tất cả mã →
-              </Link>
-            }
-          />
-          <CouponPreview coupons={activeCoupons} />
-        </PageSection>
-      ) : null}
-
-      {latestArticles.length > 0 ? (
-        <PageSection padding="default" className="bg-canvas">
-          <SectionHeading
-            title="Cẩm nang chọn mua"
-            description="Bài viết mới nhất từ team biên tập."
-            trailing={
-              <Link href="/blog" className="font-semibold text-primary-700 hover:underline">
-                Xem tất cả cẩm nang →
-              </Link>
-            }
-          />
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {latestArticles.map((article) => (
-              <ArticleCard key={article.id} article={article} />
-            ))}
-          </div>
-        </PageSection>
-      ) : null}
 
       <div id="all-deals" className="mx-auto max-w-6xl px-4 pb-12 sm:px-6">
         {niches.length > 0 ? (
@@ -268,15 +148,6 @@ export default async function HomePage({ searchParams }: HomeProps): Promise<Rea
           </>
         ) : null}
       </div>
-
-      <PageSection padding="default" className="border-t border-line bg-canvas">
-        <SectionHeading
-          title="Vì sao chọn dealvault"
-          description="Chúng tôi không bán hàng — chúng tôi đối chiếu giá để bạn ra quyết định nhanh."
-          size="sm"
-        />
-        <TrustStrip />
-      </PageSection>
     </div>
   );
 }
@@ -308,14 +179,4 @@ function buildHref({ category, sort, q }: { category?: string; sort?: string; q?
   if (q) params.set("q", q);
   const qs = params.toString();
   return qs ? `/?${qs}` : "/";
-}
-
-function pickLatestProductUpdate(products: Array<{ updatedAt?: string }>): Date | null {
-  let latest: Date | null = null;
-  for (const p of products) {
-    if (!p.updatedAt) continue;
-    const d = new Date(p.updatedAt);
-    if (!Number.isNaN(d.getTime()) && (!latest || d > latest)) latest = d;
-  }
-  return latest ?? (products.length > 0 ? new Date() : null);
 }

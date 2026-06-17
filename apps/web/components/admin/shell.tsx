@@ -19,19 +19,54 @@ interface NavGroup {
   id: string;
   label: string;
   entries: NavEntry[];
+  /** Nhóm phụ — thu gọn mặc định, chỉ bung khi bấm hoặc đang ở trang trong nhóm. */
+  collapsible?: boolean;
 }
 
 /**
- * IA gọn (Refactor V3 — Phase 4). Nhóm theo luồng vận hành thật:
- *  Tổng quan → Catalog → Nội dung & AI → Accesstrade → Doanh thu → (Dữ liệu thô sắp gộp).
- * Đã BỎ khỏi nav các mục sắp cắt ở Phase 5: waitlist, email-drip, reconciliation (cron vẫn chạy).
- * 4 mục taxonomy (categories/sources/brands/shops) dồn vào 1 nhóm "Dữ liệu thô" de-emphasize,
- * sẽ gộp về Niche + merchant ở Phase 5.
+ * IA tối giản (V4 — collapse admin). Operator solo chỉ cần 4 việc hằng ngày nổi bật:
+ *  Duyệt AI · Sản phẩm · Đồng bộ · Dòng tiền. Tất cả còn lại dồn vào 1 nhóm "Khác"
+ *  thu gọn mặc định (vẫn truy cập đủ, nhưng không gây rối mắt). Không xoá page nào.
  */
 const NAV: NavGroup[] = [
   {
-    id: "overview",
-    label: "Tổng quan",
+    id: "daily",
+    label: "Vận hành",
+    entries: [
+      {
+        id: "refinery",
+        label: "Duyệt AI",
+        href: "/admin?tab=refinery",
+        icon: <RefineryIcon />,
+        match: (p, t) => p === "/admin" && t === "refinery"
+      },
+      {
+        id: "products",
+        label: "Sản phẩm",
+        href: "/admin/products",
+        icon: <ProductIcon />,
+        match: (p) => p.startsWith("/admin/products")
+      },
+      {
+        id: "crawler-logs",
+        label: "Đồng bộ",
+        href: "/admin/crawler-logs",
+        icon: <LogIcon />,
+        match: (p) => p.startsWith("/admin/crawler-logs")
+      },
+      {
+        id: "money-trail",
+        label: "Dòng tiền",
+        href: "/admin?tab=money-trail",
+        icon: <CoinsIcon />,
+        match: (p, t) => p === "/admin" && t === "money-trail"
+      }
+    ]
+  },
+  {
+    id: "more",
+    label: "Khác",
+    collapsible: true,
     entries: [
       {
         id: "war-room",
@@ -41,26 +76,6 @@ const NAV: NavGroup[] = [
         match: (p, t) => p === "/admin" && (t === null || t === "war-room")
       },
       {
-        id: "refinery",
-        label: "Duyệt AI",
-        href: "/admin?tab=refinery",
-        icon: <RefineryIcon />,
-        match: (p, t) => p === "/admin" && t === "refinery"
-      }
-    ]
-  },
-  {
-    id: "catalog",
-    label: "Catalog",
-    entries: [
-      {
-        id: "products",
-        label: "Sản phẩm",
-        href: "/admin/products",
-        icon: <ProductIcon />,
-        match: (p) => p.startsWith("/admin/products")
-      },
-      {
         id: "niches",
         label: "Ngành hàng",
         href: "/admin/niches",
@@ -68,32 +83,11 @@ const NAV: NavGroup[] = [
         match: (p) => p.startsWith("/admin/niches")
       },
       {
-        id: "coupons",
-        label: "Mã giảm giá",
-        href: "/admin/coupons",
-        icon: <CouponIcon />,
-        match: (p) => p.startsWith("/admin/coupons")
-      },
-      {
-        id: "shops",
-        label: "Cửa hàng",
-        href: "/admin/shops",
-        icon: <ShopIcon />,
-        match: (p) => p.startsWith("/admin/shops")
-      }
-    ]
-  },
-  {
-    id: "content-ai",
-    label: "Nội dung & AI",
-    entries: [
-      {
         id: "tools",
         label: "Tool AI",
         href: "/admin/tools",
         icon: <AiIcon />,
-        match: (p) =>
-          p.startsWith("/admin/tools") && !p.startsWith("/admin/tools/email-drip")
+        match: (p) => p.startsWith("/admin/tools") && !p.startsWith("/admin/tools/email-drip")
       },
       {
         id: "articles",
@@ -103,18 +97,12 @@ const NAV: NavGroup[] = [
         match: (p) => p.startsWith("/admin/articles")
       },
       {
-        id: "prompt-studio",
-        label: "Xưởng prompt",
-        href: "/admin?tab=prompt-studio",
-        icon: <PromptIcon />,
-        match: (p, t) => p === "/admin" && t === "prompt-studio"
-      }
-    ]
-  },
-  {
-    id: "accesstrade",
-    label: "Accesstrade",
-    entries: [
+        id: "coupons",
+        label: "Mã giảm giá",
+        href: "/admin/coupons",
+        icon: <CouponIcon />,
+        match: (p) => p.startsWith("/admin/coupons")
+      },
       {
         id: "campaigns",
         label: "Chiến dịch",
@@ -123,24 +111,18 @@ const NAV: NavGroup[] = [
         match: (p) => p.startsWith("/admin/campaigns")
       },
       {
-        id: "crawler-logs",
-        label: "Crawler",
-        href: "/admin/crawler-logs",
-        icon: <LogIcon />,
-        match: (p) => p.startsWith("/admin/crawler-logs")
-      }
-    ]
-  },
-  {
-    id: "revenue",
-    label: "Doanh thu",
-    entries: [
+        id: "shops",
+        label: "Cửa hàng",
+        href: "/admin/shops",
+        icon: <ShopIcon />,
+        match: (p) => p.startsWith("/admin/shops")
+      },
       {
-        id: "money-trail",
-        label: "Dòng tiền",
-        href: "/admin?tab=money-trail",
-        icon: <CoinsIcon />,
-        match: (p, t) => p === "/admin" && t === "money-trail"
+        id: "prompt-studio",
+        label: "Xưởng prompt",
+        href: "/admin?tab=prompt-studio",
+        icon: <PromptIcon />,
+        match: (p, t) => p === "/admin" && t === "prompt-studio"
       },
       {
         id: "analytics",
@@ -251,11 +233,12 @@ function SidebarContent({
   tab: string | null;
   onNavigate?: () => void;
 }): React.ReactElement {
+  const [moreOpen, setMoreOpen] = useState(false);
   return (
     <>
       <div className="flex h-14 items-center gap-2 border-b border-admin-line px-4">
         <Link href="/admin" className="flex items-center gap-2" onClick={onNavigate}>
-          <span className="grid size-8 place-items-center rounded-lg bg-brand-gradient text-sm font-bold text-white shadow-glow-sm">
+          <span className="grid size-8 place-items-center rounded-lg bg-primary-600 text-sm font-bold text-white">
             d.
           </span>
           <span className="text-sm font-semibold tracking-tight text-admin-ink">
@@ -268,48 +251,54 @@ function SidebarContent({
       </div>
 
       <nav className="flex-1 space-y-4 overflow-y-auto p-3">
-        {NAV.map((group) => (
-          <div key={group.id}>
-            <p className="px-2 pb-1 pt-1 text-[10.5px] font-semibold uppercase tracking-wider text-admin-mute">
-              {group.label}
-            </p>
-            <div className="space-y-0.5">
-              {group.entries.map((entry) => {
-                const active = entry.match(pathname, tab);
-                return (
-                  <Link
+        {NAV.map((group) => {
+          const groupHasActive = group.entries.some((e) => e.match(pathname, tab));
+          if (group.collapsible) {
+            const expanded = moreOpen || groupHasActive;
+            return (
+              <div key={group.id}>
+                <button
+                  type="button"
+                  onClick={() => setMoreOpen((o) => !o)}
+                  aria-expanded={expanded}
+                  className="flex w-full items-center justify-between rounded-md px-2 pb-1 pt-1 text-[10.5px] font-semibold uppercase tracking-wider text-admin-mute transition hover:text-admin-ink"
+                >
+                  <span>{group.label}</span>
+                  <ChevronIcon className={cn("size-3.5 transition", expanded && "rotate-180")} />
+                </button>
+                {expanded ? (
+                  <div className="space-y-0.5">
+                    {group.entries.map((entry) => (
+                      <NavItem
+                        key={entry.id}
+                        entry={entry}
+                        active={entry.match(pathname, tab)}
+                        onNavigate={onNavigate}
+                      />
+                    ))}
+                  </div>
+                ) : null}
+              </div>
+            );
+          }
+          return (
+            <div key={group.id}>
+              <p className="px-2 pb-1 pt-1 text-[10.5px] font-semibold uppercase tracking-wider text-admin-mute">
+                {group.label}
+              </p>
+              <div className="space-y-0.5">
+                {group.entries.map((entry) => (
+                  <NavItem
                     key={entry.id}
-                    href={entry.href}
-                    onClick={onNavigate}
-                    className={cn(
-                      "group flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] font-medium transition-colors",
-                      active
-                        ? "bg-admin-accent-soft text-admin-accent-ink shadow-sm shadow-admin-accent/5"
-                        : "text-admin-mute hover:bg-admin-subtle hover:text-admin-ink"
-                    )}
-                  >
-                    <span
-                      className={cn(
-                        "grid size-7 place-items-center rounded-md transition-colors",
-                        active
-                          ? "bg-admin-accent text-white shadow-sm shadow-admin-accent/30"
-                          : "bg-admin-subtle text-admin-mute group-hover:bg-admin-surface group-hover:text-admin-ink"
-                      )}
-                    >
-                      {entry.icon}
-                    </span>
-                    <span className="flex-1">{entry.label}</span>
-                    {entry.badge ? (
-                      <span className="rounded-full bg-primary-600 px-1.5 py-0.5 text-[10px] font-bold text-white">
-                        {entry.badge}
-                      </span>
-                    ) : null}
-                  </Link>
-                );
-              })}
+                    entry={entry}
+                    active={entry.match(pathname, tab)}
+                    onNavigate={onNavigate}
+                  />
+                ))}
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </nav>
 
       <div className="border-t border-admin-line p-3">
@@ -340,6 +329,62 @@ function Kbd({ children }: { children: React.ReactNode }): React.ReactElement {
     <kbd className="rounded border border-admin-line bg-surface px-1 py-0.5 font-mono text-[10px] text-admin-ink">
       {children}
     </kbd>
+  );
+}
+
+function NavItem({
+  entry,
+  active,
+  onNavigate
+}: {
+  entry: NavEntry;
+  active: boolean;
+  onNavigate?: () => void;
+}): React.ReactElement {
+  return (
+    <Link
+      href={entry.href}
+      onClick={onNavigate}
+      className={cn(
+        "group flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] font-medium transition-colors",
+        active
+          ? "bg-admin-accent-soft text-admin-accent-ink shadow-sm shadow-admin-accent/5"
+          : "text-admin-mute hover:bg-admin-subtle hover:text-admin-ink"
+      )}
+    >
+      <span
+        className={cn(
+          "grid size-7 place-items-center rounded-md transition-colors",
+          active
+            ? "bg-admin-accent text-white shadow-sm shadow-admin-accent/30"
+            : "bg-admin-subtle text-admin-mute group-hover:bg-admin-surface group-hover:text-admin-ink"
+        )}
+      >
+        {entry.icon}
+      </span>
+      <span className="flex-1">{entry.label}</span>
+      {entry.badge ? (
+        <span className="rounded-full bg-primary-600 px-1.5 py-0.5 text-[10px] font-bold text-white">
+          {entry.badge}
+        </span>
+      ) : null}
+    </Link>
+  );
+}
+
+function ChevronIcon({ className }: { className?: string }): React.ReactElement {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+    >
+      <path d="m6 9 6 6 6-6" />
+    </svg>
   );
 }
 

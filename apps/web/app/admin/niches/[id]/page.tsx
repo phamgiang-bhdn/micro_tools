@@ -18,6 +18,7 @@ interface NicheDetail {
   name: string;
   status: "ACTIVE" | "INACTIVE";
   schemaConfig: Record<string, unknown>;
+  keywords: string[];
   seoTitle: string | null;
   seoDescription: string | null;
   _count: { products: number; articles: number };

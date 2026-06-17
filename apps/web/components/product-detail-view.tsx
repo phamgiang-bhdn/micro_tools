@@ -6,6 +6,8 @@ import { createTrackingRedirect } from "../app/actions/tracking";
 import { Breadcrumb } from "./ui/breadcrumb";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
+import { DealVerdictBadge } from "./storefront/deal-verdict-badge";
+import { PriceHistoryChart, type PricePoint } from "./storefront/price-history-chart";
 import type { ProductItem } from "../lib/types";
 
 interface RelatedItem {
@@ -25,6 +27,8 @@ interface ProductDetailViewProps {
   niche: { name: string; slug: string };
   previewMode?: boolean;
   related?: RelatedItem[];
+  /** V4: chuỗi giá cho chart lịch sử. Rỗng → chart hiện trạng thái "đang xây lịch sử". */
+  priceHistory?: PricePoint[];
 }
 
 /**
@@ -39,7 +43,8 @@ export function ProductDetailView({
   productRaw,
   niche,
   previewMode = false,
-  related = []
+  related = [],
+  priceHistory = []
 }: ProductDetailViewProps): React.ReactElement {
   const product = normalizeProduct(productRaw);
   const jsonLd = buildProductJsonLd(product, niche.name);
@@ -105,9 +110,9 @@ export function ProductDetailView({
             )}
             <div className="absolute left-4 top-4 flex flex-col items-start gap-2">
               {product.discountPercent && product.discountPercent > 0 ? (
-                <Badge tone="brand" size="md" className="text-sm font-bold shadow-glow-sm">
+                <span className="rounded-lg bg-danger px-2.5 py-1 text-sm font-bold text-white shadow-sm">
                   -{product.discountPercent}%
-                </Badge>
+                </span>
               ) : null}
               {product.badge ? <Badge tone="ink" size="md">{product.badge}</Badge> : null}
             </div>
@@ -139,7 +144,7 @@ export function ProductDetailView({
           </div>
 
           {/* PRICE CARD — nhấn vào tiết kiệm */}
-          <div className="relative overflow-hidden rounded-2xl border border-line bg-gradient-to-br from-white to-canvas p-5 shadow-card">
+          <div className="relative overflow-hidden rounded-2xl bg-surface p-5 ring-1 ring-border">
             {product.price !== undefined ? (
               <>
                 <div className="flex flex-wrap items-baseline gap-3">
@@ -153,10 +158,15 @@ export function ProductDetailView({
                   ) : null}
                 </div>
                 {savings ? (
-                  <div className="mt-2 inline-flex items-center gap-2 rounded-full bg-accent-50 px-3 py-1 text-sm font-semibold text-accent-700 ring-1 ring-inset ring-accent-200">
+                  <div className="mt-2 inline-flex items-center gap-2 rounded-full bg-success-soft px-3 py-1 text-sm font-semibold text-success-ink">
                     <SavingsIcon />
                     Tiết kiệm {formatMoney(savings, product.currency)}
-                    {product.discountPercent ? <span className="text-accent-600">· -{product.discountPercent}%</span> : null}
+                    {product.discountPercent ? <span className="text-success">· -{product.discountPercent}%</span> : null}
+                  </div>
+                ) : null}
+                {product.priceIntel ? (
+                  <div className="mt-2">
+                    <DealVerdictBadge intel={product.priceIntel} />
                   </div>
                 ) : null}
               </>
@@ -175,7 +185,7 @@ export function ProductDetailView({
             </div>
           ) : (
             <form action={buyAction} className="space-y-2">
-              <Button type="submit" variant="brand" size="lg" className="w-full sm:w-auto">
+              <Button type="submit" variant="cta" size="lg" className="w-full sm:w-auto">
                 Mua ngay tại {product.store ?? "shop"} →
               </Button>
               <p className="text-xs text-ink-mute">
@@ -205,6 +215,10 @@ export function ProductDetailView({
         </section>
       </div>
 
+      {!previewMode ? (
+        <PriceHistoryChart points={priceHistory} intel={product.priceIntel} currency={product.currency} />
+      ) : null}
+
       <DescriptionSection description={product.description} />
 
       <SourceInfoStrip product={product} />
@@ -224,7 +238,7 @@ export function ProductDetailView({
               <Link
                 key={r.id}
                 href={`/categories/${niche.slug}/${r.slug ?? r.id}`}
-                className="group overflow-hidden rounded-xl border border-line bg-card shadow-card transition hover:-translate-y-0.5 hover:border-primary-200 hover:shadow-card-md"
+                className="group overflow-hidden rounded-xl bg-surface ring-1 ring-border transition hover:ring-primary-300 hover:shadow-card-md"
               >
                 <div className="relative aspect-square overflow-hidden bg-canvas">
                   {r.image ? (
@@ -269,7 +283,7 @@ export function ProductDetailView({
             ) : (
               <div className="flex-1 text-sm text-ink-soft">Liên hệ shop</div>
             )}
-            <Button type="submit" variant="brand" size="md">
+            <Button type="submit" variant="cta" size="md">
               Mua ngay →
             </Button>
           </form>

@@ -8,6 +8,7 @@ import { formatMoney } from "../../../../../lib/format";
 import { createTrackingRedirect } from "../../../../actions/tracking";
 import { submitWaitlistAction } from "../../../../actions/waitlist";
 import { MarketplacePrices, extractMarketplaceListings } from "./marketplace-prices";
+import { DealVerdictBadge } from "../../../../../components/storefront/deal-verdict-badge";
 import type { ProductView } from "../../../../../lib/types";
 import type { ToolSessionResponse } from "../../../../../lib/api";
 
@@ -162,9 +163,9 @@ function PrimaryCard({
 }): React.ReactElement {
   const v = product.view;
   return (
-    <div className="overflow-hidden rounded-3xl border border-border bg-surface shadow-card">
-      <div className="bg-brand-gradient px-4 py-1.5 text-xs font-semibold text-white">
-        🏆 #{rank} · AI gợi ý cho bạn
+    <div className="overflow-hidden rounded-3xl bg-surface ring-1 ring-border shadow-card-md">
+      <div className="bg-primary-600 px-4 py-1.5 text-xs font-semibold text-white">
+        #{rank} · 🤖 AI gợi ý cho bạn
       </div>
       <div className="grid grid-cols-1 gap-4 p-5 sm:grid-cols-[160px_1fr] sm:p-6">
         <div className="relative aspect-square w-full overflow-hidden rounded-2xl bg-canvas">
@@ -197,6 +198,12 @@ function PrimaryCard({
               </>
             )}
           </div>
+
+          {v.priceIntel ? (
+            <div className="mt-2">
+              <DealVerdictBadge intel={v.priceIntel} />
+            </div>
+          ) : null}
 
           <div className="mt-4 rounded-xl border border-primary-200 bg-primary-50 p-3.5">
             <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-primary-700">
@@ -245,7 +252,7 @@ function SecondaryCard({
 }): React.ReactElement {
   const v = product.view;
   return (
-    <div className="overflow-hidden rounded-2xl border border-border bg-surface">
+    <div className="overflow-hidden rounded-2xl bg-surface ring-1 ring-border">
       <div className="border-b border-border bg-canvas px-3 py-1 text-[11px] font-medium text-ink-soft">
         #{rank}
       </div>
@@ -261,6 +268,11 @@ function SecondaryCard({
         {v.price > 0 && (
           <p className="mt-1 text-base font-bold text-ink">{formatMoney(v.price)}</p>
         )}
+        {v.priceIntel ? (
+          <div className="mt-1.5">
+            <DealVerdictBadge intel={v.priceIntel} size="xs" />
+          </div>
+        ) : null}
         <div className="mt-2 rounded-lg border border-border bg-canvas p-2.5">
           <p className="line-clamp-3 text-xs text-ink">
             <span className="font-semibold text-primary-600">🤖 {confidenceLabel}.</span>{" "}

@@ -83,9 +83,9 @@ export default async function ResultPage({ params }: PageProps): Promise<React.R
 
       <section className="mx-auto max-w-3xl px-4 py-6 sm:py-10">
         <div className="text-center">
-          <div className="inline-flex items-center gap-2 rounded-full bg-brand-gradient px-3 py-1 text-xs font-medium text-white">
-            <span className="inline-block size-1.5 animate-pulse rounded-full bg-white" />
-            AI đã chọn cho bạn
+          <div className="inline-flex items-center gap-1.5 rounded-full bg-primary-600 px-3 py-1 text-xs font-semibold text-white">
+            <span className="inline-block size-1.5 rounded-full bg-white/80" />
+            🤖 AI đã chọn cho bạn
           </div>
           <h1 className="mt-3 text-2xl font-bold text-ink sm:text-3xl">
             🤖 {normalized.length} {session.tool.niche.name.toLowerCase()} hợp với nhu cầu của bạn

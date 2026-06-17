@@ -138,6 +138,8 @@ interface ScrapedView {
   discountPercent?: number;
   store?: string;
   brand?: string;
+  /** V4: cách classifier gán/quarantine offer này (keyword | ai | ambiguous | none). */
+  classifyMethod?: string;
 }
 
 function readScraped(raw: Record<string, unknown> | null | undefined): ScrapedView {
@@ -156,14 +158,33 @@ function readScraped(raw: Record<string, unknown> | null | undefined): ScrapedVi
     }
     return undefined;
   };
+  const cls = raw.classification;
+  const classifyMethod =
+    cls && typeof cls === "object" && typeof (cls as { method?: unknown }).method === "string"
+      ? (cls as { method: string }).method
+      : undefined;
   return {
     image: pickString(["image", "imageUrl", "thumbnail", "photo"]),
     price: pickNumber(["price", "salePrice", "currentPrice"]),
     originalPrice: pickNumber(["originalPrice", "listPrice", "msrp"]),
     discountPercent: pickNumber(["discountPercent", "discount_rate", "discount"]),
     store: pickString(["store", "merchant", "shop"]),
-    brand: pickString(["brand", "manufacturer"])
+    brand: pickString(["brand", "manufacturer"]),
+    classifyMethod
   };
+}
+
+const CLASSIFY_META: Record<string, { label: string; className: string }> = {
+  keyword: { label: "🔑 tự gán", className: "text-admin-mute" },
+  ai: { label: "🤖 AI gán — nên kiểm tra", className: "text-admin-warning" },
+  ambiguous: { label: "mơ hồ — chờ duyệt", className: "text-admin-warning" },
+  none: { label: "không khớp niche nào", className: "text-admin-mute" }
+};
+
+function ClassifyTag({ method }: { method: string }): React.ReactElement | null {
+  const meta = CLASSIFY_META[method];
+  if (!meta) return null;
+  return <div className={`mt-0.5 text-[10.5px] ${meta.className}`}>{meta.label}</div>;
 }
 
 export function ProductsTable({
@@ -395,14 +416,25 @@ export function ProductsTable({
       key: "niche",
       header: "Ngành hàng",
       hideOnMobile: true,
-      cell: (p) =>
-        p.niche ? (
-          <span className="text-[12.5px] text-admin-ink">{p.niche.name}</span>
-        ) : (
-          <StatusPill tone="warning" dot>
-            Chưa gán
-          </StatusPill>
-        )
+      cell: (p) => {
+        const method = readScraped(p.scrapedData).classifyMethod;
+        if (p.niche) {
+          return (
+            <div className="leading-tight">
+              <span className="text-[12.5px] text-admin-ink">{p.niche.name}</span>
+              {method ? <ClassifyTag method={method} /> : null}
+            </div>
+          );
+        }
+        return (
+          <div className="leading-tight">
+            <StatusPill tone="warning" dot>
+              Chưa gán
+            </StatusPill>
+            {method ? <ClassifyTag method={method} /> : null}
+          </div>
+        );
+      }
     },
     {
       key: "shop",

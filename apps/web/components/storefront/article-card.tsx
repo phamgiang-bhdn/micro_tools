@@ -48,7 +48,7 @@ export function FeaturedArticleCard({ article }: { article: ArticleSummary }): R
   return (
     <Link
       href={`/blog/${article.slug}`}
-      className="group grid overflow-hidden rounded-3xl border border-border bg-surface shadow-card transition hover:-translate-y-0.5 hover:shadow-card-lg md:grid-cols-5"
+      className="group grid overflow-hidden rounded-3xl bg-surface ring-1 ring-border transition hover:shadow-card-md md:grid-cols-5"
     >
       <div className="relative aspect-[5/3] overflow-hidden md:col-span-2 md:aspect-auto">
         {article.coverImage ? (
@@ -96,7 +96,7 @@ export function ArticleCard({ article }: { article: ArticleSummary }): React.Rea
   return (
     <Link
       href={`/blog/${article.slug}`}
-      className="group flex flex-col overflow-hidden rounded-2xl border border-border bg-surface shadow-card transition hover:-translate-y-0.5 hover:border-primary-300 hover:shadow-card-lg"
+      className="group flex flex-col overflow-hidden rounded-2xl bg-surface ring-1 ring-border transition hover:ring-primary-300 hover:shadow-card-md"
     >
       <div className="relative aspect-[16/10] overflow-hidden">
         {article.coverImage ? (

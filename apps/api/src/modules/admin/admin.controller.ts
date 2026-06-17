@@ -61,6 +61,8 @@ const generateArticleSchema = z.object({
   pauseAtOutline: z.boolean().optional()
 });
 
+const nicheKeywordsSchema = z.array(z.string().trim().min(1).max(60)).max(100);
+
 const createNicheSchema = z.object({
   name: z.string().min(2).max(120),
   slug: z
@@ -68,7 +70,8 @@ const createNicheSchema = z.object({
     .min(2)
     .max(80)
     .regex(/^[a-z0-9-]+$/, "slug chỉ chứa chữ thường, số, gạch ngang"),
-  schemaConfig: z.record(z.unknown())
+  schemaConfig: z.record(z.unknown()),
+  keywords: nicheKeywordsSchema.optional()
 });
 
 const updateNicheSchema = z.object({
@@ -81,6 +84,7 @@ const updateNicheSchema = z.object({
     .optional(),
   status: z.nativeEnum(NicheStatus).optional(),
   schemaConfig: z.record(z.unknown()).optional(),
+  keywords: nicheKeywordsSchema.optional(),
   seoTitle: z.string().max(120).nullable().optional(),
   seoDescription: z.string().max(300).nullable().optional()
 });
@@ -1236,7 +1240,8 @@ export class AdminController {
       data: {
         name: parsed.data.name,
         slug: parsed.data.slug,
-        schemaConfig: parsed.data.schemaConfig as Prisma.InputJsonValue
+        schemaConfig: parsed.data.schemaConfig as Prisma.InputJsonValue,
+        keywords: parsed.data.keywords ?? []
       }
     });
   }
@@ -1267,6 +1272,7 @@ export class AdminController {
     if (parsed.data.schemaConfig !== undefined) {
       data.schemaConfig = parsed.data.schemaConfig as Prisma.InputJsonValue;
     }
+    if (parsed.data.keywords !== undefined) data.keywords = parsed.data.keywords;
     if (parsed.data.seoTitle !== undefined) data.seoTitle = parsed.data.seoTitle;
     if (parsed.data.seoDescription !== undefined) data.seoDescription = parsed.data.seoDescription;
     return this.prisma.niche.update({ where: { id }, data });

@@ -161,8 +161,18 @@ export function normalizeProduct(product: ProductItem): ProductView {
     salesCount,
     storeTier: inferStoreTier(store),
     updatedAt: product.updatedAt,
+    priceIntel: isPriceIntel(product.priceIntel) ? product.priceIntel : undefined,
     affiliateUrl: product.affiliateUrl,
     shop: product.shop ?? null,
     raw
   };
+}
+
+/** Guard: priceIntel đến từ Json column → xác minh shape tối thiểu trước khi tin. */
+function isPriceIntel(value: unknown): value is import("./types").PriceIntel {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    typeof (value as { verdict?: unknown }).verdict === "string"
+  );
 }

@@ -110,7 +110,7 @@ export function QuizStepFlow({
         </div>
         <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-line">
           <div
-            className="h-full bg-brand-gradient transition-all duration-300"
+            className="h-full bg-primary-500 transition-all duration-300"
             style={{ width: `${progress}%` }}
           />
         </div>
@@ -143,7 +143,7 @@ export function QuizStepFlow({
             />
           ) : (
             <div className="text-sm text-ink-soft">
-              Question type "{current.type}" chưa hỗ trợ ở quiz step. Trả lời ở hero.
+              Question type “{current.type}” chưa hỗ trợ ở quiz step. Trả lời ở hero.
             </div>
           )}
         </div>

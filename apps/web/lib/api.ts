@@ -270,6 +270,27 @@ export async function fetchTopProducts(limit = 12): Promise<TopProductSnapshotIt
   }
 }
 
+// ───────── V4: Price history (chart trên product detail) ─────────
+
+export interface PriceHistoryPoint {
+  capturedAt: string;
+  price: number;
+  originalPrice: number | null;
+}
+
+/** Chuỗi giá theo thời gian cho 1 product. Lỗi → [] (chart tự hiện trạng thái "đang xây lịch sử"). */
+export async function fetchPriceHistory(productId: string, days = 90): Promise<PriceHistoryPoint[]> {
+  try {
+    const res = await safeFetch<{ points: PriceHistoryPoint[] }>(
+      `/prices/${encodeURIComponent(productId)}/history?days=${days}`
+    );
+    return res.points ?? [];
+  } catch (error) {
+    console.error(`Failed to fetch price history productId=${productId}:`, error);
+    return [];
+  }
+}
+
 export async function fetchAllProductsFlat(niches: NicheItem[]): Promise<FlatProduct[]> {
   if (niches.length === 0) return [];
   const details = await Promise.all(niches.map((niche) => fetchNicheBySlug(niche.slug)));

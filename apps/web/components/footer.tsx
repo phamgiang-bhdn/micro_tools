@@ -31,7 +31,7 @@ export function Footer(): React.ReactElement | null {
         <div className="grid gap-10 pt-8 sm:grid-cols-2 lg:grid-cols-[1.4fr_repeat(3,1fr)]">
           <div>
             <div className="flex items-center gap-2">
-              <span className="flex size-9 items-center justify-center rounded-xl bg-brand-gradient text-base font-bold text-white shadow-glow">
+              <span className="flex size-9 items-center justify-center rounded-xl bg-primary-600 text-base font-bold text-white">
                 d.
               </span>
               <span className="flex flex-col">

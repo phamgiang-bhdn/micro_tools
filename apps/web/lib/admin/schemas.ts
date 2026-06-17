@@ -113,6 +113,8 @@ export const nicheCreateSchema = z.object({
   name: z.string().trim().min(2, "Tên ≥ 2 ký tự").max(120),
   slug,
   schemaConfig: jsonString("schemaConfig"),
+  // V4: keyword phân loại — textarea (mỗi dòng hoặc dấu phẩy = 1 keyword). Action tự tách thành mảng.
+  keywords: z.string().optional(),
   seoTitle: z.string().trim().max(180).nullable().optional(),
   seoDescription: z.string().trim().max(320).nullable().optional()
 });

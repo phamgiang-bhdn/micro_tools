@@ -667,7 +667,7 @@ export function CampaignsTable({
                   </div>
                   <p className="mt-1 text-[11px] text-admin-mute">
                     Mặc định khi chạy nền là 100. Số càng lớn → Accesstrade trả càng chậm và tốn quota.
-                    Bộ lọc của từng chiến dịch vẫn được áp dụng — vào "Bộ lọc lấy sản phẩm" để chỉnh.
+                    Bộ lọc của từng chiến dịch vẫn được áp dụng — vào “Bộ lọc lấy sản phẩm” để chỉnh.
                   </p>
                 </div>
                 <div>

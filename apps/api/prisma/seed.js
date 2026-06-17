@@ -198,6 +198,27 @@ const NICHES = [
 ];
 
 /**
+ * V4: keyword phân loại offer thô từ Accesstrade vào niche (tier-1). Chỉ cần seed cho các niche
+ * launch trọng điểm — niche khác classifier tự suy từ name/slug. Service normalize (bỏ dấu) cả 2 phía
+ * nên ghi có dấu hay không đều khớp. Admin chỉnh sau qua /admin/niches.
+ */
+const NICHE_KEYWORDS = {
+  "robot-hut-bui-lau-nha": ["robot hút bụi", "robot lau nhà", "máy hút bụi robot", "robot vacuum"],
+  "may-loc-khong-khi": ["máy lọc không khí", "lọc không khí", "air purifier"],
+  "may-loc-nuoc": ["máy lọc nước", "lọc nước", "máy lọc nước ro", "water purifier"],
+  "noi-chien-khong-dau": ["nồi chiên không dầu", "air fryer", "nồi chiên"],
+  "may-giat": ["máy giặt", "washing machine"],
+  "tu-lanh": ["tủ lạnh", "refrigerator"],
+  "dieu-hoa": ["điều hòa", "điều hoà", "máy lạnh", "air conditioner"],
+  "tivi": ["tivi", "smart tv", "android tv", "google tv"],
+  "my-pham-duong-da": ["dưỡng da", "kem dưỡng", "dưỡng ẩm", "skincare", "moisturizer"],
+  "kem-chong-nang": ["kem chống nắng", "chống nắng", "sunscreen", "sun cream"],
+  "sua-rua-mat": ["sữa rửa mặt", "rửa mặt", "cleanser", "face wash"],
+  "serum-duong-da": ["serum dưỡng", "tinh chất dưỡng", "serum"],
+  "tai-nghe-tws": ["tai nghe true wireless", "tai nghe bluetooth", "earbuds", "tws"]
+};
+
+/**
  * Xoá sạch các Product hardcoded từ seed v1 (cùng ClickLog + ConversionWebhook cascade).
  * Match theo id list cố định — UUID column không filter được bằng startsWith,
  * và idempotent (chạy nhiều lần OK vì delete không-tồn-tại sẽ chỉ trả count=0).
@@ -293,19 +314,23 @@ async function main() {
 
   for (const nicheSpec of NICHES) {
     const isLaunch = ACTIVE_NICHE_SLUGS.has(nicheSpec.slug);
+    const seedKeywords = NICHE_KEYWORDS[nicheSpec.slug];
     await prisma.niche.upsert({
       where: { slug: nicheSpec.slug },
       update: {
         name: nicheSpec.name,
         schemaConfig: nicheSpec.schemaConfig,
-        // KHÔNG tự overwrite status cho niche đã tồn tại — admin có thể đã flip thủ công
-        ...(isLaunch ? { status: "ACTIVE" } : {})
+        // KHÔNG tự overwrite status cho niche đã tồn tại — admin có thể đã flip thủ công.
+        // Keywords: chỉ set lại cho niche có trong map curated (niche admin tự sửa giữ nguyên).
+        ...(isLaunch ? { status: "ACTIVE" } : {}),
+        ...(seedKeywords ? { keywords: seedKeywords } : {})
       },
       create: {
         slug: nicheSpec.slug,
         name: nicheSpec.name,
         status: isLaunch ? "ACTIVE" : "INACTIVE",
-        schemaConfig: nicheSpec.schemaConfig
+        schemaConfig: nicheSpec.schemaConfig,
+        keywords: seedKeywords ?? []
       }
     });
   }

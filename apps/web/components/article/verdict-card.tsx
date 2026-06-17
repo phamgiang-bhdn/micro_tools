@@ -38,7 +38,7 @@ export function VerdictCard({ product: raw, excerpt }: Props): React.ReactElemen
             </div>
           )}
           {product.discountPercent ? (
-            <span className="absolute left-3 top-3 rounded-md bg-brand-gradient px-2 py-0.5 text-xs font-bold text-white shadow-sm">
+            <span className="absolute left-3 top-3 rounded-md bg-danger px-2 py-0.5 text-xs font-bold text-white shadow-sm">
               -{product.discountPercent}%
             </span>
           ) : null}

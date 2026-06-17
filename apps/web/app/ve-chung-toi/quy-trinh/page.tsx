@@ -105,8 +105,8 @@ export default function ProcessPage(): React.ReactElement {
               <strong className="text-ink">
                 Mọi sản phẩm trong database đều qua người thật duyệt
               </strong>{" "}
-              trước khi AI được phép gợi ý cho bạn. AI chỉ làm phần "match nhu cầu của bạn với
-              sản phẩm có sẵn" + viết lý do — không bịa giá, không bịa thông số.
+              trước khi AI được phép gợi ý cho bạn. AI chỉ làm phần “match nhu cầu của bạn với
+              sản phẩm có sẵn” + viết lý do — không bịa giá, không bịa thông số.
             </p>
           </div>
 

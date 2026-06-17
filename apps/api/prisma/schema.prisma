@@ -179,6 +179,9 @@ model Niche {
   name           String
   status         NicheStatus         @default(ACTIVE)
   schemaConfig   Json
+  /// V4: từ khoá phân loại offer thô từ Accesstrade vào niche này (tier-1 keyword match).
+  /// Rỗng → service tự suy từ name/slug. Chỉ match với niche ACTIVE → lọc đống merchant-wide.
+  keywords       String[]            @default([])
   seoTitle       String?
   seoDescription String?
   createdAt      DateTime            @default(now())
@@ -221,6 +224,9 @@ model Product {
   slug          String?
   affiliateUrl  String
   scrapedData   Json                @db.JsonB
+  /// V4: derived price-intelligence summary (verdict giá thật/ảo/đáy + lowest/avg). Recompute mỗi
+  /// crawl cycle từ PriceSnapshot → niche grid đọc free, KHÔNG query snapshot per-card. Shape: PriceIntel.
+  priceIntel    Json?               @db.JsonB
   isPublic      Boolean             @default(true)
   createdAt     DateTime            @default(now())
   updatedAt     DateTime            @updatedAt
@@ -233,6 +239,10 @@ model Product {
   reviews       ProductReview[]
   /// STORY-05: matched order-product lines.
   orderProducts OrderProduct[]
+  /// V4: chuỗi giá theo thời gian (nền cho verdict + chart).
+  priceSnapshots PriceSnapshot[]
+  /// V4: đăng ký theo dõi giá xuống (Phase 2).
+  priceAlerts   PriceAlert[]
 
   @@unique([nicheId, slug])
   @@index([nicheId])
@@ -577,6 +587,8 @@ model Subscriber {
   unsubscribedAt  DateTime?
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
+  /// V4: price-drop alerts user này đăng ký (Phase 2).
+  priceAlerts     PriceAlert[]
 
   @@index([source])
   @@index([status])
@@ -756,5 +768,50 @@ model ReasoningCache {
   @@unique([productId, profileHash, model])
   @@index([productId])
   @@index([createdAt])
+}
+
+// === V4: PRICE INTELLIGENCE (moat dữ liệu giá real-time) ===
+
+/// PriceSnapshot — chuỗi giá theo thời gian per Product. Ghi 1 row mỗi crawl cycle khi giá đổi
+/// (dedup nếu giá không đổi so với snapshot gần nhất). Nền cho deal verdict (thật/ảo/đáy) + chart.
+/// Khác point-in-time `Product.scrapedData.price` — đây là lịch sử để soi anchor giả.
+model PriceSnapshot {
+  id            String   @id @default(uuid()) @db.Uuid
+  productId     String   @db.Uuid
+  /// Giá hiệu lực (salePrice ?? price) — giá người mua thực trả tại thời điểm capture.
+  price         Decimal  @db.Decimal(15, 2)
+  /// Giá niêm yết nhà bán công bố (anchor) — để phát hiện "giảm ảo". Null khi không có.
+  originalPrice Decimal? @db.Decimal(15, 2)
+  currency      String   @default("VND")
+  /// Nguồn giá (network/marketplace), vd "ACCESSTRADE". Free text.
+  source        String?
+  capturedAt    DateTime @default(now())
+  product       Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId, capturedAt])
+  @@index([capturedAt])
+}
+
+/// PriceAlert — đăng ký theo dõi giá xuống (Phase 2 data). Reuse Subscriber làm danh tính.
+/// Notify (push/email) khi giá <= targetPrice, hoặc rớt bất kỳ khi notifyOnAnyDrop=true.
+/// Phase 2: chưa wire live-posting (cần credential kênh) — model + service skeleton trước.
+model PriceAlert {
+  id                String     @id @default(uuid()) @db.Uuid
+  productId         String     @db.Uuid
+  subscriberId      String     @db.Uuid
+  /// Ngưỡng giá muốn được báo. Null + notifyOnAnyDrop=true → báo mọi lần rớt giá.
+  targetPrice       Decimal?   @db.Decimal(15, 2)
+  notifyOnAnyDrop   Boolean    @default(false)
+  isActive          Boolean    @default(true)
+  lastNotifiedAt    DateTime?
+  lastNotifiedPrice Decimal?   @db.Decimal(15, 2)
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
+  product           Product    @relation(fields: [productId], references: [id], onDelete: Cascade)
+  subscriber        Subscriber @relation(fields: [subscriberId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, subscriberId])
+  @@index([productId, isActive])
+  @@index([subscriberId])
 }
 

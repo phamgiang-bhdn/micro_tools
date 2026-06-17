@@ -21,7 +21,7 @@ export function CuratedNicheGrid({ niches }: Props): React.ReactElement {
         <Link
           key={n.slug}
           href={`/categories/${n.slug}`}
-          className="group relative flex flex-col overflow-hidden rounded-2xl border border-line bg-card shadow-card transition hover:-translate-y-0.5 hover:border-primary-300 hover:shadow-pop"
+          className="group relative flex flex-col overflow-hidden rounded-2xl bg-surface ring-1 ring-border transition hover:ring-primary-300 hover:shadow-card-md"
         >
           <div className="relative aspect-[16/9] overflow-hidden bg-gradient-to-br from-primary-100 via-primary-50 to-canvas">
             <span

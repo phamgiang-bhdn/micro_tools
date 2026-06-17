@@ -29,6 +29,7 @@ interface NicheDetail {
   name: string;
   status: "ACTIVE" | "INACTIVE";
   schemaConfig: Record<string, unknown>;
+  keywords: string[];
   seoTitle: string | null;
   seoDescription: string | null;
 }
@@ -46,6 +47,7 @@ export function NicheEditForm({ niche }: EditFormProps): React.ReactElement {
     slug: niche.slug,
     status: niche.status,
     schemaConfig: JSON.stringify(niche.schemaConfig ?? {}, null, 2),
+    keywords: (niche.keywords ?? []).join("\n"),
     seoTitle: niche.seoTitle,
     seoDescription: niche.seoDescription
   };
@@ -60,6 +62,7 @@ export function NicheEditForm({ niche }: EditFormProps): React.ReactElement {
       if (data.slug) fd.set("slug", data.slug);
       if (data.status) fd.set("status", data.status);
       if (data.schemaConfig !== undefined) fd.set("schemaConfig", data.schemaConfig);
+      if (data.keywords !== undefined) fd.set("keywords", data.keywords ?? "");
       if (data.seoTitle !== undefined) fd.set("seoTitle", data.seoTitle ?? "");
       if (data.seoDescription !== undefined)
         fd.set("seoDescription", data.seoDescription ?? "");
@@ -107,6 +110,17 @@ export function NicheEditForm({ niche }: EditFormProps): React.ReactElement {
                     options={NICHE_STATUS_OPTIONS}
                   />
                 </div>
+              </SectionCard>
+
+              <SectionCard title="Từ khoá phân loại (crawler)">
+                <ControlledTextareaField<NicheUpdateInput>
+                  name="keywords"
+                  label="Keywords"
+                  rows={6}
+                  fullRow
+                  placeholder={"robot hút bụi\nrobot lau nhà\nrobot vacuum"}
+                  hint="Mỗi dòng (hoặc dấu phẩy) = 1 keyword. Crawler dùng để tự gán sản phẩm thô từ Accesstrade vào niche này. Bỏ trống → tự suy từ tên/slug. Khớp không phân biệt hoa thường/dấu."
+                />
               </SectionCard>
             </TabsContent>
 

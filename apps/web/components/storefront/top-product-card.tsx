@@ -14,7 +14,7 @@ export function TopProductCard({ product }: TopProductCardProps): React.ReactEle
       <input type="hidden" name="affiliateUrl" value={product.affLink} />
       <button
         type="submit"
-        className="group block w-full rounded-xl border border-line bg-white p-3 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-primary-200 hover:shadow-md"
+        className="group block w-full rounded-2xl bg-surface p-3 text-left ring-1 ring-border transition hover:ring-primary-300 hover:shadow-card-md"
       >
         <div className="relative aspect-square overflow-hidden rounded-lg bg-canvas">
           {product.image ? (

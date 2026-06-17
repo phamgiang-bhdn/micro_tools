@@ -12,11 +12,13 @@ import { TopProductsSyncScheduler } from "./top-products-sync.scheduler";
 import { TopProductsSyncService } from "./top-products-sync.service";
 import { AccesstradeClient } from "./clients/accesstrade.client";
 import { WebScrapeClient } from "./clients/web-scrape.client";
+import { ClassificationService } from "./classification.service";
 import { CrawlerController } from "./crawler.controller";
 import { CrawlerScheduler } from "./crawler.scheduler";
 import { CrawlerService } from "./crawler.service";
 import { EnrichmentService } from "./enrichment.service";
 import { ImportService } from "./import.service";
+import { PriceIntelligenceService } from "./price-intelligence.service";
 import { ProductDiscoveryService } from "./product-discovery.service";
 
 @Module({
@@ -31,6 +33,8 @@ import { ProductDiscoveryService } from "./product-discovery.service";
     WebScrapeClient,
     EnrichmentService,
     ImportService,
+    ClassificationService,
+    PriceIntelligenceService,
     ProductDiscoveryService,
     CampaignSyncService,
     CouponSyncService,
@@ -47,7 +51,8 @@ import { ProductDiscoveryService } from "./product-discovery.service";
     TopProductsSyncService,
     AccesstradeClient,
     SyncStatusService,
-    CrawlerService
+    CrawlerService,
+    PriceIntelligenceService
   ]
 })
 export class CrawlerModule {}

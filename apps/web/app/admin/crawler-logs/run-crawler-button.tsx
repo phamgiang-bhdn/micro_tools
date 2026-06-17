@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import { Loader2, Play, AlertTriangle, X } from "lucide-react";
 import { AdminButton } from "../../../components/admin/ui";
 import {
@@ -190,12 +191,12 @@ function ResultPanel({
 
         {result.created > 0 || result.updated > 0 ? (
           <div className="mt-3 flex justify-end">
-            <a
+            <Link
               href="/admin/products?page=1"
               className="text-[12px] font-medium text-admin-accent hover:underline"
             >
               → Xem sản phẩm vừa thêm
-            </a>
+            </Link>
           </div>
         ) : null}
       </div>

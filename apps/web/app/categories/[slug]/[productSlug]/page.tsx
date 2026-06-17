@@ -1,7 +1,7 @@
 import type React from "react";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { fetchNicheBySlug } from "../../../../lib/api";
+import { fetchNicheBySlug, fetchPriceHistory } from "../../../../lib/api";
 import { formatMoney, normalizeProduct } from "../../../../lib/format";
 import { slugify } from "../../../../lib/slug";
 import { ProductDetailView } from "../../../../components/product-detail-view";
@@ -56,6 +56,8 @@ export default async function ProductDetailPage({ params }: ProductPageProps): P
     notFound();
   }
 
+  const priceHistory = await fetchPriceHistory(productRaw.id);
+
   // Sản phẩm liên quan cùng niche (top 6 theo discount), loại bỏ chính nó
   const related = niche.products
     .filter((p) => p.id !== productRaw.id)
@@ -68,6 +70,7 @@ export default async function ProductDetailPage({ params }: ProductPageProps): P
       <ProductDetailView
         productRaw={productRaw}
         niche={{ name: niche.name, slug: niche.slug }}
+        priceHistory={priceHistory}
         related={related.map(({ raw, view }) => ({
           id: raw.id,
           slug: raw.slug ?? null,

@@ -57,7 +57,7 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: { children: React.ReactNode }): React.ReactElement {
   return (
     <html lang="vi">
-      <body className={`${display.className} min-h-screen bg-canvas text-ink antialiased pb-16 lg:pb-0`}>
+      <body className={`${display.className} min-h-screen bg-canvas text-ink subpixel-antialiased pb-16 lg:pb-0`}>
         <Suspense fallback={<div className="h-16 border-b border-line bg-card/80" />}>
           <Navbar />
         </Suspense>

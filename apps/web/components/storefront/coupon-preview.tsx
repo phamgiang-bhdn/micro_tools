@@ -31,7 +31,7 @@ export function CouponPreview({ coupons }: Props): React.ReactElement | null {
           <Link
             key={c.id}
             href={merchantSlug ? `/khuyen-mai/${merchantSlug}` : "/khuyen-mai"}
-            className="group flex flex-col gap-2.5 rounded-2xl border border-line bg-card p-4 shadow-card transition hover:-translate-y-0.5 hover:border-primary-300 hover:shadow-pop"
+            className="group flex flex-col gap-2.5 rounded-2xl bg-surface p-4 ring-1 ring-border transition hover:ring-primary-300 hover:shadow-card-md"
           >
             <div className="flex items-center justify-between gap-2">
               <div className="flex min-w-0 items-center gap-2">

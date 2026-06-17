@@ -36,7 +36,7 @@ export function AffiliateCta({
   const variantClasses =
     variant === "ghost"
       ? "border border-line bg-card text-ink-soft hover:border-primary-300 hover:text-primary-700"
-      : "bg-brand-gradient text-white shadow-glow-sm hover:shadow-glow";
+      : "bg-cta-500 text-ink hover:bg-cta-400";
 
   return (
     <form action={buy} className="inline-flex">

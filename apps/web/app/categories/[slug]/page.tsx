@@ -150,7 +150,7 @@ export default async function NicheDetailPage({
   return (
     <div>
       {activeTool && (
-        <section className="border-b border-line bg-brand-gradient">
+        <section className="border-b border-line bg-primary-600">
           <PageContainer className="py-4 sm:py-5">
             <Link
               href={`/ai/${activeTool.slug}`}
@@ -175,9 +175,8 @@ export default async function NicheDetailPage({
         </section>
       )}
 
-      <section className="relative overflow-hidden border-b border-line bg-canvas">
-        <div aria-hidden className="absolute inset-0 bg-hero-mesh opacity-70" />
-        <PageContainer className="relative py-8 sm:py-10">
+      <section className="border-b border-line bg-canvas">
+        <PageContainer className="py-8 sm:py-10">
           <Breadcrumb items={[{ label: "Trang chủ", href: "/" }, { label: niche.name }]} />
           <div className="mt-4 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
             <div className="max-w-2xl space-y-3">

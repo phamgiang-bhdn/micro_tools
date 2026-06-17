@@ -518,6 +518,19 @@ export async function updateNicheAction(formData: FormData): Promise<void> {
       throw new Error("schemaConfig phải là JSON hợp lệ.");
     }
   }
+  if (formData.has("keywords")) {
+    // V4: textarea → mảng keyword (tách theo xuống dòng / dấu phẩy), bỏ rỗng + trùng, cap 100.
+    const raw = String(formData.get("keywords") ?? "");
+    const list = Array.from(
+      new Set(
+        raw
+          .split(/[\n,]/)
+          .map((s) => s.trim())
+          .filter(Boolean)
+      )
+    ).slice(0, 100);
+    body.keywords = list;
+  }
   await adminFetch(`/admin/niches/${id}`, "PUT", body);
   revalidatePath("/admin/niches");
 }
