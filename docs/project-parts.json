@@ -1,0 +1,29 @@
+{
+  "repository_type": "monorepo",
+  "scanned_at": "2026-06-17",
+  "scan_level": "deep",
+  "parts": [
+    {
+      "part_id": "api",
+      "display_name": "Backend API",
+      "project_type_id": "backend",
+      "root_path": "apps/api",
+      "primary_tech": "NestJS 10 + Prisma + PostgreSQL 16",
+      "entry_point": "src/main.ts",
+      "architecture_doc": "architecture-api.md"
+    },
+    {
+      "part_id": "web",
+      "display_name": "Storefront + Admin",
+      "project_type_id": "web",
+      "root_path": "apps/web",
+      "primary_tech": "Next.js 15 (App Router, RSC) + React 19 + Tailwind",
+      "entry_point": "app/layout.tsx",
+      "architecture_doc": "architecture-web.md"
+    }
+  ],
+  "integration_points": [
+    { "from": "web", "to": "api", "type": "HTTP REST", "details": "lib/api.ts + server actions; admin via x-admin-role/x-admin-key headers" },
+    { "from": "accesstrade", "to": "api", "type": "REST pull + webhook", "details": "datafeeds/campaigns/top_products/coupon/order-list pull; POST /webhooks/accesstrade postback" }
+  ]
+}

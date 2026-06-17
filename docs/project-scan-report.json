@@ -1,0 +1,45 @@
+{
+  "workflow_version": "1.2.0",
+  "timestamps": { "started": "2026-06-17", "last_updated": "2026-06-17", "completed": "2026-06-17" },
+  "mode": "initial_scan",
+  "scan_level": "deep",
+  "project_root": "c:/Users/phgss/Desktop/micro_tools",
+  "project_knowledge": "docs",
+  "repository_type": "monorepo",
+  "project_types": [
+    { "part_id": "api", "project_type_id": "backend", "display_name": "Backend API" },
+    { "part_id": "web", "project_type_id": "web", "display_name": "Storefront + Admin" }
+  ],
+  "completed_steps": [
+    { "step": "step_1", "status": "completed", "timestamp": "2026-06-17", "summary": "Classified as monorepo with 2 parts (api=backend, web=web)" },
+    { "step": "step_2", "status": "completed", "timestamp": "2026-06-17", "summary": "Existing docs: CONTEXT.md, integrations/accesstrade.md, README, CLAUDE.md x3" },
+    { "step": "step_3", "status": "completed", "timestamp": "2026-06-17", "summary": "Tech: NestJS/Prisma/Postgres (api), Next.js 15/React 19 (web)" },
+    { "step": "step_4", "status": "completed", "timestamp": "2026-06-17", "summary": "Data models documented from schema.prisma; api-contracts + component-inventory deferred" },
+    { "step": "step_5", "status": "completed", "timestamp": "2026-06-17", "summary": "source-tree-analysis.md written" },
+    { "step": "step_6", "status": "completed", "timestamp": "2026-06-17", "summary": "development-guide.md written" },
+    { "step": "step_7", "status": "completed", "timestamp": "2026-06-17", "summary": "integration-architecture.md written" },
+    { "step": "step_8", "status": "completed", "timestamp": "2026-06-17", "summary": "architecture-api.md + architecture-web.md written" },
+    { "step": "step_9", "status": "completed", "timestamp": "2026-06-17", "summary": "project-overview.md + project-parts.json written" },
+    { "step": "step_10", "status": "completed", "timestamp": "2026-06-17", "summary": "index.md master index written" },
+    { "step": "step_11", "status": "completed", "timestamp": "2026-06-17", "summary": "Deferred: api-contracts.md, component-inventory-web.md (marked To be generated)" },
+    { "step": "step_12", "status": "completed", "timestamp": "2026-06-17", "summary": "Workflow complete" }
+  ],
+  "current_step": "completed",
+  "outputs_generated": [
+    "project-scan-report.json",
+    "project-parts.json",
+    "project-overview.md",
+    "architecture-api.md",
+    "architecture-web.md",
+    "data-models.md",
+    "source-tree-analysis.md",
+    "integration-architecture.md",
+    "development-guide.md",
+    "index.md"
+  ],
+  "incomplete_docs": [
+    { "title": "API Contracts", "file_path": "./api-contracts.md", "doc_type": "api-contracts", "part_id": "api" },
+    { "title": "Component Inventory - web", "file_path": "./component-inventory-web.md", "doc_type": "component-inventory", "part_id": "web" }
+  ],
+  "notes": "Generated under classifier outage (Bash exec blocked); produced via read/write tools using existing CLAUDE.md + schema + structural scan. Deep file-by-file read of every module deferred."
+}
