@@ -48,7 +48,7 @@ _Crawl • Extract • Compare • Track — mỗi micro-tool một ngách, càn
 > **Mỗi micro-tool = 1 ngách = 1 trang so sánh chuyên sâu.**
 > Càng chuyên, traffic càng đúng intent → conversion càng cao.
 
-Hệ thống tự crawl offer từ Accesstrade (Shopee / Lazada / Tiki / TikTok Shop... qua publisher account), dùng LLM để bóc các trường dữ liệu theo schema riêng của từng ngách, **bắt buộc qua duyệt thủ công (human-in-the-loop)** trước khi xuất bản. Mọi cú click ra link đối tác đều có `trackingCode` 32 ký tự duy nhất → đối soát qua webhook conversion + reconciler `/order-list` chạy mỗi 30 phút.
+Hệ thống tự crawl offer từ Accesstrade (Shopee / Lazada / Tiki / TikTok Shop... qua publisher account), dùng LLM để bóc các trường dữ liệu theo schema riêng của từng ngách, **bắt buộc qua duyệt thủ công (human-in-the-loop)** trước khi xuất bản. Lớp **AI deal-intelligence** (giá real-time + tool tư vấn tương tác) là moat. Mọi cú click ra link đối tác đều có `trackingCode` 32 ký tự duy nhất → đối soát qua webhook conversion + reconciler `/order-list` chạy mỗi 30 phút.
 
 > 📖 Đọc [`docs/CONTEXT.md`](docs/CONTEXT.md) để hiểu strategy, business context và lý do tồn tại của HITL gate.
 
@@ -73,7 +73,7 @@ Hệ thống tự crawl offer từ Accesstrade (Shopee / Lazada / Tiki / TikTok 
 | --- | --- |
 | 🤖 **AI extract pipeline** | Gemini bóc HTML/text → JSON theo `schemaConfig` từng ngách. Retry-on-rate-limit built-in (3 lần, backoff 15s/30s/45s). |
 | 👀 **Refinery** | Mọi kết quả AI mặc định `PENDING_REVIEW` — phải duyệt mới sang `PUBLISHED`. Không có path nào bypass. |
-| 📰 **Article V2 pipeline** | Multi-stage AI generation (research → outline → draft → polish) với live progress streaming lên UI. Trạng thái `DRAFT → PUBLISHED → ARCHIVED`. |
+| 📰 **Article pipeline** | Multi-stage AI generation (research → outline → draft → polish) với live progress streaming lên UI. Trạng thái `DRAFT → PUBLISHED → ARCHIVED`. |
 | 🧪 **Prompt Studio** | Versioned `PromptTemplate` trong DB; bật/tắt nhanh, rollback, test sandbox. |
 | 💰 **Money Trail** | Đối soát click → conversion webhook → reconciler `/order-list` → doanh thu thật. Mismatch tự ghi `reconcileNotes` cho admin xử lý. |
 | 📈 **War Room** | KPI realtime: revenue tháng, conversion rate, token budget, crawler health, cron status. |
@@ -107,7 +107,7 @@ Hệ thống tự crawl offer từ Accesstrade (Shopee / Lazada / Tiki / TikTok 
        │  │             → CouponSync, TopProductsSync  │  │
        │  │ AI          → parseBySchema, generateJson  │  │
        │  │ Refinery    → HITL gate cho Product        │  │
-       │  │ Articles    → HITL gate cho Blog (V2)      │  │
+       │  │ Articles    → HITL gate cho Blog          │  │
        │  │ Reconcile   → /order-list ground-truth     │  │
        │  │ Tracking    → /tracking/click → ClickLog   │  │
        │  │ Webhooks    → /webhooks/conversion         │  │
@@ -150,7 +150,7 @@ Hệ thống tự crawl offer từ Accesstrade (Shopee / Lazada / Tiki / TikTok 
 | **Backend** | NestJS 10 · TypeScript 5 · class-validator · zod (admin endpoints) · Prisma ORM |
 | **Database** | PostgreSQL 16 (JSONB cho `scrapedData`, `aiOutput`, `schemaConfig`, `filterRules`, `atRawData`) |
 | **AI** | Google Gemini API (default `gemini-2.0-flash`) · OpenAI-compatible provider (Deepseek…) |
-| **Affiliate** | Accesstrade (active) · Shopee / Lazada / TikTok Shop clients (stub, env-gated) · Web-scrape fallback (Playwright + Gemini) |
+| **Affiliate** | Accesstrade (active network) · Web-scrape fallback (Playwright + Gemini) for arbitrary URLs |
 | **Infra** | Docker Compose · pgAdmin · npm workspaces · Cron-based schedulers (NestJS `@nestjs/schedule`) |
 
 ---
@@ -162,14 +162,14 @@ micro_tools/
 ├── apps/
 │   ├── api/                              # NestJS backend (port 4000)
 │   │   ├── prisma/
-│   │   │   ├── schema.prisma             # Niche, Product, Article, Campaign, Coupon, ClickLog…
-│   │   │   ├── migrations/
-│   │   │   └── seed.js                   # 12 niches + system PromptTemplates (KHÔNG seed product)
+│   │   │   ├── schema.prisma             # Niche, Product, Article, Campaign, Coupon, Tool, ClickLog…
+│   │   │   ├── migrations/               # Single baseline migration (pre-release squash)
+│   │   │   └── seed.js                   # ~100 niches (1 launch-active) + system PromptTemplates (KHÔNG seed product)
 │   │   └── src/
 │   │       ├── main.ts                   # bootstrap, prefix /api/v1, global ValidationPipe
 │   │       ├── modules/
 │   │       │   ├── admin/                # Refinery, Prompt Studio, Money Trail, War Room
-│   │       │   ├── article-pipeline/     # Article V2 multi-stage generation + streaming
+│   │       │   ├── article-pipeline/     # Article multi-stage generation + streaming
 │   │       │   ├── articles/             # Public GET /articles, /articles/:slug
 │   │       │   ├── coupons/              # Public GET /coupons
 │   │       │   ├── crawler/              # AT clients, CampaignSync, CouponSync, TopProductsSync
@@ -204,10 +204,8 @@ micro_tools/
 │           └── types.ts                  # NicheItem, ProductItem, ProductView
 │
 ├── docs/
-│   ├── CONTEXT.md                        # Business context + lý do HITL
-│   ├── ARTICLE_V2.md                     # Article V2 pipeline design
-│   ├── integrations/accesstrade.md       # AT API reference + gotchas
-│   └── sprints/                          # Sprint logs (at-source-of-truth…)
+│   ├── CONTEXT.md                        # Business context + product direction + lý do HITL
+│   └── integrations/accesstrade.md       # AT API reference + gotchas
 ├── scripts/                              # Banner-coloured CLI helpers
 ├── docker-compose.yml                    # Postgres 16 + pgAdmin
 └── package.json                          # Workspaces (apps/web + apps/api)
@@ -238,7 +236,7 @@ npm run bootstrap
 1. ✅ Copy `apps/api/.env.example` → `.env` và `apps/web/.env.example` → `.env` (nếu chưa có)
 2. ✅ `docker compose up -d` — Postgres 16 + pgAdmin
 3. ✅ `prisma migrate deploy` — áp toàn bộ migration
-4. ✅ Seed **12 niches** + system `PromptTemplate` (KHÔNG seed product — product đến từ crawler)
+4. ✅ Seed **~100 niches** (chỉ niche launch là `ACTIVE`) + system `PromptTemplate` + sample Tool + authors (KHÔNG seed product — product đến từ crawler)
 
 ### Chạy dev
 
@@ -262,7 +260,7 @@ Script `scripts/dev.mjs` tự kiểm tra deps + env, khởi động Docker nếu
 
 ### Có dữ liệu thật
 
-Storefront vừa cài xong sẽ trống (chỉ có 12 niche, không có product). Để có data:
+Storefront vừa cài xong sẽ trống (chỉ có niche launch active, không có product). Để có data:
 
 1. Vào `/admin/campaigns` → bấm **"Sync from Accesstrade"** (cần `ACCESSTRADE_ACCESS_TOKEN` trong `apps/api/.env`).
 2. Gán campaign vào Niche, set `filterRules` (price range / min discount).
@@ -309,9 +307,9 @@ Hai file `.env` riêng (`apps/api/.env` và `apps/web/.env`) — đều có `.en
 | `GEMINI_MODEL` | Default `gemini-2.0-flash` | — |
 | `AI_BASE_URL` / `AI_API_KEY` / `AI_MODEL` | Khi `AI_PROVIDER=openai-compatible` (vd Deepseek) | — |
 | `ACCESSTRADE_ACCESS_TOKEN` | Token AT publisher | ✅ (cho crawl) |
-| `TAVILY_API_KEY` | Search API cho Article V2 research stage | — |
+| `TAVILY_API_KEY` | Search API cho Article research stage | — |
 | `UNSPLASH_ACCESS_KEY` | Hero image cho blog | — |
-| `CRAWLER_ENABLED` / `CRAWLER_CRON` / `CRAWLER_ENABLED_NETWORKS` | Crawler-cycle controls | — |
+| `CRAWLER_ENABLED` / `CRAWLER_CRON` / `CRAWLER_AI_ENRICH` | Crawler-cycle controls (per-campaign discount threshold lives in `Campaign.filterRules`, not env) | — |
 | `COUPON_SYNC_ENABLED` / `COUPON_SYNC_CRON` | `/v1/offers_informations/coupon` poller | — |
 | `TOP_PRODUCTS_ENABLED` / `TOP_PRODUCTS_CRON` | `/v1/top_products` daily snapshot | — |
 | `RECONCILE_ENABLED` / `RECONCILE_CRON` | `/v1/order-list` ground-truth poller | — |
@@ -363,7 +361,7 @@ Article          (id, slug 🔑, type: BUYING_GUIDE|REVIEW,
                    aiModel, ...)
  ├─ ArticleSection
  ├─ ArticleEvidence
- └─ ArticleGenerationRun  (multi-stage progress cho Article V2)
+ └─ ArticleGenerationRun  (multi-stage progress cho Article)
 Author           (id, name, ...)
 
 // Hệ thống
@@ -437,7 +435,7 @@ Admin /admin (Refinery tab)
 [C] War Room dashboard: monthly revenue, conversion rate, source breakdown
 ```
 
-### 6️⃣ Article V2 (multi-stage AI authoring)
+### 6️⃣ Article (multi-stage AI authoring)
 
 ```
 Admin /admin/articles/new (chọn topic, niche, productIds)
@@ -461,7 +459,7 @@ Tất cả nằm dưới `/admin` (header-auth bằng `x-admin-role` + `x-admin-
 | Trang | Vai trò tối thiểu | Chức năng |
 | --- | --- | --- |
 | `/admin` (Refinery) | `reviewer` | Duyệt `ProductExtraction` từ `PENDING_REVIEW` → `PUBLISHED` |
-| `/admin/articles` | `reviewer` | Quản lý blog AI, Article V2 pipeline, publish/archive |
+| `/admin/articles` | `reviewer` | Quản lý blog AI, Article pipeline, publish/archive |
 | `/admin/campaigns` | `admin` | Sync campaign từ AT, gán Niche, tinh chỉnh `filterRules` |
 | `/admin/niches` | `admin` | Tạo / chỉnh `schemaConfig` cho từng ngách |
 | `/admin/products` | `reviewer` | List + edit product đã published |
@@ -566,7 +564,7 @@ node -r dotenv/config prisma/seed.js
 
 ## 🗺 Roadmap
 
-- [x] Article V2 multi-stage pipeline với live UI progress streaming
+- [x] Article multi-stage pipeline với live UI progress streaming
 - [x] Reconciliation `/order-list` ground-truth
 - [x] Coupon sync per merchant + sanitize HTML gate
 - [x] Top products daily snapshot

@@ -3,20 +3,20 @@ const { PrismaClient } = require("@prisma/client");
 const prisma = new PrismaClient();
 
 /**
- * Seed v3 — Niche + Tool (AI-visible refactor 2026-05-26).
+ * Seed — Niche + system PromptTemplates + sample Tool + Authors.
  *
- * Sản phẩm hoàn toàn đến từ crawler Accesstrade (sprint at-source-of-truth).
- * Seed này tạo:
- *   1. 100 Niche làm presentation layer — admin onboard campaign vào Niche.
- *   2. **Chỉ ACTIVE_NICHE_SLUGS được set status=ACTIVE** (Epic 1.2 launch-1-niche).
- *      Còn lại set INACTIVE (giữ data, ẩn khỏi storefront).
- *   3. PromptTemplate hệ thống (default-parser + article-buying-guide + article-review + tool.parseUserInput + tool.generateReasoning).
- *   4. 1 sample Tool DRAFT cho `may-loc-nuoc` (admin publish thủ công khi sẵn sàng).
- *   5. Dọn legacy product IDs từ seed v1 (hardcoded a1000001-* / b2000001-*).
+ * Products come exclusively from the Accesstrade crawler. This seed creates:
+ *   1. ~100 Niche presentation rows — admins onboard campaigns into a Niche.
+ *   2. **Only ACTIVE_NICHE_SLUGS are set status=ACTIVE** (launch one niche at a time).
+ *      The rest are INACTIVE (data kept, hidden from the storefront).
+ *   3. System PromptTemplates (default-parser + article-buying-guide + article-review
+ *      + tool.parseUserInput + tool.generateReasoning + phrase-blacklist + writer exemplars).
+ *   4. One sample Tool (DRAFT) for the launch niche (admin publishes manually when ready).
+ *   5. Default Authors with distinct voice profiles for AI article authoring.
  *
- * KHÔNG seed Product / ClickLog / ConversionWebhook / QuizSession. Data đó phát sinh tự nhiên.
+ * Does NOT seed Product / ClickLog / ConversionWebhook / QuizSession — those arise naturally.
  *
- * ENV override để bật niche khác: `LAUNCH_NICHE_SLUG=may-loc-khong-khi npm run prisma:seed --workspace api`
+ * ENV override to launch a different niche: `LAUNCH_NICHE_SLUG=may-loc-khong-khi npm run prisma:seed --workspace api`
  */
 
 /** Default launch niche slug — đổi env LAUNCH_NICHE_SLUG hoặc edit dưới đây. */
@@ -103,8 +103,8 @@ const NICHES = [
     slug: "may-loc-nuoc",
     name: "Máy lọc nước",
     /**
-     * Schema extended cho Tool module (AI-visible refactor).
-     * - Original spec fields: filterStages, capacityLph, filterType, waterTankL, hotColdFunction, smartControl
+     * Schema includes the Tool-module fields used by the sample quiz tool.
+     * - Spec fields: filterStages, capacityLph, filterType, waterTankL, hotColdFunction, smartControl
      * - Tool-required fields (matchType paths trong tool.scoringRules):
      *   - priceVnd: số tiền VND (cho budget_max LTE rule)
      *   - recommendedHouseholdSize: "1-2" | "3-4" | "5+" hoặc range "2-5" (cho household_size range_overlap)
@@ -218,44 +218,6 @@ const NICHE_KEYWORDS = {
   "tai-nghe-tws": ["tai nghe true wireless", "tai nghe bluetooth", "earbuds", "tws"]
 };
 
-/**
- * Xoá sạch các Product hardcoded từ seed v1 (cùng ClickLog + ConversionWebhook cascade).
- * Match theo id list cố định — UUID column không filter được bằng startsWith,
- * và idempotent (chạy nhiều lần OK vì delete không-tồn-tại sẽ chỉ trả count=0).
- */
-const LEGACY_SEEDED_PRODUCT_IDS = [
-  "a1000001-0000-0000-0000-000000000001",
-  "a1000001-0000-0000-0000-000000000002",
-  "a1000001-0000-0000-0000-000000000003",
-  "a1000001-0000-0000-0000-000000000004",
-  "b2000001-0000-0000-0000-000000000001",
-  "b2000001-0000-0000-0000-000000000002",
-  "b2000001-0000-0000-0000-000000000003",
-  "b2000001-0000-0000-0000-000000000004"
-];
-
-async function purgeLegacySeededProducts() {
-  const legacy = await prisma.product.findMany({
-    where: { id: { in: LEGACY_SEEDED_PRODUCT_IDS } },
-    select: { id: true }
-  });
-  if (legacy.length === 0) return;
-  const legacyIds = legacy.map((p) => p.id);
-
-  const clickLogs = await prisma.clickLog.findMany({
-    where: { productId: { in: legacyIds } },
-    select: { trackingCode: true }
-  });
-  const trackingCodes = clickLogs.map((c) => c.trackingCode);
-  if (trackingCodes.length > 0) {
-    await prisma.conversionWebhook.deleteMany({
-      where: { trackingCode: { in: trackingCodes } }
-    });
-  }
-  const result = await prisma.product.deleteMany({ where: { id: { in: legacyIds } } });
-  console.log(`[seed] Purged ${result.count} legacy seeded product(s).`);
-}
-
 async function cleanupRemovedNiches(keepSlugs) {
   const stale = await prisma.niche.findMany({
     where: { slug: { notIn: keepSlugs } },
@@ -286,7 +248,7 @@ async function cleanupRemovedNiches(keepSlugs) {
   );
 }
 
-// at-money-flows-v1 STORY-02: ensure LastSyncStatus có đủ 6 row sau db:reset.
+// Ensure LastSyncStatus has all 6 rows after db:reset.
 const LAST_SYNC_SEED = [
   { name: "crawler", expectedFrequencySec: 21600 },
   { name: "reconcile", expectedFrequencySec: 1800 },
@@ -308,7 +270,6 @@ async function seedLastSyncStatus() {
 }
 
 async function main() {
-  await purgeLegacySeededProducts();
   await cleanupRemovedNiches(NICHES.map((c) => c.slug));
   await seedLastSyncStatus();
 
@@ -507,9 +468,9 @@ async function main() {
     }
   });
 
-  // ─── Article V2: phrase blacklist (Critic Agent loadable, 1 phrase per line) ───
+  // ─── Phrase blacklist (Critic-loadable, 1 phrase per line) ───
   const blacklistContent = [
-    "# Article V2 — phrase blacklist (Critic check). 1 phrase per line. Lines starting with # are comments.",
+    "# Phrase blacklist (Critic check). 1 phrase per line. Lines starting with # are comments.",
     "trong thời đại công nghệ 4.0",
     "không thể phủ nhận",
     "không thể phủ nhận rằng",
@@ -609,7 +570,7 @@ Redmi Turbo 5 là lựa chọn đáng cân nhắc nhất tầm 8 triệu đồng
   }
   console.log(`[seed] Upserted ${EXEMPLARS.length} writer exemplar(s).`);
 
-  // ─── Article V2: default authors với voiceProfile khác nhau ───
+  // ─── Default authors với voiceProfile khác nhau ───
   const authors = [
     {
       slug: "minh-anh",
@@ -696,7 +657,7 @@ Redmi Turbo 5 là lựa chọn đáng cân nhắc nhất tầm 8 triệu đồng
 }
 
 // ============================================================
-// TOOL MODULE seed (AI-visible refactor 2026-05-26)
+// TOOL MODULE seed
 // ============================================================
 
 async function seedToolPromptTemplates() {
