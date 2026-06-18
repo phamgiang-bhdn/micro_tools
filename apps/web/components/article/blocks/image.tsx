@@ -71,7 +71,7 @@ export function ImageBlock({
       </button>
 
       {(caption || attribution) ? (
-        <figcaption className="mt-2.5 text-center text-[12.5px] italic leading-relaxed text-ink-mute">
+        <figcaption className="mt-2.5 text-center text-caption italic leading-relaxed text-ink-mute">
           {caption}
           {caption && attribution ? <span className="mx-1.5 not-italic">·</span> : null}
           {attribution ? (
@@ -117,7 +117,7 @@ export function ImageBlock({
             onClick={(e) => e.stopPropagation()}
           />
           {caption ? (
-            <p className="absolute bottom-6 left-1/2 max-w-[90vw] -translate-x-1/2 rounded-md bg-black/60 px-4 py-2 text-center text-[13px] italic text-white/90 backdrop-blur-sm">
+            <p className="absolute bottom-6 left-1/2 max-w-[90vw] -translate-x-1/2 rounded-md bg-black/60 px-4 py-2 text-center text-body-sm italic text-white/90 backdrop-blur-sm">
               {caption}
             </p>
           ) : null}

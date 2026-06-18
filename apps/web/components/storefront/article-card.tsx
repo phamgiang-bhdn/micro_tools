@@ -13,7 +13,7 @@ const dateFmt = new Intl.DateTimeFormat("vi-VN", {
 function ArticleMeta({ article }: { article: ArticleSummary }): React.ReactElement {
   const dateStr = article.publishedAt ? dateFmt.format(new Date(article.publishedAt)) : "";
   return (
-    <div className="flex flex-wrap items-center gap-2 text-[11px] font-medium uppercase tracking-wider text-ink-mute">
+    <div className="flex flex-wrap items-center gap-2 text-micro font-medium uppercase tracking-wider text-ink-mute">
       {article.niche ? <span>{article.niche.name}</span> : null}
       {article.niche && dateStr ? <span aria-hidden>·</span> : null}
       {dateStr ? <span>{dateStr}</span> : null}
@@ -36,7 +36,7 @@ function ArticleVisualOverlay({
           {visual.icon}
         </span>
         {size === "lg" ? (
-          <p className="mt-3 text-[11px] font-semibold uppercase tracking-[0.2em] text-white">{visual.label}</p>
+          <p className="mt-3 text-micro font-semibold uppercase tracking-[0.2em] text-white">{visual.label}</p>
         ) : null}
       </div>
     </div>
@@ -48,7 +48,7 @@ export function FeaturedArticleCard({ article }: { article: ArticleSummary }): R
   return (
     <Link
       href={`/blog/${article.slug}`}
-      className="group grid overflow-hidden rounded-3xl bg-surface ring-1 ring-border transition hover:shadow-card-md md:grid-cols-5"
+      className="group grid overflow-hidden rounded-3xl border border-border bg-surface shadow-card transition hover:border-primary-300 hover:shadow-card-md md:grid-cols-5"
     >
       <div className="relative aspect-[5/3] overflow-hidden md:col-span-2 md:aspect-auto">
         {article.coverImage ? (
@@ -66,11 +66,11 @@ export function FeaturedArticleCard({ article }: { article: ArticleSummary }): R
         ) : (
           <ArticleVisualOverlay visual={visual} size="lg" />
         )}
-        <span className="absolute left-4 top-4 inline-flex items-center gap-1.5 rounded-full bg-white/95 px-3 py-1 text-[10px] font-semibold uppercase tracking-wider text-ink shadow-sm">
+        <span className="absolute left-4 top-4 inline-flex items-center gap-1.5 rounded-full bg-white/95 px-3 py-1 text-micro font-semibold uppercase tracking-wider text-ink shadow-sm">
           <span aria-hidden>{visual.icon}</span>
           {visual.label}
         </span>
-        <span className="absolute right-4 top-4 rounded-full bg-ink/85 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-white backdrop-blur">
+        <span className="absolute right-4 top-4 rounded-full bg-ink/85 px-2.5 py-1 text-micro font-bold uppercase tracking-wider text-white backdrop-blur">
           Bài nổi bật
         </span>
       </div>
@@ -81,7 +81,7 @@ export function FeaturedArticleCard({ article }: { article: ArticleSummary }): R
           {article.title}
         </h2>
         {article.excerpt ? (
-          <p className="mt-3 line-clamp-3 text-[15px] leading-7 text-ink-soft">{article.excerpt}</p>
+          <p className="mt-3 line-clamp-3 text-body leading-7 text-ink-soft">{article.excerpt}</p>
         ) : null}
         <span className="mt-5 inline-flex items-center gap-1 text-sm font-semibold text-primary-700 transition-all group-hover:gap-2">
           Đọc bài đầy đủ <Icon name="arrow-right" size="sm" />
@@ -96,7 +96,7 @@ export function ArticleCard({ article }: { article: ArticleSummary }): React.Rea
   return (
     <Link
       href={`/blog/${article.slug}`}
-      className="group flex flex-col overflow-hidden rounded-2xl bg-surface ring-1 ring-border transition hover:ring-primary-300 hover:shadow-card-md"
+      className="group flex flex-col overflow-hidden rounded-2xl border border-border bg-surface shadow-card transition hover:-translate-y-0.5 hover:border-primary-300 hover:shadow-card-md"
     >
       <div className="relative aspect-[16/10] overflow-hidden">
         {article.coverImage ? (
@@ -114,7 +114,7 @@ export function ArticleCard({ article }: { article: ArticleSummary }): React.Rea
         ) : (
           <ArticleVisualOverlay visual={visual} size="md" />
         )}
-        <span className="absolute left-3 top-3 inline-flex items-center gap-1.5 rounded-full bg-white/95 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-ink shadow-sm">
+        <span className="absolute left-3 top-3 inline-flex items-center gap-1.5 rounded-full bg-white/95 px-2.5 py-1 text-micro font-semibold uppercase tracking-wider text-ink shadow-sm">
           <span aria-hidden>{visual.icon}</span>
           {visual.label}
         </span>
@@ -130,7 +130,7 @@ export function ArticleCard({ article }: { article: ArticleSummary }): React.Rea
         ) : null}
         <div className="mt-auto flex items-center justify-between pt-4 text-xs">
           <span className="inline-flex items-center gap-1.5 text-ink-mute">
-            <span className="grid size-5 place-items-center rounded-full bg-gradient-to-br from-primary-500 to-primary-700 text-[9px] font-bold text-white">
+            <span className="grid size-5 place-items-center rounded-full bg-gradient-to-br from-primary-500 to-primary-700 text-micro font-bold text-white">
               d
             </span>
             dealvault Team

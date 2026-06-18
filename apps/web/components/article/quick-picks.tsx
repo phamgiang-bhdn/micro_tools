@@ -1,4 +1,5 @@
 import type React from "react";
+import { Star } from "lucide-react";
 import { formatMoney, normalizeProduct } from "../../lib/format";
 import type { ProductItem, ProductView } from "../../lib/types";
 import { AffiliateCta } from "./affiliate-cta";
@@ -41,7 +42,7 @@ export function QuickPicks({ products: raw }: Props): React.ReactElement | null 
   return (
     <aside className="not-prose my-8 rounded-3xl border border-line bg-card p-5 shadow-card sm:p-7">
       <div className="mb-5">
-        <p className="text-[11px] font-semibold uppercase tracking-wider text-primary-700">Quick Picks</p>
+        <p className="text-micro font-semibold uppercase tracking-wider text-primary-700">Quick Picks</p>
         <h2 className="mt-1 text-xl font-bold tracking-tight text-ink sm:text-2xl">
           {tiered ? "Top lựa chọn theo phân khúc" : "Gợi ý nhanh"}
         </h2>
@@ -78,10 +79,10 @@ function PickCard({ pick }: PickProps): React.ReactElement {
     <div className="flex flex-col gap-3 rounded-2xl border border-line bg-canvas p-4 transition hover:border-primary-200 hover:bg-card">
       {tier ? (
         <div>
-          <span className={`inline-flex rounded-full px-2.5 py-0.5 text-[11px] font-semibold ring-1 ring-inset ${tierColor}`}>
+          <span className={`inline-flex rounded-full px-2.5 py-0.5 text-micro font-semibold ring-1 ring-inset ${tierColor}`}>
             {tier}
           </span>
-          {subtitle ? <p className="mt-1 text-[11px] text-ink-mute">{subtitle}</p> : null}
+          {subtitle ? <p className="mt-1 text-micro text-ink-mute">{subtitle}</p> : null}
         </div>
       ) : null}
 
@@ -91,14 +92,14 @@ function PickCard({ pick }: PickProps): React.ReactElement {
           <img src={view.image} alt={view.name} className="aspect-[4/3] w-full object-cover" loading="lazy" />
         ) : (
           <div className="grid aspect-[4/3] w-full place-items-center bg-gradient-to-br from-primary-50 to-accent-50 text-3xl font-bold text-primary-700">
-            {view.brand?.[0] ?? "★"}
+            {view.brand?.[0] ?? <Star className="size-7 fill-current" aria-hidden />}
           </div>
         )}
       </div>
 
       <div className="flex-1 space-y-1">
         {view.brand ? (
-          <p className="text-[10px] font-semibold uppercase tracking-wider text-ink-mute">{view.brand}</p>
+          <p className="text-micro font-semibold uppercase tracking-wider text-ink-mute">{view.brand}</p>
         ) : null}
         <p className="line-clamp-2 min-h-[2.6em] text-sm font-semibold text-ink">{view.name}</p>
       </div>

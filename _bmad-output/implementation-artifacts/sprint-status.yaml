@@ -23,7 +23,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, ideally different LLM)
 
 generated: 2026-06-18
-last_updated: 2026-06-18T2
+last_updated: 2026-06-18T4
 project: micro tool
 project_key: DEALVAULT
 tracking_system: file-system
@@ -37,3 +37,7 @@ development_status:
   1-3-buy-button-safe-redirect: review
   1-4-distinguish-empty-vs-error: review
   epic-1-retrospective: done
+  # Epic 2 — Design system polish (storefront trust-blue + AI-glow). Concern riêng, độc lập epic-1.
+  epic-2: in-progress
+  2-1-design-system-trust-polish: review
+  epic-2-retrospective: optional

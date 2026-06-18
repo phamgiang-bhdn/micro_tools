@@ -51,12 +51,12 @@ export function ProseBlock({ markdown, lead }: Props): React.ReactElement {
   // Lead-in: font 18.5px, medium weight, màu ink (đậm hơn body) — dẫn mắt vào section.
   // Body thường: 17px desktop, leading 1.78, tracking nhẹ +0.005em cho TV (TV cần thoáng hơn EN).
   const sizeCls = lead
-    ? "text-[18.5px] sm:text-[19px] font-medium text-ink leading-[1.7]"
-    : "text-[16.5px] sm:text-[17px] leading-[1.78] tracking-[0.005em] text-ink-soft";
+    ? "text-[1.156rem] sm:text-[1.1875rem] font-medium text-ink leading-[1.7]"
+    : "text-[1.031rem] sm:text-[1.0625rem] leading-[1.78] tracking-[0.005em] text-ink-soft";
 
   return (
     <div
-      className={`prose prose-slate max-w-none ${sizeCls} prose-headings:mt-8 prose-headings:font-semibold prose-headings:text-ink prose-h2:text-[22px] prose-h2:tracking-tight prose-h3:text-[19px] prose-h3:mt-7 prose-p:my-5 prose-p:leading-[inherit] prose-a:text-primary-700 prose-a:font-medium prose-a:no-underline hover:prose-a:underline prose-strong:text-ink prose-strong:font-semibold prose-ul:my-5 prose-ul:space-y-2 prose-ol:my-5 prose-ol:space-y-2 prose-li:leading-[1.7] prose-li:marker:text-primary-500 prose-blockquote:border-l-4 prose-blockquote:border-primary-300 prose-blockquote:bg-card prose-blockquote:px-5 prose-blockquote:py-3 prose-blockquote:my-6 prose-blockquote:not-italic prose-blockquote:text-ink-soft prose-blockquote:rounded-r-lg`}
+      className={`prose prose-slate max-w-none ${sizeCls} prose-headings:mt-8 prose-headings:font-semibold prose-headings:text-ink prose-h2:text-[1.375rem] prose-h2:tracking-tight prose-h3:text-[1.1875rem] prose-h3:mt-7 prose-p:my-5 prose-p:leading-[inherit] prose-a:text-primary-700 prose-a:font-medium prose-a:no-underline hover:prose-a:underline prose-strong:text-ink prose-strong:font-semibold prose-ul:my-5 prose-ul:space-y-2 prose-ol:my-5 prose-ol:space-y-2 prose-li:leading-[1.7] prose-li:marker:text-primary-500 prose-blockquote:border-l-4 prose-blockquote:border-primary-300 prose-blockquote:bg-card prose-blockquote:px-5 prose-blockquote:py-3 prose-blockquote:my-6 prose-blockquote:not-italic prose-blockquote:text-ink-soft prose-blockquote:rounded-r-lg`}
     >
       <ReactMarkdown>{transformed}</ReactMarkdown>
     </div>

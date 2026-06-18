@@ -13,7 +13,7 @@ export function Footer(): React.ReactElement | null {
     <footer className="mt-20 border-t border-line bg-card">
       <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
         <div className="border-b border-line pb-6">
-          <p className="text-[11px] font-semibold uppercase tracking-wider text-ink-mute">
+          <p className="text-micro font-semibold uppercase tracking-wider text-ink-mute">
             Đối tác chính thức
           </p>
           <div className="mt-3 flex flex-wrap items-center gap-x-6 gap-y-2">
@@ -38,7 +38,7 @@ export function Footer(): React.ReactElement | null {
                 <span className="text-base font-semibold leading-tight tracking-tight text-ink">
                   deal<span className="text-primary-600">vault</span>
                 </span>
-                <span className="text-[10.5px] font-medium uppercase tracking-wider text-ink-mute">
+                <span className="text-micro font-medium uppercase tracking-wider text-ink-mute">
                   {BRAND.taglineShort}
                 </span>
               </span>
@@ -79,7 +79,7 @@ export function Footer(): React.ReactElement | null {
           <p>
             © {new Date().getFullYear()} {BRAND.name}. {BRAND.taglineShort}.
           </p>
-          <p className="max-w-md text-[11px] sm:text-right">
+          <p className="max-w-md text-micro sm:text-right">
             Một số liên kết trên trang có thể giúp chúng tôi nhận hoa hồng. Giá hiển thị tại thời điểm cập nhật dữ liệu.
           </p>
         </div>

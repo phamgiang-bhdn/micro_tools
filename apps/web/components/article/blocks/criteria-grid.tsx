@@ -24,7 +24,7 @@ export function CriteriaGridBlock({ title, items }: Props): React.ReactElement {
         {items.map((item, i) => (
           <article
             key={i}
-            className="group flex gap-4 rounded-2xl bg-surface p-5 ring-1 ring-border transition hover:ring-primary-300 hover:shadow-card-md"
+            className="group flex gap-4 rounded-2xl border border-border bg-surface p-5 shadow-card transition hover:border-primary-300 hover:shadow-card-md"
           >
             <span
               aria-hidden

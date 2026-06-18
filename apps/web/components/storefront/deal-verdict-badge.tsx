@@ -40,7 +40,7 @@ export function DealVerdictBadge({
     <span
       className={cn(
         "inline-flex w-fit items-center gap-1 rounded-md px-1.5 py-0.5 font-semibold",
-        size === "xs" ? "text-[10px]" : "text-[11px]",
+        size === "xs" ? "text-[0.625rem]" : "text-micro",
         cfg.className
       )}
       title={verdictTooltip(intel)}

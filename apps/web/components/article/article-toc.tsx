@@ -47,7 +47,7 @@ export function ArticleToc({ sections }: Props) {
 
   return (
     <nav aria-label="Mục lục bài viết" className="lg:sticky lg:top-24">
-      <p className="mb-3 text-[11px] font-semibold uppercase tracking-wider text-primary-700">Trong bài</p>
+      <p className="mb-3 text-micro font-semibold uppercase tracking-wider text-primary-700">Trong bài</p>
       <ol className="space-y-0.5">
         {sections.map((s, idx) => {
           const active = activeId === s.anchorSlug;
@@ -56,13 +56,13 @@ export function ArticleToc({ sections }: Props) {
               <a
                 href={`#${s.anchorSlug}`}
                 title={s.summary || s.heading}
-                className={`group flex items-start gap-2 rounded-md py-1.5 pl-2.5 pr-2 text-[13px] leading-snug transition ${
+                className={`group flex items-start gap-2 rounded-md py-1.5 pl-2.5 pr-2 text-body-sm leading-snug transition ${
                   active
                     ? "border-l-2 border-primary-600 bg-primary-50/60 pl-[10px] font-semibold text-primary-800"
                     : "border-l-2 border-transparent text-ink-soft hover:bg-card hover:text-ink"
                 }`}
               >
-                <span className={`mt-0.5 inline-block w-4 shrink-0 text-[11px] tabular-nums ${active ? "text-primary-600" : "text-ink-mute"}`}>
+                <span className={`mt-0.5 inline-block w-4 shrink-0 text-micro tabular-nums ${active ? "text-primary-600" : "text-ink-mute"}`}>
                   {String(idx + 1).padStart(2, "0")}
                 </span>
                 <span className="line-clamp-2">{s.heading}</span>

@@ -37,7 +37,7 @@ export function SocialProofStrip({
   return (
     <div className="flex flex-col gap-1.5 rounded-xl border border-border bg-surface/70 p-3 backdrop-blur sm:flex-row sm:flex-wrap sm:items-center sm:justify-center sm:gap-x-6 sm:gap-y-1.5 sm:p-3.5">
       {facts.map((f, i) => (
-        <span key={i} className="inline-flex items-center gap-1.5 text-[12.5px] font-medium text-ink-soft sm:text-sm">
+        <span key={i} className="inline-flex items-center gap-1.5 text-caption font-medium text-ink-soft sm:text-sm">
           <Icon name="check" size="sm" className="text-success" />
           {f.label}
         </span>

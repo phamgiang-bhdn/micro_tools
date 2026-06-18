@@ -7,35 +7,33 @@ interface Props {
 }
 
 /**
- * Grid 3 cột desktop / 2 cột mobile — 6 niche ưu tiên thay 100-chip row.
- * Fallback gradient + iconHint khi ảnh chưa có (operator upload sau qua STORY-04).
+ * Hàng chip gọn "khám phá theo danh mục" — 6 niche ưu tiên.
+ * Mỗi chip: icon Lucide trong vòng tròn + tên + count/trạng thái. Đồng bộ với thanh lọc
+ * danh mục bên dưới (thay card to có vùng ảnh trống). Link theo trạng thái niche.
  */
 export function CuratedNicheGrid({ niches }: Props): React.ReactElement {
   return (
-    <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3">
+    <div className="flex flex-wrap gap-2.5">
       {niches.map((n) => (
         <Link
           key={n.slug}
           href={n.href}
-          className="group relative flex flex-col overflow-hidden rounded-2xl bg-surface ring-1 ring-border transition hover:ring-primary-300 hover:shadow-card-md"
+          className="group inline-flex items-center gap-2.5 rounded-full border border-border bg-surface py-1.5 pl-1.5 pr-4 shadow-card transition hover:border-primary-300 hover:shadow-card-md"
         >
-          <div className="relative aspect-[16/9] overflow-hidden bg-gradient-to-br from-primary-100 via-primary-50 to-canvas">
-            <span
-              aria-hidden
-              className="absolute inset-0 grid place-items-center text-5xl opacity-90 transition group-hover:scale-110"
-            >
-              {n.iconHint}
+          <span
+            aria-hidden
+            className="grid size-9 shrink-0 place-items-center rounded-full bg-primary-50 text-primary-600 transition group-hover:bg-primary-100"
+          >
+            <n.Icon className="size-[18px]" strokeWidth={1.9} />
+          </span>
+          <span className="flex flex-col pr-1 leading-tight">
+            <span className="text-body-sm font-semibold text-ink group-hover:text-primary-700">
+              {n.displayName}
             </span>
-          </div>
-          <div className="flex flex-1 flex-col gap-1 p-4">
-            <p className="text-[15px] font-bold text-ink group-hover:text-primary-700">{n.displayName}</p>
-            {n.productCount > 0 ? (
-              <p className="text-xs font-medium text-ink-soft">{n.productCount} deal đang sống</p>
-            ) : (
-              <p className="text-xs text-ink-mute">Đang cập nhật</p>
-            )}
-            <p className="line-clamp-1 text-xs text-ink-mute">{n.pitch}</p>
-          </div>
+            <span className="text-micro font-medium text-ink-mute">
+              {n.productCount > 0 ? `${n.productCount} deal đang sống` : "Đang cập nhật"}
+            </span>
+          </span>
         </Link>
       ))}
     </div>

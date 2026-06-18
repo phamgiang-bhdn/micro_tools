@@ -61,7 +61,7 @@ function IntelSummary({ intel, currency }: { intel: PriceIntel; currency: string
     <dl className="grid grid-cols-1 gap-x-6 gap-y-1.5 px-5 py-3 sm:grid-cols-3">
       {items.map((it) => (
         <div key={it.label} className="flex items-baseline justify-between gap-2 sm:flex-col sm:items-start sm:justify-start">
-          <dt className="text-[11px] font-medium uppercase tracking-wide text-ink-mute">{it.label}</dt>
+          <dt className="text-micro font-medium uppercase tracking-wide text-ink-mute">{it.label}</dt>
           <dd className="text-sm font-semibold text-ink">{it.value}</dd>
         </div>
       ))}
@@ -88,19 +88,19 @@ function Sparkline({ points, currency }: { points: PricePoint[]; currency: strin
 
   return (
     <div>
-      <svg viewBox={`0 0 ${W} ${H}`} className="h-auto w-full" role="img" aria-label="Biểu đồ lịch sử giá">
+      <svg viewBox={`0 0 ${W} ${H}`} className="h-auto w-full text-primary-600" role="img" aria-label="Biểu đồ lịch sử giá">
         <defs>
           <linearGradient id="priceFill" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#2563eb" stopOpacity="0.18" />
-            <stop offset="100%" stopColor="#2563eb" stopOpacity="0" />
+            <stop offset="0%" stopColor="currentColor" stopOpacity="0.18" />
+            <stop offset="100%" stopColor="currentColor" stopOpacity="0" />
           </linearGradient>
         </defs>
         <path d={area} fill="url(#priceFill)" />
-        <path d={line} fill="none" stroke="#2563eb" strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />
+        <path d={line} fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />
         {/* Đánh dấu điểm đáy */}
-        <circle cx={x(lowIdx)} cy={y(min)} r="3.5" fill="#16a34a" stroke="#ffffff" strokeWidth="1.5" />
+        <circle cx={x(lowIdx)} cy={y(min)} r="3.5" className="fill-success" stroke="#ffffff" strokeWidth="1.5" />
       </svg>
-      <div className="mt-1 flex items-center justify-between text-[11px] text-ink-mute">
+      <div className="mt-1 flex items-center justify-between text-micro text-ink-mute">
         <span>{formatShortDate(first.capturedAt)}</span>
         <span className="font-medium text-success-ink">Đáy: {formatMoney(min, currency)}</span>
         <span>{formatShortDate(last.capturedAt)}</span>

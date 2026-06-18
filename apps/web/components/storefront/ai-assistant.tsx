@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { ArrowUp, Search, ShoppingCart, Sparkles } from "lucide-react";
+import { ArrowUp, Search, ShoppingCart, Sparkles, Bot } from "lucide-react";
 import { formatMoney, normalizeProduct } from "../../lib/format";
 import { trackAndRedirectAction } from "../../app/actions/tracking";
 import { askAssistant, type AssistantAnswer, type AssistantPick } from "../../app/actions/assistant";
@@ -71,23 +71,23 @@ export function AiAssistant(): React.ReactElement {
     <section className="relative bg-surface">
       <div className="mx-auto max-w-3xl px-4 pb-10 pt-12 sm:pt-16">
         <div className="text-center">
-          <h1 className="text-2xl font-bold tracking-tight text-ink sm:text-[34px] sm:leading-tight">
-            Hỏi AI nên mua gì
+          <h1 className="text-2xl font-bold tracking-tight text-ink sm:text-display-sm sm:leading-tight">
+            Hỏi <span className="text-gradient-ai">AI</span> nên mua gì
           </h1>
-          <p className="mx-auto mt-2 max-w-md text-[15px] text-ink-soft">
+          <p className="mx-auto mt-2 max-w-md text-body text-ink-soft">
             Mô tả nhu cầu — AI gợi ý sản phẩm hợp nhất, kèm <span className="font-medium text-ink">giá thật &amp; cảnh báo giá ảo</span>.
           </p>
         </div>
 
         <form onSubmit={onSubmit} className="mt-6">
-          <div className="flex items-center gap-2 rounded-2xl bg-surface px-4 py-2.5 shadow-card-md ring-1 ring-border transition focus-within:ring-2 focus-within:ring-primary-400">
+          <div className="flex items-center gap-2 rounded-2xl bg-surface px-4 py-2.5 shadow-ai-glow-sm ring-1 ring-border transition focus-within:ring-2 focus-within:ring-primary-400">
             <Search className="size-5 shrink-0 text-ink-mute" />
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Bạn cần mua gì?"
               aria-label="Mô tả nhu cầu mua sắm"
-              className="h-9 w-full bg-transparent text-[15px] text-ink outline-none placeholder:text-ink-mute"
+              className="h-9 w-full bg-transparent text-body text-ink outline-none placeholder:text-ink-mute"
             />
             <button
               type="submit"
@@ -107,7 +107,7 @@ export function AiAssistant(): React.ReactElement {
                 key={ex}
                 type="button"
                 onClick={() => askFollowup(ex)}
-                className="rounded-full bg-canvas px-3 py-1.5 text-[12.5px] text-ink-soft ring-1 ring-border transition hover:text-primary-700 hover:ring-primary-300"
+                className="rounded-full bg-canvas px-3 py-1.5 text-caption text-ink-soft ring-1 ring-border transition hover:text-primary-700 hover:ring-primary-300"
               >
                 {ex}
               </button>
@@ -131,13 +131,13 @@ function ThinkingBlock({ step }: { step: number }): React.ReactElement {
   return (
     <div className="rounded-2xl bg-canvas p-4 ring-1 ring-border">
       <p className="flex items-center gap-2 text-sm font-semibold text-primary-700">
-        <Sparkles className="size-4 animate-pulse" /> 🤖 AI đang phân tích
+        <Sparkles className="size-4 animate-pulse" /> AI đang phân tích
       </p>
       <ul className="mt-3 space-y-1.5">
         {THINKING_STEPS.map((s, i) => (
           <li
             key={s}
-            className={`flex items-center gap-2 text-[13.5px] transition ${
+            className={`flex items-center gap-2 text-body-sm transition ${
               i <= step ? "text-ink" : "text-ink-mute/50"
             }`}
           >
@@ -160,10 +160,10 @@ function AnswerBlock({
   return (
     <div className="space-y-4">
       <div className="rounded-2xl bg-primary-50 p-4 ring-1 ring-primary-200">
-        <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-primary-700">
-          <Sparkles className="size-3.5" /> 🤖 AI gợi ý
+        <p className="flex items-center gap-1.5 text-micro font-semibold uppercase tracking-wider text-primary-700">
+          <Sparkles className="size-3.5" /> AI gợi ý
         </p>
-        <p className="mt-1.5 text-[15px] leading-relaxed text-ink">{answer.intro}</p>
+        <p className="mt-1.5 text-body leading-relaxed text-ink">{answer.intro}</p>
       </div>
 
       {answer.picks.length > 0 ? (
@@ -181,7 +181,7 @@ function AnswerBlock({
               key={f}
               type="button"
               onClick={() => onFollowup(f)}
-              className="rounded-full bg-canvas px-3 py-1.5 text-[12.5px] text-ink-soft ring-1 ring-border transition hover:text-primary-700 hover:ring-primary-300"
+              className="rounded-full bg-canvas px-3 py-1.5 text-caption text-ink-soft ring-1 ring-border transition hover:text-primary-700 hover:ring-primary-300"
             >
               {f}
             </button>
@@ -209,26 +209,26 @@ function AssistantPickCard({ pick }: { pick: AssistantPick }): React.ReactElemen
 
       <div className="flex min-w-0 flex-1 flex-col">
         <Link href={detailHref} className="ring-focus">
-          <p className="line-clamp-2 text-[14px] font-medium leading-snug text-ink hover:text-primary-700">
+          <p className="line-clamp-2 text-body-sm font-medium leading-snug text-ink hover:text-primary-700">
             {view.name}
           </p>
         </Link>
 
         <div className="mt-1 flex flex-wrap items-baseline gap-x-1.5">
           {view.price !== undefined ? (
-            <span className="text-[16px] font-bold text-ink">{formatMoney(view.price, view.currency)}</span>
+            <span className="text-body-lg font-bold text-ink">{formatMoney(view.price, view.currency)}</span>
           ) : (
             <span className="text-sm font-medium text-ink-soft">Liên hệ shop</span>
           )}
           {view.originalPrice && view.price && view.originalPrice > view.price ? (
-            <span className="text-[11px] text-ink-mute line-through">{formatMoney(view.originalPrice, view.currency)}</span>
+            <span className="text-micro text-ink-mute line-through">{formatMoney(view.originalPrice, view.currency)}</span>
           ) : null}
           <DealVerdictBadge intel={view.priceIntel} size="xs" />
         </div>
 
         {pick.reason ? (
-          <p className="mt-1 line-clamp-2 text-[12.5px] leading-snug text-ink-soft">
-            <span className="font-medium text-primary-700">🤖 </span>
+          <p className="mt-1 line-clamp-2 text-caption leading-snug text-ink-soft">
+            <Bot className="mr-1 inline size-3 align-text-bottom text-primary-700" aria-hidden />
             {pick.reason}
           </p>
         ) : null}
@@ -239,7 +239,7 @@ function AssistantPickCard({ pick }: { pick: AssistantPick }): React.ReactElemen
             <input type="hidden" name="affiliateUrl" value={pick.affiliateUrl} />
             <button
               type="submit"
-              className="inline-flex items-center gap-1.5 rounded-xl bg-cta-500 px-3 py-1.5 text-[12.5px] font-semibold text-ink transition hover:bg-cta-400 ring-focus"
+              className="inline-flex items-center gap-1.5 rounded-xl bg-cta-500 px-3 py-1.5 text-caption font-semibold text-ink transition hover:bg-cta-400 ring-focus"
             >
               <ShoppingCart className="size-3.5" /> Xem deal
             </button>

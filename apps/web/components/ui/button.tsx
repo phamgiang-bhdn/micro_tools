@@ -22,7 +22,7 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
 }
 
 const BASE =
-  "inline-flex items-center justify-center gap-2 rounded-full font-semibold transition active:translate-y-px disabled:pointer-events-none disabled:opacity-40 ring-focus";
+  "inline-flex items-center justify-center gap-2 rounded-xl font-semibold transition active:translate-y-px disabled:pointer-events-none disabled:opacity-40 ring-focus";
 
 const VARIANTS: Record<Variant, string> = {
   primary: "bg-primary-600 text-white shadow-card hover:bg-primary-700",

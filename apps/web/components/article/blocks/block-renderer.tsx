@@ -171,7 +171,7 @@ function renderFallback(block: ArticleBlock): React.ReactElement | null {
   if (!text) return null;
   return (
     <div className="rounded-xl border border-amber-200 bg-amber-50/50 p-4 text-sm">
-      <div className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-amber-800">
+      <div className="mb-1 text-micro font-semibold uppercase tracking-wider text-amber-800">
         {String(raw.type ?? "block")}
       </div>
       <p className="leading-relaxed text-ink-soft">{text}</p>

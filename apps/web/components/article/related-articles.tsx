@@ -38,18 +38,18 @@ export function RelatedArticles({ articles, currentNicheName }: Props): React.Re
               ) : null}
             </div>
             <div className="p-3.5">
-              <div className="flex items-center gap-1.5 text-[10.5px] font-semibold uppercase tracking-wider text-primary-600">
+              <div className="flex items-center gap-1.5 text-micro font-semibold uppercase tracking-wider text-primary-600">
                 {a.type === "REVIEW" ? "Đánh giá" : "Cẩm nang"}
                 {a.niche ? <span className="text-ink-mute">· {a.niche.name}</span> : null}
               </div>
-              <h3 className="mt-1.5 line-clamp-2 text-[14.5px] font-semibold leading-snug text-ink group-hover:text-primary-700">
+              <h3 className="mt-1.5 line-clamp-2 text-body font-semibold leading-snug text-ink group-hover:text-primary-700">
                 {a.title}
               </h3>
               {a.excerpt ? (
-                <p className="mt-1.5 line-clamp-2 text-[12px] leading-relaxed text-ink-mute">{a.excerpt}</p>
+                <p className="mt-1.5 line-clamp-2 text-caption leading-relaxed text-ink-mute">{a.excerpt}</p>
               ) : null}
               {a.publishedAt ? (
-                <p className="mt-2 text-[11px] text-ink-mute">{dateFmt.format(new Date(a.publishedAt))}</p>
+                <p className="mt-2 text-micro text-ink-mute">{dateFmt.format(new Date(a.publishedAt))}</p>
               ) : null}
             </div>
           </Link>

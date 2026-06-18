@@ -102,7 +102,7 @@ export function MobileSearchOverlay({ open, onClose }: Props): React.ReactElemen
                 key={q}
                 href={`/?q=${encodeURIComponent(q)}`}
                 onClick={onClose}
-                className="inline-flex items-center rounded-full border border-line bg-card px-3 py-1.5 text-[12.5px] font-medium text-ink-soft hover:border-primary-300 hover:text-primary-700"
+                className="inline-flex items-center rounded-full border border-line bg-card px-3 py-1.5 text-caption font-medium text-ink-soft hover:border-primary-300 hover:text-primary-700"
               >
                 {q}
               </Link>
@@ -117,7 +117,7 @@ export function MobileSearchOverlay({ open, onClose }: Props): React.ReactElemen
                 key={href}
                 href={href}
                 onClick={onClose}
-                className="flex items-center gap-3 rounded-xl border border-line bg-card p-3 text-[14px] font-semibold text-ink hover:border-primary-300 hover:text-primary-700"
+                className="flex items-center gap-3 rounded-xl border border-line bg-card p-3 text-body-sm font-semibold text-ink hover:border-primary-300 hover:text-primary-700"
               >
                 <span className="grid size-9 place-items-center rounded-lg bg-primary-50 text-primary-700">
                   <Icon className="size-4" />
@@ -135,7 +135,7 @@ export function MobileSearchOverlay({ open, onClose }: Props): React.ReactElemen
 function Section({ label, children }: { label: string; children: React.ReactNode }): React.ReactElement {
   return (
     <div className="mb-5">
-      <p className="mb-2 text-[10.5px] font-bold uppercase tracking-[0.12em] text-ink-mute">{label}</p>
+      <p className="mb-2 text-micro font-bold uppercase tracking-[0.12em] text-ink-mute">{label}</p>
       {children}
     </div>
   );

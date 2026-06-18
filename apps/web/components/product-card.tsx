@@ -1,6 +1,6 @@
 import type React from "react";
 import Link from "next/link";
-import { ShoppingCart } from "lucide-react";
+import { ShoppingCart, Package } from "lucide-react";
 import { formatMoney, formatSocialProof } from "../lib/format";
 import { slugify } from "../lib/slug";
 import { trackAndRedirectAction } from "../app/actions/tracking";
@@ -29,7 +29,7 @@ export function ProductCard({ product, nicheSlug, compact = false }: ProductCard
   const social = formatSocialProof(product.rating, product.salesCount);
 
   return (
-    <article className="group relative flex h-full flex-col overflow-hidden rounded-2xl bg-surface ring-1 ring-border transition duration-200 hover:ring-primary-300 hover:shadow-card-md">
+    <article className="group relative flex h-full flex-col overflow-hidden rounded-2xl border border-border bg-surface shadow-card transition duration-200 hover:-translate-y-0.5 hover:border-primary-300 hover:shadow-card-md">
       <Link
         href={detailHref}
         className="relative block aspect-square overflow-hidden bg-canvas ring-focus"
@@ -38,7 +38,7 @@ export function ProductCard({ product, nicheSlug, compact = false }: ProductCard
         <ProductImage product={product} />
 
         {discountPct > 0 ? (
-          <span className="absolute left-2 top-2 rounded-lg bg-danger px-2 py-0.5 text-[12px] font-bold text-white shadow-sm">
+          <span className="absolute left-2 top-2 rounded-lg bg-danger px-2 py-0.5 text-caption font-bold text-white shadow-sm">
             -{discountPct}%
           </span>
         ) : null}
@@ -49,12 +49,12 @@ export function ProductCard({ product, nicheSlug, compact = false }: ProductCard
       <div className={`flex flex-1 flex-col ${compact ? "gap-1 p-2.5" : "gap-2 p-3"}`}>
         <Link href={detailHref} className="flex flex-col gap-1.5 ring-focus">
           {!compact && product.brand ? (
-            <p className="line-clamp-1 text-[10.5px] font-semibold uppercase tracking-wider text-ink-mute">
+            <p className="line-clamp-1 text-micro font-semibold uppercase tracking-wider text-ink-mute">
               {product.brand}
             </p>
           ) : null}
           <p
-            className={`min-h-[2.5em] text-[13.5px] font-medium leading-snug text-ink transition group-hover:text-primary-700 ${
+            className={`min-h-[2.5em] text-body-sm font-medium leading-snug text-ink transition group-hover:text-primary-700 ${
               compact ? "line-clamp-1" : "line-clamp-2"
             }`}
           >
@@ -66,7 +66,7 @@ export function ProductCard({ product, nicheSlug, compact = false }: ProductCard
           {!compact ? (
             <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
               <DealVerdictBadge intel={product.priceIntel} />
-              {social ? <span className="text-[11px] font-medium text-ink-mute">{social}</span> : null}
+              {social ? <span className="text-micro font-medium text-ink-mute">{social}</span> : null}
             </div>
           ) : null}
         </Link>
@@ -99,7 +99,7 @@ function ProductImage({ product }: { product: ProductView }): React.ReactElement
     .join("");
   return (
     <div className="flex size-full items-center justify-center bg-gradient-to-br from-primary-50 to-primary-100 text-2xl font-bold text-primary-700">
-      {initials || "★"}
+      {initials || <Package className="size-7" aria-hidden />}
     </div>
   );
 }
@@ -110,11 +110,11 @@ function PriceBlock({ product, compact }: { product: ProductView; compact?: bool
   }
   return (
     <div className="flex flex-wrap items-baseline gap-x-1.5 gap-y-0">
-      <span className={`font-bold text-ink ${compact ? "text-sm" : "text-[17px] sm:text-lg"}`}>
+      <span className={`font-bold text-ink ${compact ? "text-sm" : "text-body-lg sm:text-lg"}`}>
         {formatMoney(product.price, product.currency)}
       </span>
       {product.originalPrice && product.originalPrice > product.price ? (
-        <span className="text-[11px] text-ink-mute line-through">
+        <span className="text-micro text-ink-mute line-through">
           {formatMoney(product.originalPrice, product.currency)}
         </span>
       ) : null}
@@ -129,7 +129,7 @@ function OutboundButton({ product, detailHref }: { product: ProductView; detailH
     return (
       <Link
         href={detailHref}
-        className="mt-auto inline-flex w-full items-center justify-center gap-1.5 rounded-xl bg-surface-2 px-3 py-2.5 text-[13px] font-semibold text-ink-soft transition hover:text-primary-700 ring-focus"
+        className="mt-auto inline-flex w-full items-center justify-center gap-1.5 rounded-xl bg-surface-2 px-3 py-2.5 text-body-sm font-semibold text-ink-soft transition hover:text-primary-700 ring-focus"
         aria-label={`Xem chi tiết ${product.name}`}
       >
         Liên hệ shop
@@ -143,7 +143,7 @@ function OutboundButton({ product, detailHref }: { product: ProductView; detailH
       <input type="hidden" name="affiliateUrl" value={affiliateUrl} />
       <button
         type="submit"
-        className="inline-flex w-full items-center justify-center gap-1.5 rounded-xl bg-cta-500 px-3 py-2.5 text-[13px] font-semibold text-ink transition hover:bg-cta-400 ring-focus"
+        className="inline-flex w-full items-center justify-center gap-1.5 rounded-xl bg-cta-500 px-3 py-2.5 text-body-sm font-semibold text-ink transition hover:bg-cta-400 ring-focus"
       >
         <ShoppingCart className="size-3.5" /> Xem deal
       </button>

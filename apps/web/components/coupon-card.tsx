@@ -38,7 +38,7 @@ export function CouponCard({ coupon }: CouponCardProps): React.ReactElement {
             </span>
           ) : null}
           {coupon.iconText ? (
-            <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-[11px] font-medium text-neutral-600">
+            <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-micro font-medium text-neutral-600">
               {coupon.iconText}
             </span>
           ) : null}

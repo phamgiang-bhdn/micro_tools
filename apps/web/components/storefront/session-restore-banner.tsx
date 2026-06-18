@@ -73,7 +73,7 @@ export function SessionRestoreBanner({
       <div className="flex min-w-0 items-center gap-2">
         <RotateCw className="size-4 shrink-0 text-primary-600" />
         <span className="truncate text-ink">
-          👋 Bạn đã làm quiz <strong>{session.nicheName}</strong> {relTime}.
+          Bạn đã làm quiz <strong>{session.nicheName}</strong> {relTime}.
         </span>
       </div>
       <div className="flex shrink-0 items-center gap-2">

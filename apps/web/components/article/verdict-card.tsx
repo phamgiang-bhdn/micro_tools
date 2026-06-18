@@ -1,4 +1,5 @@
 import type React from "react";
+import { Star } from "lucide-react";
 import { formatMoney, formatNumber, normalizeProduct } from "../../lib/format";
 import type { ProductItem } from "../../lib/types";
 import { AffiliateCta } from "./affiliate-cta";
@@ -34,7 +35,7 @@ export function VerdictCard({ product: raw, excerpt }: Props): React.ReactElemen
             />
           ) : (
             <div className="grid size-full place-items-center bg-gradient-to-br from-primary-50 to-accent-50 text-5xl font-bold text-primary-700">
-              {product.brand?.[0] ?? "★"}
+              {product.brand?.[0] ?? <Star className="size-10 fill-current" aria-hidden />}
             </div>
           )}
           {product.discountPercent ? (
@@ -46,7 +47,7 @@ export function VerdictCard({ product: raw, excerpt }: Props): React.ReactElemen
 
         {/* Verdict info */}
         <div className="flex flex-col gap-3 p-5 sm:p-6">
-          <p className="text-[11px] font-semibold uppercase tracking-wider text-primary-700">
+          <p className="text-micro font-semibold uppercase tracking-wider text-primary-700">
             Verdict — Đánh giá nhanh
           </p>
           {product.brand ? (

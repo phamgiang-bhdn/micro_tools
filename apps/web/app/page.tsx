@@ -69,7 +69,7 @@ export default async function HomePage({ searchParams }: HomeProps): Promise<Rea
         </PageSection>
       ) : null}
 
-      <PageSection padding="default" className="bg-canvas">
+      <PageSection padding="default" width="wide" className="bg-canvas">
         <SectionHeading
           title="Khám phá theo danh mục"
           description="6 danh mục được săn nhiều nhất tuần này."
@@ -84,7 +84,7 @@ export default async function HomePage({ searchParams }: HomeProps): Promise<Rea
         <CuratedNicheGrid niches={curatedTiles} />
       </PageSection>
 
-      <div id="all-deals" className="mx-auto max-w-6xl px-4 pb-12 sm:px-6">
+      <div id="all-deals" className="mx-auto max-w-7xl px-4 pb-12 sm:px-6">
         {niches.length > 0 ? (
           <div
             id="all-niches"

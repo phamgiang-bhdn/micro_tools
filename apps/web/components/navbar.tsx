@@ -64,7 +64,7 @@ export function Navbar(): React.ReactElement | null {
               <span className="text-base font-semibold leading-tight tracking-tight text-ink">
                 deal<span className="text-primary-600">vault</span>
               </span>
-              <span className="hidden text-[10px] font-medium uppercase tracking-wider text-ink-mute lg:block">
+              <span className="hidden text-micro font-medium uppercase tracking-wider text-ink-mute lg:block">
                 {BRAND.taglineShort}
               </span>
             </span>

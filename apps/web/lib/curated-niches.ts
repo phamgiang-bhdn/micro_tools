@@ -3,8 +3,9 @@
 // column `Niche.homepageOrder` (xem STORY-04 niche editorial admin upload).
 //
 // Image path `/public/niches/<slug>.jpg` — operator upload sau. Khi chưa có ảnh, component
-// fallback gradient + iconHint (xem [[curated-niche-grid]]).
+// fallback gradient + icon Lucide (xem [[curated-niche-grid]]).
 
+import { type LucideIcon, Laptop, Headphones, Disc3, Wind, Watch, Droplet } from "lucide-react";
 import type { NicheItem } from "./types";
 
 export interface CuratedNiche {
@@ -12,7 +13,8 @@ export interface CuratedNiche {
   displayName: string;
   pitch: string;
   image: string;
-  iconHint: string;
+  /** Icon Lucide đại diện niche (fallback khi chưa có ảnh thật). */
+  Icon: LucideIcon;
 }
 
 export interface CuratedNicheTile extends CuratedNiche {
@@ -47,41 +49,41 @@ export const CURATED_NICHES: CuratedNiche[] = [
     displayName: "Laptop",
     pitch: "Gaming, văn phòng, sinh viên",
     image: "/niches/laptop.jpg",
-    iconHint: "💻"
+    Icon: Laptop
   },
   {
     slug: "tai-nghe-tws",
     displayName: "Tai nghe TWS",
     pitch: "AirPods, Sony, Galaxy Buds",
     image: "/niches/tai-nghe.jpg",
-    iconHint: "🎧"
+    Icon: Headphones
   },
   {
     slug: "robot-hut-bui-lau-nha",
     displayName: "Robot hút bụi",
     pitch: "Roborock, Dreame, Ecovacs",
     image: "/niches/robot.jpg",
-    iconHint: "🤖"
+    Icon: Disc3
   },
   {
     slug: "may-loc-khong-khi",
     displayName: "Máy lọc không khí",
     pitch: "Lọc PM2.5 cho mùa hanh",
     image: "/niches/loc-khi.jpg",
-    iconHint: "🌬️"
+    Icon: Wind
   },
   {
     slug: "dong-ho-thong-minh",
     displayName: "Đồng hồ thông minh",
     pitch: "Apple, Garmin, Galaxy Watch",
     image: "/niches/dong-ho.jpg",
-    iconHint: "⌚"
+    Icon: Watch
   },
   {
     slug: "my-pham-duong-da",
     displayName: "Mỹ phẩm dưỡng da",
     pitch: "Skincare Nhật, Hàn, dược mỹ phẩm",
     image: "/niches/skincare.jpg",
-    iconHint: "🧴"
+    Icon: Droplet
   }
 ];

@@ -44,7 +44,7 @@ export function StickyProductCta({ products, articleId }: Props) {
         <ShoppingCart className="size-4" />
         <span className="hidden sm:inline">Sản phẩm có trong bài</span>
         <span className="sm:hidden">Mua hàng</span>
-        <span className="ml-1 rounded-full bg-white/20 px-1.5 py-0.5 text-[11px] font-bold">{products.length}</span>
+        <span className="ml-1 rounded-full bg-white/20 px-1.5 py-0.5 text-micro font-bold">{products.length}</span>
       </button>
 
       {/* Slide-up panel */}
@@ -95,21 +95,21 @@ export function StickyProductCta({ products, articleId }: Props) {
                           <div className="size-20 shrink-0 rounded-md bg-line" />
                         )}
                         <div className="min-w-0 flex-1">
-                          <p className="line-clamp-2 text-[13.5px] font-semibold leading-snug text-ink">{p.name}</p>
+                          <p className="line-clamp-2 text-body-sm font-semibold leading-snug text-ink">{p.name}</p>
                           <div className="mt-1 flex items-baseline gap-2">
                             {typeof pv.price === "number" && pv.price > 0 ? (
-                              <span className="text-[15px] font-bold text-primary-700">{formatMoney(pv.price)}</span>
+                              <span className="text-body font-bold text-primary-700">{formatMoney(pv.price)}</span>
                             ) : null}
                             {typeof pv.originalPrice === "number" && pv.originalPrice > (pv.price ?? 0) ? (
-                              <span className="text-[11.5px] text-ink-mute line-through">{formatMoney(pv.originalPrice)}</span>
+                              <span className="text-micro text-ink-mute line-through">{formatMoney(pv.originalPrice)}</span>
                             ) : null}
                             {typeof pv.discountPercent === "number" && pv.discountPercent > 0 ? (
-                              <span className="rounded bg-red-100 px-1.5 py-0.5 text-[10.5px] font-bold text-red-700">
+                              <span className="rounded bg-red-100 px-1.5 py-0.5 text-micro font-bold text-red-700">
                                 -{pv.discountPercent}%
                               </span>
                             ) : null}
                           </div>
-                          <span className="mt-1 inline-block text-[11px] font-medium text-primary-700">Xem deal ↗</span>
+                          <span className="mt-1 inline-block text-micro font-medium text-primary-700">Xem deal ↗</span>
                         </div>
                       </button>
                     </form>

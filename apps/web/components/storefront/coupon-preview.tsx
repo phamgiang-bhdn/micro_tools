@@ -31,7 +31,7 @@ export function CouponPreview({ coupons }: Props): React.ReactElement | null {
           <Link
             key={c.id}
             href={merchantSlug ? `/khuyen-mai/${merchantSlug}` : "/khuyen-mai"}
-            className="group flex flex-col gap-2.5 rounded-2xl bg-surface p-4 ring-1 ring-border transition hover:ring-primary-300 hover:shadow-card-md"
+            className="group flex flex-col gap-2.5 rounded-2xl border border-border bg-surface p-4 shadow-card transition hover:-translate-y-0.5 hover:border-primary-300 hover:shadow-card-md"
           >
             <div className="flex items-center justify-between gap-2">
               <div className="flex min-w-0 items-center gap-2">
@@ -44,26 +44,26 @@ export function CouponPreview({ coupons }: Props): React.ReactElement | null {
                     className="size-7 shrink-0 rounded-full border border-line bg-white object-contain"
                   />
                 ) : (
-                  <span className="grid size-7 shrink-0 place-items-center rounded-full bg-primary-100 text-[10px] font-bold text-primary-700">
+                  <span className="grid size-7 shrink-0 place-items-center rounded-full bg-primary-100 text-micro font-bold text-primary-700">
                     {merchantDisplay.slice(0, 2).toUpperCase()}
                   </span>
                 )}
-                <span className="truncate text-[12.5px] font-semibold uppercase tracking-wider text-ink">
+                <span className="truncate text-caption font-semibold uppercase tracking-wider text-ink">
                   {merchantDisplay}
                 </span>
               </div>
               {discountBadge ? (
-                <span className="rounded-md bg-cta-500 px-2 py-0.5 text-[11px] font-bold text-ink shadow-sm">
+                <span className="rounded-md bg-cta-500 px-2 py-0.5 text-micro font-bold text-ink shadow-sm">
                   {discountBadge}
                 </span>
               ) : null}
             </div>
 
-            <p className="line-clamp-2 text-[13.5px] font-semibold leading-snug text-ink group-hover:text-primary-700">
+            <p className="line-clamp-2 text-body-sm font-semibold leading-snug text-ink group-hover:text-primary-700">
               {headline}
             </p>
 
-            <div className="mt-auto flex items-center justify-between gap-2 pt-1 text-[12px]">
+            <div className="mt-auto flex items-center justify-between gap-2 pt-1 text-caption">
               <span className={expiryText ? "font-semibold text-danger" : "text-ink-mute"}>
                 {expiryText ?? "Còn hạn dài"}
               </span>

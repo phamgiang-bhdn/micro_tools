@@ -45,7 +45,7 @@ export function AffiliateCta({
         className={`inline-flex items-center gap-1.5 rounded-full font-semibold transition ${sizeClasses} ${variantClasses} ${className}`}
       >
         {label}
-        {store ? <span className="text-[10px] font-normal opacity-80">· {store}</span> : null}
+        {store ? <span className="text-micro font-normal opacity-80">· {store}</span> : null}
         <ArrowIcon />
       </button>
     </form>

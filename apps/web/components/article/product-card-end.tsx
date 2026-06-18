@@ -28,7 +28,7 @@ export function ProductCardEnd({ products }: Props): React.ReactElement | null {
           </span>
           <div>
             <h2 className="text-base font-bold text-ink sm:text-lg">Deal được khuyên dùng trong bài</h2>
-            <p className="text-[11.5px] text-ink-soft">
+            <p className="text-micro text-ink-soft">
               Lựa chọn đã được team dealvault test, đối chiếu giá thực tế
             </p>
           </div>
@@ -43,7 +43,7 @@ export function ProductCardEnd({ products }: Props): React.ReactElement | null {
           return (
             <div key={p.id} className="group relative flex flex-col overflow-hidden rounded-xl border border-line bg-canvas shadow-sm transition hover:border-primary-300 hover:shadow-md">
               {isTop || hasHotDeal ? (
-                <span className="absolute left-2 top-2 z-10 inline-flex items-center gap-1 rounded-full bg-primary-600 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white shadow">
+                <span className="absolute left-2 top-2 z-10 inline-flex items-center gap-1 rounded-full bg-primary-600 px-2 py-0.5 text-micro font-bold uppercase tracking-wider text-white shadow">
                   {isTop ? <><Sparkles className="size-2.5" /> Top 1</> : <><Flame className="size-2.5" /> Đáng mua</>}
                 </span>
               ) : null}
@@ -59,24 +59,24 @@ export function ProductCardEnd({ products }: Props): React.ReactElement | null {
                 ) : null}
               </div>
               <div className="flex flex-1 flex-col p-3">
-                <p className="line-clamp-2 text-[13.5px] font-semibold leading-snug text-ink">{p.name}</p>
+                <p className="line-clamp-2 text-body-sm font-semibold leading-snug text-ink">{p.name}</p>
                 <div className="mt-2 flex items-baseline gap-2">
                   {typeof pv.price === "number" && pv.price > 0 ? (
-                    <span className="text-[17px] font-bold text-primary-700">{formatMoney(pv.price)}</span>
+                    <span className="text-body-lg font-bold text-primary-700">{formatMoney(pv.price)}</span>
                   ) : (
-                    <span className="text-[12px] text-ink-mute">Liên hệ</span>
+                    <span className="text-caption text-ink-mute">Liên hệ</span>
                   )}
                   {typeof pv.originalPrice === "number" && pv.originalPrice > (pv.price ?? 0) ? (
-                    <span className="text-[11.5px] text-ink-mute line-through">{formatMoney(pv.originalPrice)}</span>
+                    <span className="text-micro text-ink-mute line-through">{formatMoney(pv.originalPrice)}</span>
                   ) : null}
                 </div>
                 {typeof pv.discountPercent === "number" && pv.discountPercent > 0 ? (
                   <div className="mt-1.5 flex items-center gap-1.5">
-                    <span className="inline-flex w-fit items-center rounded bg-red-100 px-1.5 py-0.5 text-[10.5px] font-bold text-red-700">
+                    <span className="inline-flex w-fit items-center rounded bg-red-100 px-1.5 py-0.5 text-micro font-bold text-red-700">
                       -{pv.discountPercent}%
                     </span>
                     {hasHotDeal ? (
-                      <span className="text-[10.5px] font-semibold text-red-600">Sale mạnh hôm nay</span>
+                      <span className="text-micro font-semibold text-red-600">Sale mạnh hôm nay</span>
                     ) : null}
                   </div>
                 ) : null}
@@ -85,7 +85,7 @@ export function ProductCardEnd({ products }: Props): React.ReactElement | null {
                   <input type="hidden" name="affiliateUrl" value={p.affiliateUrl ?? ""} />
                   <button
                     type="submit"
-                    className="inline-flex w-full items-center justify-center gap-1.5 rounded-md bg-primary-600 px-3 py-2.5 text-[13px] font-semibold text-white shadow-sm transition hover:bg-primary-700 hover:shadow-md group-hover:bg-primary-700"
+                    className="inline-flex w-full items-center justify-center gap-1.5 rounded-md bg-primary-600 px-3 py-2.5 text-body-sm font-semibold text-white shadow-sm transition hover:bg-primary-700 hover:shadow-md group-hover:bg-primary-700"
                   >
                     <ShoppingCart className="size-3.5" /> Xem deal ngay ↗
                   </button>
@@ -97,7 +97,7 @@ export function ProductCardEnd({ products }: Props): React.ReactElement | null {
       </div>
 
       <div className="border-t border-primary-100 bg-primary-50/30 px-5 py-2.5 sm:px-6">
-        <p className="flex items-center gap-1.5 text-[11.5px] text-ink-soft">
+        <p className="flex items-center gap-1.5 text-micro text-ink-soft">
           <ShieldCheck className="size-3.5 text-emerald-600" />
           Mua qua link không tốn thêm phí — dealvault nhận hoa hồng nhỏ từ đối tác để duy trì nội dung.
         </p>

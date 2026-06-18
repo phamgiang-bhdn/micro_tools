@@ -1,4 +1,5 @@
 import type React from "react";
+import { Star } from "lucide-react";
 import { formatMoney, normalizeProduct } from "../../../lib/format";
 import type { ProductItem } from "../../../lib/types";
 import { AffiliateCta } from "../affiliate-cta";
@@ -35,7 +36,7 @@ export function ProductSpotlightBlock({
             <img src={heroImage} alt={product.name} loading="lazy" className="size-full object-cover" />
           ) : (
             <div className="grid size-full place-items-center bg-gradient-to-br from-primary-50 to-accent-50 text-5xl font-bold text-primary-700">
-              {product.brand?.[0] ?? "★"}
+              {product.brand?.[0] ?? <Star className="size-10 fill-current" aria-hidden />}
             </div>
           )}
           {product.discountPercent ? (
@@ -47,7 +48,7 @@ export function ProductSpotlightBlock({
 
         <div className="flex flex-col gap-4 p-6 sm:p-8">
           <div>
-            <p className="text-[11px] font-semibold uppercase tracking-wider text-primary-700">Spotlight</p>
+            <p className="text-micro font-semibold uppercase tracking-wider text-primary-700">Spotlight</p>
             <p className="mt-1 text-sm font-medium text-ink-soft">{angle}</p>
           </div>
 
@@ -82,7 +83,7 @@ export function ProductSpotlightBlock({
             <div className="grid gap-3 text-sm sm:grid-cols-2">
               {pros?.length ? (
                 <div className="rounded-xl bg-emerald-50/60 p-3 ring-1 ring-inset ring-emerald-200">
-                  <p className="text-[11px] font-semibold uppercase tracking-wider text-emerald-700">
+                  <p className="text-micro font-semibold uppercase tracking-wider text-emerald-700">
                     Điểm mạnh
                   </p>
                   <ul className="mt-1.5 space-y-1">
@@ -97,7 +98,7 @@ export function ProductSpotlightBlock({
               ) : null}
               {cons?.length ? (
                 <div className="rounded-xl bg-rose-50/60 p-3 ring-1 ring-inset ring-rose-200">
-                  <p className="text-[11px] font-semibold uppercase tracking-wider text-rose-700">
+                  <p className="text-micro font-semibold uppercase tracking-wider text-rose-700">
                     Điểm yếu
                   </p>
                   <ul className="mt-1.5 space-y-1">

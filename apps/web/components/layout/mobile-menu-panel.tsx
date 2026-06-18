@@ -3,7 +3,7 @@
 import { useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Bell, X } from "lucide-react";
+import { Bell, X, Flame, Clock, BookOpen, Info, Mail, ScrollText, type LucideIcon } from "lucide-react";
 import { CURATED_NICHES } from "../../lib/curated-niches";
 
 interface Props {
@@ -11,16 +11,16 @@ interface Props {
   onClose: () => void;
 }
 
-const HOT_LINKS = [
-  { href: "/?sort=top", label: "Deal hot tuần", icon: "🔥" },
-  { href: "/khuyen-mai", label: "Mã giảm đang còn", icon: "⏰" },
-  { href: "/blog", label: "Cẩm nang chọn mua", icon: "📑" }
+const HOT_LINKS: { href: string; label: string; icon: LucideIcon }[] = [
+  { href: "/?sort=top", label: "Deal hot tuần", icon: Flame },
+  { href: "/khuyen-mai", label: "Mã giảm đang còn", icon: Clock },
+  { href: "/blog", label: "Cẩm nang chọn mua", icon: BookOpen }
 ];
 
-const OTHER_LINKS = [
-  { href: "/#trust", label: "Vì sao dealvault", icon: "ℹ️" },
-  { href: "/lien-he", label: "Liên hệ", icon: "📧" },
-  { href: "/chinh-sach-affiliate", label: "Chính sách affiliate", icon: "📜" }
+const OTHER_LINKS: { href: string; label: string; icon: LucideIcon }[] = [
+  { href: "/#trust", label: "Vì sao dealvault", icon: Info },
+  { href: "/lien-he", label: "Liên hệ", icon: Mail },
+  { href: "/chinh-sach-affiliate", label: "Chính sách affiliate", icon: ScrollText }
 ];
 
 /**
@@ -106,13 +106,13 @@ export function MobileMenuPanel({ open, onClose }: Props): React.ReactElement | 
             <MenuLink
               key={n.slug}
               href={`/categories/${n.slug}`}
-              icon={n.iconHint}
+              icon={n.Icon}
               label={n.displayName}
             />
           ))}
           <Link
             href="/#all-niches"
-            className="mt-1 flex items-center justify-center gap-1 rounded-lg border border-dashed border-line px-3 py-2 text-[13px] font-semibold text-primary-700 hover:bg-card"
+            className="mt-1 flex items-center justify-center gap-1 rounded-lg border border-dashed border-line px-3 py-2 text-body-sm font-semibold text-primary-700 hover:bg-card"
           >
             Xem tất cả danh mục →
           </Link>
@@ -124,7 +124,7 @@ export function MobileMenuPanel({ open, onClose }: Props): React.ReactElement | 
           ))}
         </Section>
 
-        <p className="px-4 pb-6 pt-2 text-[11px] text-ink-mute">
+        <p className="px-4 pb-6 pt-2 text-micro text-ink-mute">
           © dealvault · Khuyến mãi cập nhật mỗi giờ
         </p>
       </aside>
@@ -135,7 +135,7 @@ export function MobileMenuPanel({ open, onClose }: Props): React.ReactElement | 
 function Section({ label, children }: { label: string; children: React.ReactNode }): React.ReactElement {
   return (
     <div className="border-b border-line/70 px-4 py-3">
-      <p className="mb-2 text-[10.5px] font-bold uppercase tracking-[0.12em] text-ink-mute">{label}</p>
+      <p className="mb-2 text-micro font-bold uppercase tracking-[0.12em] text-ink-mute">{label}</p>
       <div className="flex flex-col gap-0.5">{children}</div>
     </div>
   );
@@ -144,19 +144,19 @@ function Section({ label, children }: { label: string; children: React.ReactNode
 function MenuLink({
   href,
   label,
-  icon
+  icon: Icon
 }: {
   href: string;
   label: string;
-  icon: string;
+  icon: LucideIcon;
 }): React.ReactElement {
   return (
     <Link
       href={href}
-      className="flex items-center gap-3 rounded-lg px-2 py-2.5 text-[14px] font-medium text-ink hover:bg-card hover:text-primary-700"
+      className="flex items-center gap-3 rounded-lg px-2 py-2.5 text-body-sm font-medium text-ink hover:bg-card hover:text-primary-700"
     >
-      <span aria-hidden className="grid size-7 shrink-0 place-items-center text-base">
-        {icon}
+      <span aria-hidden className="grid size-7 shrink-0 place-items-center text-ink-mute">
+        <Icon className="size-[18px]" />
       </span>
       <span className="min-w-0 flex-1 truncate">{label}</span>
     </Link>

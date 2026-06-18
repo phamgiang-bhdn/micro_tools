@@ -26,7 +26,7 @@ export function NicheIntro({
       : autoIntro(niche, productCount, formatRelativeShort(lastUpdatedAt), topDiscount);
 
   return (
-    <p className="max-w-3xl text-[14.5px] leading-relaxed text-ink-soft sm:text-[15px]">
+    <p className="max-w-3xl text-body leading-relaxed text-ink-soft sm:text-body">
       {intro}
     </p>
   );

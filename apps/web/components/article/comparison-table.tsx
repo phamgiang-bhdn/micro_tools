@@ -1,4 +1,5 @@
 import type React from "react";
+import { Star } from "lucide-react";
 import { formatMoney, normalizeProduct } from "../../lib/format";
 import type { ProductItem } from "../../lib/types";
 import { AffiliateCta } from "./affiliate-cta";
@@ -23,14 +24,14 @@ export function ComparisonTable({ products: raw, schemaConfig }: Props): React.R
   return (
     <aside className="not-prose my-10 overflow-hidden rounded-3xl border border-line bg-card shadow-card">
       <header className="border-b border-line bg-canvas px-5 py-4 sm:px-6">
-        <p className="text-[11px] font-semibold uppercase tracking-wider text-primary-700">So sánh nhanh</p>
+        <p className="text-micro font-semibold uppercase tracking-wider text-primary-700">So sánh nhanh</p>
         <h2 className="mt-0.5 text-xl font-bold tracking-tight text-ink">Đặt cạnh nhau</h2>
       </header>
       <div className="overflow-x-auto">
         <table className="w-full min-w-[640px] text-sm">
           <thead>
             <tr className="border-b border-line bg-canvas/40">
-              <th className="sticky left-0 w-32 bg-canvas/40 px-5 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-ink-mute" />
+              <th className="sticky left-0 w-32 bg-canvas/40 px-5 py-3 text-left text-micro font-semibold uppercase tracking-wider text-ink-mute" />
               {products.map(({ view, raw: r }) => (
                 <th key={r.id} className="min-w-[180px] px-4 py-3 text-left">
                   <div className="flex flex-col gap-2">
@@ -40,12 +41,12 @@ export function ComparisonTable({ products: raw, schemaConfig }: Props): React.R
                         <img src={view.image} alt={view.name} loading="lazy" className="aspect-[4/3] w-full object-cover" />
                       ) : (
                         <div className="grid aspect-[4/3] w-full place-items-center bg-gradient-to-br from-primary-50 to-accent-50 text-2xl font-bold text-primary-700">
-                          {view.brand?.[0] ?? "★"}
+                          {view.brand?.[0] ?? <Star className="size-6 fill-current" aria-hidden />}
                         </div>
                       )}
                     </div>
                     {view.brand ? (
-                      <p className="text-[10px] font-semibold uppercase tracking-wider text-ink-mute">{view.brand}</p>
+                      <p className="text-micro font-semibold uppercase tracking-wider text-ink-mute">{view.brand}</p>
                     ) : null}
                     <p className="line-clamp-2 text-sm font-semibold text-ink">{view.name}</p>
                   </div>
@@ -62,7 +63,7 @@ export function ComparisonTable({ products: raw, schemaConfig }: Props): React.R
                     <div className="flex flex-col gap-0.5">
                       <span className="text-base font-bold text-primary-700">{formatMoney(view.price, view.currency)}</span>
                       {view.originalPrice && view.originalPrice > view.price ? (
-                        <span className="text-[11px] text-ink-mute line-through">
+                        <span className="text-micro text-ink-mute line-through">
                           {formatMoney(view.originalPrice, view.currency)}
                         </span>
                       ) : null}
@@ -79,7 +80,7 @@ export function ComparisonTable({ products: raw, schemaConfig }: Props): React.R
                 <td key={r.id} className="px-4 py-3 text-sm">
                   {view.rating !== undefined ? (
                     <span className="inline-flex items-center gap-1 text-ink">
-                      <span aria-hidden className="text-amber-500">★</span>
+                      <Star className="size-3.5 fill-amber-500 text-amber-500" aria-hidden />
                       <span className="font-semibold">{view.rating.toFixed(1)}</span>
                     </span>
                   ) : (

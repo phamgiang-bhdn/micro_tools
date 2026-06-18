@@ -32,8 +32,8 @@ export function NicheComparisonTable({
 
   return (
     <div className="overflow-x-auto rounded-2xl border border-border bg-surface shadow-card">
-      <table className="w-full min-w-[640px] text-[13px]">
-        <thead className="bg-canvas text-[11.5px] uppercase tracking-wider text-ink-mute">
+      <table className="w-full min-w-[640px] text-body-sm">
+        <thead className="bg-canvas text-micro uppercase tracking-wider text-ink-mute">
           <tr className="border-b border-border">
             <th scope="col" className="sticky left-0 z-10 bg-canvas px-3 py-2.5 text-left font-semibold">
               Sản phẩm
@@ -67,12 +67,12 @@ export function NicheComparisonTable({
                           className="size-full object-cover"
                         />
                       ) : (
-                        <span className="text-[10px] font-bold text-primary-700">
+                        <span className="text-micro font-bold text-primary-700">
                           {product.name.slice(0, 2).toUpperCase()}
                         </span>
                       )}
                     </span>
-                    <span className="line-clamp-2 max-w-[200px] text-[13px] font-medium text-ink hover:text-primary-700">
+                    <span className="line-clamp-2 max-w-[200px] text-body-sm font-medium text-ink hover:text-primary-700">
                       {product.name}
                     </span>
                   </Link>
@@ -84,7 +84,7 @@ export function NicheComparisonTable({
                 </td>
                 <td className="whitespace-nowrap px-3 py-3 text-right">
                   {typeof product.discountPercent === "number" && product.discountPercent > 0 ? (
-                    <span className="inline-flex items-center rounded bg-cta-100 px-1.5 py-0.5 text-[11px] font-bold text-cta-700">
+                    <span className="inline-flex items-center rounded bg-cta-100 px-1.5 py-0.5 text-micro font-bold text-cta-700">
                       -{product.discountPercent}%
                     </span>
                   ) : (
@@ -103,7 +103,7 @@ export function NicheComparisonTable({
                       <input type="hidden" name="affiliateUrl" value={product.affiliateUrl} />
                       <button
                         type="submit"
-                        className="inline-flex items-center justify-center gap-1 rounded-md bg-cta-500 px-3 py-1.5 text-[12px] font-semibold text-ink shadow-sm transition hover:bg-cta-400 ring-focus"
+                        className="inline-flex items-center justify-center gap-1 rounded-md bg-cta-500 px-3 py-1.5 text-caption font-semibold text-ink shadow-sm transition hover:bg-cta-400 ring-focus"
                       >
                         Mua ↗
                       </button>
@@ -111,7 +111,7 @@ export function NicheComparisonTable({
                   ) : (
                     <Link
                       href={detailHref}
-                      className="inline-flex items-center justify-center gap-1 rounded-md border border-border bg-surface px-3 py-1.5 text-[12px] font-semibold text-ink-soft transition hover:border-primary-300 hover:text-primary-700"
+                      className="inline-flex items-center justify-center gap-1 rounded-md border border-border bg-surface px-3 py-1.5 text-caption font-semibold text-ink-soft transition hover:border-primary-300 hover:text-primary-700"
                     >
                       Xem
                     </Link>

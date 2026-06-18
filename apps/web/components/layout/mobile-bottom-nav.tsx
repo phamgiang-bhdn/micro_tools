@@ -50,7 +50,7 @@ export function MobileBottomNav(): React.ReactElement | null {
             : pathname === tab.href || (tab.matchPrefix ? pathname?.startsWith(tab.matchPrefix) ?? false : false);
 
           const className = cn(
-            "relative flex h-full w-full flex-col items-center justify-center gap-0.5 text-[10px] font-medium leading-none",
+            "relative flex h-full w-full flex-col items-center justify-center gap-0.5 text-micro font-medium leading-none",
             active ? "text-primary-700" : "text-ink-mute hover:text-ink"
           );
           const indicator = active ? (

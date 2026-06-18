@@ -242,7 +242,7 @@ export default async function NicheDetailPage({
             />
           </PageSection>
 
-          <PageSection padding="default">
+          <PageSection padding="default" width="wide">
             <SectionHeading title="Lọc & sắp xếp" size="sm" />
             <NicheFilterBar
               nicheSlug={niche.slug}

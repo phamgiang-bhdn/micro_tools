@@ -51,7 +51,7 @@ export function CouponCardV2({ coupon }: Props): React.ReactElement {
           <div className="flex items-center gap-2">
             <span className="text-sm font-semibold uppercase text-ink">{merchantName}</span>
             {hot ? (
-              <span className="rounded-full bg-ink px-1.5 py-0.5 text-[10px] font-bold uppercase text-white">
+              <span className="rounded-full bg-ink px-1.5 py-0.5 text-micro font-bold uppercase text-white">
                 Hot
               </span>
             ) : null}
@@ -72,7 +72,7 @@ export function CouponCardV2({ coupon }: Props): React.ReactElement {
       </header>
 
       <div className="space-y-2 border-t border-dashed border-border pt-3">
-        <h3 className="text-[15px] font-semibold leading-snug text-ink line-clamp-2">
+        <h3 className="text-body font-semibold leading-snug text-ink line-clamp-2">
           {coupon.description ?? "Khuyến mại"}
         </h3>
         {coupon.contentHtml ? (

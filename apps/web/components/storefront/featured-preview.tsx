@@ -48,7 +48,7 @@ export function FeaturedPreview({ deals }: { deals: Deal[] }): React.ReactElemen
                   </div>
                 )}
                 {deal.discountPercent ? (
-                  <span className="absolute left-1 top-1 rounded bg-brand-gradient px-1 py-0.5 text-[10px] font-bold text-white">
+                  <span className="absolute left-1 top-1 rounded bg-brand-gradient px-1 py-0.5 text-micro font-bold text-white">
                     -{deal.discountPercent}%
                   </span>
                 ) : null}
@@ -64,7 +64,7 @@ export function FeaturedPreview({ deals }: { deals: Deal[] }): React.ReactElemen
                     </span>
                   ) : null}
                   {deal.originalPrice && deal.price && deal.originalPrice > deal.price ? (
-                    <span className="text-[11px] text-ink-mute line-through">
+                    <span className="text-micro text-ink-mute line-through">
                       {formatMoney(deal.originalPrice, deal.currency)}
                     </span>
                   ) : null}

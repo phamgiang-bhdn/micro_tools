@@ -60,7 +60,7 @@ export function SpecsTable({ product, schemaConfig }: Props): React.ReactElement
   return (
     <aside className="not-prose my-8 overflow-hidden rounded-2xl border border-line bg-card shadow-card">
       <header className="border-b border-line bg-canvas px-5 py-3">
-        <p className="text-[11px] font-semibold uppercase tracking-wider text-primary-700">Thông số kỹ thuật</p>
+        <p className="text-micro font-semibold uppercase tracking-wider text-primary-700">Thông số kỹ thuật</p>
         <h3 className="mt-0.5 text-base font-semibold text-ink">{product.name}</h3>
       </header>
       <dl className="divide-y divide-line">

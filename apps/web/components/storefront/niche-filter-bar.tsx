@@ -101,7 +101,7 @@ function FilterChipRow({
 }): React.ReactElement {
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <span className="text-[11.5px] font-semibold uppercase tracking-wider text-ink-mute">{label}</span>
+      <span className="text-micro font-semibold uppercase tracking-wider text-ink-mute">{label}</span>
       <div className="flex flex-wrap gap-1.5">
         {items.map((it) => {
           const active = (it.key ?? "") === (activeKey ?? "");
@@ -110,7 +110,7 @@ function FilterChipRow({
               key={it.key ?? "all"}
               href={buildHref(it.key)}
               className={cn(
-                "inline-flex items-center rounded-full px-2.5 py-1 text-[12px] font-medium transition",
+                "inline-flex items-center rounded-full px-2.5 py-1 text-caption font-medium transition",
                 active
                   ? "bg-primary-600 text-white shadow-sm"
                   : "border border-line bg-card text-ink-soft hover:border-primary-300 hover:text-primary-700"

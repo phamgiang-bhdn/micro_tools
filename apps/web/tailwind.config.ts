@@ -23,17 +23,18 @@ const config: Config = {
       colors: {
         // ─── Canonical ────────────────────────────────────────────────
         primary: {
-          50: "#eff6ff",
-          100: "#dbeafe",
-          200: "#bfdbfe",
-          300: "#93c5fd",
-          400: "#60a5fa",
-          500: "#3b82f6",
-          600: "#2563eb",
-          700: "#1d4ed8",
-          800: "#1e40af",
-          900: "#1e3a8a",
-          950: "#172554"
+          // Trust-blue CUSTOM (đậm & bão hoà hơn Tailwind default) — brand personality, khí chất fintech đáng tin.
+          50: "#eef3ff",
+          100: "#d8e4ff",
+          200: "#b6ccff",
+          300: "#8aaaff",
+          400: "#5680fb",
+          500: "#2f63f5",
+          600: "#1b4ddb",
+          700: "#1740b4",
+          800: "#163592",
+          900: "#182d6e",
+          950: "#101b44"
         },
         cta: {
           50: "#fffbeb",
@@ -58,7 +59,7 @@ const config: Config = {
         success: { DEFAULT: "#16a34a", soft: "#dcfce7", ink: "#166534" },
         warning: { DEFAULT: "#d97706", soft: "#fef3c7", ink: "#92400e" },
         danger: { DEFAULT: "#dc2626", soft: "#fee2e2", ink: "#991b1b" },
-        info: { DEFAULT: "#2563eb", soft: "#dbeafe", ink: "#1e40af" },
+        info: { DEFAULT: "#1b4ddb", soft: "#d8e4ff", ink: "#163592" },
 
         // ─── Legacy aliases còn lại (map → hệ mới; tên không gây hiểu lầm) ──
         // accent (xanh-lá cũ, dùng cho savings) → success green giữ ngữ nghĩa.
@@ -90,44 +91,64 @@ const config: Config = {
           "line-strong": "#cbd5e1",
           subtle: "#f1f5f9",
           "subtle-hover": "#e2e8f0",
-          accent: "#2563eb",
-          "accent-hover": "#1d4ed8",
-          "accent-soft": "#dbeafe",
-          "accent-ink": "#1e3a8a",
+          accent: "#1b4ddb",
+          "accent-hover": "#1740b4",
+          "accent-soft": "#d8e4ff",
+          "accent-ink": "#182d6e",
           success: "#16a34a",
           "success-soft": "#dcfce7",
           warning: "#d97706",
           "warning-soft": "#fef3c7",
           danger: "#dc2626",
           "danger-soft": "#fee2e2",
-          info: "#2563eb",
-          "info-soft": "#dbeafe"
+          info: "#1b4ddb",
+          "info-soft": "#d8e4ff"
         }
       },
+      fontSize: {
+        // ── Typographic scale TÊN RIÊNG (không đụng base/sm Tailwind → prose blog an toàn).
+        micro: ["0.6875rem", { lineHeight: "1rem" }], // 11/16 — label uppercase, micro-meta
+        caption: ["0.75rem", { lineHeight: "1rem" }], // 12/16 — meta, caption
+        "body-sm": ["0.8125rem", { lineHeight: "1.125rem" }], // 13/18 — body phụ, card meta
+        body: ["0.9375rem", { lineHeight: "1.375rem" }], // 15/22 — body chính
+        "body-lg": ["1rem", { lineHeight: "1.5rem" }], // 16/24 — lead, label form
+        "title-sm": ["1.125rem", { lineHeight: "1.625rem" }], // 18/26 — sub-heading
+        title: ["1.25rem", { lineHeight: "1.75rem" }], // 20/28 — heading card/section
+        "title-lg": ["1.5rem", { lineHeight: "2rem" }], // 24/32 — heading trang
+        "display-sm": ["1.875rem", { lineHeight: "2.375rem" }], // 30/38 — hero phụ
+        display: ["2.5rem", { lineHeight: "2.875rem" }] // 40/46 — hero chính
+      },
       boxShadow: {
-        // Bóng trung tính, mềm — bỏ glow đỏ.
-        card: "0 1px 2px rgba(15, 23, 42, 0.04), 0 1px 3px rgba(15, 23, 42, 0.06)",
-        "card-md": "0 4px 14px rgba(15, 23, 42, 0.08), 0 2px 4px rgba(15, 23, 42, 0.04)",
-        "card-lg": "0 12px 32px rgba(15, 23, 42, 0.12), 0 4px 8px rgba(15, 23, 42, 0.04)",
-        // Legacy aliases → trỏ về bóng trung tính.
+        // Bóng trung tính, sâu hơn — card "floating" (bỏ phẳng lỳ).
+        card: "0 1px 2px rgba(15, 23, 42, 0.06), 0 2px 6px rgba(15, 23, 42, 0.08)",
+        "card-md": "0 6px 18px rgba(15, 23, 42, 0.10), 0 2px 6px rgba(15, 23, 42, 0.06)",
+        "card-lg": "0 18px 44px rgba(15, 23, 42, 0.14), 0 6px 14px rgba(15, 23, 42, 0.06)",
+        // AI signature glow — CHỈ dùng ở khối AI (ai-hero, ai-assistant, badge AI).
+        "ai-glow": "0 8px 30px rgba(99, 102, 241, 0.18), 0 2px 10px rgba(34, 211, 238, 0.12)",
+        "ai-glow-sm": "0 4px 16px rgba(99, 102, 241, 0.14)",
+        // Legacy aliases → trỏ về bóng trung tính (admin dùng, giữ tương thích).
         google: "0 1px 2px 0 rgba(15, 23, 42, 0.08), 0 1px 3px 1px rgba(15, 23, 42, 0.06)",
         "google-md": "0 1px 3px 0 rgba(15, 23, 42, 0.08), 0 4px 8px 3px rgba(15, 23, 42, 0.06)",
-        glow: "0 8px 28px rgba(37, 99, 235, 0.18)",
-        "glow-sm": "0 4px 14px rgba(37, 99, 235, 0.12)",
+        glow: "0 8px 28px rgba(27, 77, 219, 0.18)",
+        "glow-sm": "0 4px 14px rgba(27, 77, 219, 0.12)",
         pop: "0 18px 38px -16px rgba(15, 23, 42, 0.18), 0 6px 14px -6px rgba(15, 23, 42, 0.08)"
       },
       backgroundImage: {
-        // Gradient brand → xanh dương (bỏ đỏ). CTA gradient → amber.
-        "brand-gradient": "linear-gradient(135deg, #3b82f6 0%, #2563eb 60%, #1d4ed8 100%)",
+        // Gradient brand → trust-blue custom. CTA gradient → amber (giữ).
+        "brand-gradient": "linear-gradient(135deg, #2f63f5 0%, #1b4ddb 60%, #1740b4 100%)",
         "cta-gradient": "linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%)",
+        // AI gradient signature → indigo → violet → cyan (RIÊNG khối AI).
+        "ai-gradient": "linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #22d3ee 100%)",
+        "ai-mesh":
+          "radial-gradient(55% 55% at 12% 10%, rgba(99, 102, 241, 0.14) 0%, rgba(99, 102, 241, 0) 60%), radial-gradient(45% 45% at 92% 8%, rgba(34, 211, 238, 0.10) 0%, rgba(34, 211, 238, 0) 60%)",
         // accent-gradient (legacy, savings) → green.
         "accent-gradient": "linear-gradient(135deg, #4ade80 0%, #16a34a 100%)",
-        // Mesh nền: nhẹ, đơn sắc xanh (bỏ mesh đỏ-xanh-lá hỗn loạn).
+        // Mesh nền: nhẹ, đơn sắc trust-blue.
         "hero-mesh":
-          "radial-gradient(60% 60% at 15% 15%, rgba(37, 99, 235, 0.10) 0%, rgba(37, 99, 235, 0) 60%), radial-gradient(45% 45% at 90% 10%, rgba(37, 99, 235, 0.06) 0%, rgba(37, 99, 235, 0) 60%)",
+          "radial-gradient(60% 60% at 15% 15%, rgba(27, 77, 219, 0.10) 0%, rgba(27, 77, 219, 0) 60%), radial-gradient(45% 45% at 90% 10%, rgba(27, 77, 219, 0.06) 0%, rgba(27, 77, 219, 0) 60%)",
         "admin-mesh":
-          "radial-gradient(60% 50% at 0% 0%, rgba(37, 99, 235, 0.06) 0%, rgba(37, 99, 235, 0) 60%)",
-        "admin-accent-gradient": "linear-gradient(135deg, #3b82f6 0%, #2563eb 60%, #1d4ed8 100%)"
+          "radial-gradient(60% 50% at 0% 0%, rgba(27, 77, 219, 0.06) 0%, rgba(27, 77, 219, 0) 60%)",
+        "admin-accent-gradient": "linear-gradient(135deg, #2f63f5 0%, #1b4ddb 60%, #1740b4 100%)"
       },
       borderRadius: {
         "2.5xl": "1.25rem",

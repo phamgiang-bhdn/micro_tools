@@ -1,4 +1,5 @@
 import type React from "react";
+import { Star } from "lucide-react";
 
 interface Props {
   body: string;
@@ -20,17 +21,21 @@ export function ReviewQuoteBlock({ body, author, rating, sourceUrl, sourceName, 
           </svg>
         </span>
         <div className="min-w-0 flex-1">
-          <p className="text-[15px] leading-[1.7] text-ink">{body}</p>
-          <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12.5px] text-ink-mute">
+          <p className="text-body leading-[1.7] text-ink">{body}</p>
+          <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-caption text-ink-mute">
             {typeof rating === "number" && rating > 0 ? (
               <span className="inline-flex items-center gap-1 font-semibold text-amber-700">
-                {"★".repeat(Math.round(Math.max(0, Math.min(5, rating))))}
+                <span aria-hidden className="inline-flex">
+                  {Array.from({ length: Math.round(Math.max(0, Math.min(5, rating))) }).map((_, i) => (
+                    <Star key={i} className="size-3 fill-amber-500 text-amber-500" />
+                  ))}
+                </span>
                 <span className="text-ink-mute">({rating.toFixed(1)})</span>
               </span>
             ) : null}
             {author ? <span className="text-ink-soft">— {author}</span> : null}
             {verifiedBuyer ? (
-              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-medium text-emerald-800">
+              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-micro font-medium text-emerald-800">
                 ✓ Đã mua
               </span>
             ) : null}

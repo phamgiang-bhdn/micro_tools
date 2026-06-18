@@ -11,9 +11,9 @@
 body {
   background-color: #f8fafc;
   color: #0f172a;
-  /* Plus Jakarta Sans mảnh → sàn weight 500 cho text không set-weight (đỡ "mảnh mai"). */
-  font-weight: 500;
-  /* Tắt subpixel-thin: chữ "có thân" hơn trên Windows (đồng bộ với admin). */
+  /* Weight 400 (airy hơn). GIỮ -webkit-font-smoothing:auto để chữ không bị mỏng/mờ trên Windows
+     — chống đúng vấn đề mà weight 500 cũ từng chữa. Nếu visual Windows vẫn mỏng → cân nhắc 450 (ADR-5). */
+  font-weight: 400;
   -webkit-font-smoothing: auto;
   -moz-osx-font-smoothing: auto;
   text-rendering: optimizeLegibility;
@@ -28,16 +28,24 @@ body[data-shell="admin"] {
 }
 
 @layer utilities {
-  /* Gradient text thương hiệu → xanh dương (bỏ đỏ). */
+  /* Gradient text thương hiệu → trust-blue custom. */
   .text-gradient-brand {
-    background-image: linear-gradient(135deg, #3b82f6 0%, #2563eb 60%, #1d4ed8 100%);
+    background-image: linear-gradient(135deg, #2f63f5 0%, #1b4ddb 60%, #1740b4 100%);
     -webkit-background-clip: text;
     background-clip: text;
     color: transparent;
   }
 
   .text-gradient-cool {
-    background-image: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+    background-image: linear-gradient(135deg, #2f63f5 0%, #1b4ddb 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  /* Gradient text AI signature → indigo-violet-cyan. CHỈ dùng ở khối AI. */
+  .text-gradient-ai {
+    background-image: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #22d3ee 100%);
     -webkit-background-clip: text;
     background-clip: text;
     color: transparent;

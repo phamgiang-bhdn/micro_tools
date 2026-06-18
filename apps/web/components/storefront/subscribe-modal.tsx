@@ -2,6 +2,7 @@
 
 import type React from "react";
 import { useEffect, useState } from "react";
+import { Mail } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { getCookie, incrementCookie, setCookie } from "../../lib/cookies";
 
@@ -90,7 +91,9 @@ export function SubscribeModal(): React.ReactElement | null {
       <div className="w-full max-w-md rounded-3xl border border-line bg-card p-6 shadow-2xl">
         <div className="flex items-start justify-between">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wider text-primary-600">📧 Nhận deal sớm</p>
+            <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-primary-600">
+              <Mail className="size-3.5" aria-hidden /> Nhận deal sớm
+            </p>
             <h2 className="mt-1 text-xl font-bold text-ink">Nhận deal sớm nhất</h2>
           </div>
           <button
@@ -152,7 +155,7 @@ export function SubscribeModal(): React.ReactElement | null {
             </p>
           ) : null}
 
-          <p className="text-[11px] text-ink-mute">
+          <p className="text-micro text-ink-mute">
             Bằng việc đăng ký, bạn đồng ý với{" "}
             <a href="/chinh-sach-bao-mat" className="underline">
               chính sách bảo mật

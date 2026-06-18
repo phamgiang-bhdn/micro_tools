@@ -46,7 +46,7 @@ export function CouponHero({ coupons }: Props): React.ReactElement {
 function Stat({ label, value }: { label: string; value: string }): React.ReactElement {
   return (
     <div className="rounded-xl border border-line bg-card px-4 py-3">
-      <p className="text-[11px] font-semibold uppercase tracking-wider text-ink-mute">{label}</p>
+      <p className="text-micro font-semibold uppercase tracking-wider text-ink-mute">{label}</p>
       <p className="mt-1 text-xl font-bold text-ink">{value}</p>
     </div>
   );

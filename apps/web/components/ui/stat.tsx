@@ -36,7 +36,7 @@ export function Stat({
         className
       )}
     >
-      <dt className="text-[10.5px] font-medium uppercase tracking-wider text-ink-mute">{label}</dt>
+      <dt className="text-micro font-medium uppercase tracking-wider text-ink-mute">{label}</dt>
       <dd className={cn(valueClass, TONE_CLASS[tone])}>{value}</dd>
     </div>
   );

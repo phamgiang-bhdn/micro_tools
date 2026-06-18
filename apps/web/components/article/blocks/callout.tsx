@@ -74,7 +74,7 @@ export function CalloutBlock({ tone, title, body }: Props): React.ReactElement |
       </span>
       <div className="space-y-1.5">
         <div className="flex items-center gap-2">
-          <span className="text-[10px] font-semibold uppercase tracking-wider text-ink-mute">{t.label}</span>
+          <span className="text-micro font-semibold uppercase tracking-wider text-ink-mute">{t.label}</span>
         </div>
         <h4 className={`text-base font-bold tracking-tight sm:text-lg ${t.titleColor}`}>{title}</h4>
         <p className="text-sm leading-6 text-ink-soft">{body}</p>

@@ -1,3 +1,4 @@
+import { Ticket, Clock } from "lucide-react";
 import { deriveCouponShortLabel } from "../../../lib/coupon-format";
 
 interface CouponPillInput {
@@ -26,13 +27,13 @@ export function CouponInlinePill({ coupon }: Props) {
     <span
       className={
         urgent
-          ? "inline-flex items-center gap-1 rounded-md bg-danger-soft px-1.5 py-0.5 text-[10.5px] font-semibold text-danger-ink ring-1 ring-danger/20"
-          : "inline-flex items-center gap-1 rounded-md bg-warning-soft px-1.5 py-0.5 text-[10.5px] font-semibold text-warning-ink ring-1 ring-warning/20"
+          ? "inline-flex items-center gap-1 rounded-md bg-danger-soft px-1.5 py-0.5 text-micro font-semibold text-danger-ink ring-1 ring-danger/20"
+          : "inline-flex items-center gap-1 rounded-md bg-warning-soft px-1.5 py-0.5 text-micro font-semibold text-warning-ink ring-1 ring-warning/20"
       }
     >
-      <span aria-hidden="true">🎟</span>
+      <Ticket className="size-3" aria-hidden />
       {label}
-      {urgent ? <span className="text-[9px]">⏰</span> : null}
+      {urgent ? <Clock className="size-3" aria-hidden /> : null}
     </span>
   );
 }

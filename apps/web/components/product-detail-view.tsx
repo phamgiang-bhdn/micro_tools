@@ -2,6 +2,7 @@ import type React from "react";
 import { Suspense } from "react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { Star } from "lucide-react";
 import { formatMoney, formatNumber, normalizeProduct } from "../lib/format";
 import { createTrackingRedirect } from "../app/actions/tracking";
 import { BuyErrorBanner } from "./storefront/buy-error-banner";
@@ -141,7 +142,11 @@ export function ProductDetailView({
             <div className="mt-2 flex flex-wrap items-center gap-3 text-sm text-ink-soft">
               {product.rating !== undefined ? (
                 <span className="inline-flex items-center gap-1.5">
-                  <span aria-hidden className="text-amber-500">{"★".repeat(Math.round(product.rating))}</span>
+                  <span aria-hidden className="inline-flex">
+                    {Array.from({ length: Math.round(product.rating) }).map((_, i) => (
+                      <Star key={i} className="size-3.5 fill-amber-500 text-amber-500" />
+                    ))}
+                  </span>
                   <span className="font-medium text-ink">{product.rating.toFixed(1)}</span>
                   {product.reviewCount ? (
                     <span className="text-ink-mute">({formatNumber(product.reviewCount)} đánh giá)</span>
@@ -157,7 +162,7 @@ export function ProductDetailView({
           </div>
 
           {/* PRICE CARD — nhấn vào tiết kiệm */}
-          <div className="relative overflow-hidden rounded-2xl bg-surface p-5 ring-1 ring-border">
+          <div className="relative overflow-hidden rounded-2xl border border-border bg-surface p-5 shadow-card">
             {product.price !== undefined ? (
               <>
                 <div className="flex flex-wrap items-baseline gap-3">
@@ -251,7 +256,7 @@ export function ProductDetailView({
               <Link
                 key={r.id}
                 href={`/categories/${niche.slug}/${r.slug ?? r.id}`}
-                className="group overflow-hidden rounded-xl bg-surface ring-1 ring-border transition hover:ring-primary-300 hover:shadow-card-md"
+                className="group overflow-hidden rounded-xl border border-border bg-surface shadow-card transition hover:-translate-y-0.5 hover:border-primary-300 hover:shadow-card-md"
               >
                 <div className="relative aspect-square overflow-hidden bg-canvas">
                   {r.image ? (
@@ -263,7 +268,7 @@ export function ProductDetailView({
                     </div>
                   )}
                   {r.discountPercent ? (
-                    <span className="absolute left-1.5 top-1.5 rounded bg-primary-600 px-1.5 py-0.5 text-[10px] font-bold text-white">
+                    <span className="absolute left-1.5 top-1.5 rounded bg-primary-600 px-1.5 py-0.5 text-micro font-bold text-white">
                       -{r.discountPercent}%
                     </span>
                   ) : null}
@@ -288,7 +293,7 @@ export function ProductDetailView({
               <div className="flex flex-1 flex-col leading-tight">
                 <span className="text-base font-bold text-primary-700">{formatMoney(product.price, product.currency)}</span>
                 {savings ? (
-                  <span className="text-[11px] font-medium text-accent-700">
+                  <span className="text-micro font-medium text-accent-700">
                     Tiết kiệm {formatMoney(savings, product.currency)}
                   </span>
                 ) : null}
@@ -333,7 +338,7 @@ function TrustStrip(): React.ReactElement {
           </span>
           <div className="min-w-0">
             <p className="text-xs font-semibold text-ink">{item.title}</p>
-            <p className="text-[11px] leading-relaxed text-ink-mute">{item.desc}</p>
+            <p className="text-micro leading-relaxed text-ink-mute">{item.desc}</p>
           </div>
         </div>
       ))}
@@ -426,11 +431,11 @@ function DescriptionSection({ description }: { description?: string }): React.Re
       <div className="border-b border-line bg-canvas/70 px-5 py-3">
         <p className="text-sm font-semibold text-ink">Mô tả sản phẩm</p>
       </div>
-      <div className="max-w-3xl space-y-3 px-5 py-4 text-[15px] leading-relaxed [overflow-wrap:anywhere]">
+      <div className="max-w-3xl space-y-3 px-5 py-4 text-body leading-relaxed [overflow-wrap:anywhere]">
         {blocks.map((block, idx) => {
           if (block.kind === "heading") {
             return (
-              <h3 key={idx} className="mt-1 text-[15px] font-semibold text-ink">
+              <h3 key={idx} className="mt-1 text-body font-semibold text-ink">
                 {block.text}
               </h3>
             );
