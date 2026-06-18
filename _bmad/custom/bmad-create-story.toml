@@ -1,0 +1,13 @@
+# Team override for bmad-create-story — bake repo architecture + invariants into every story
+# so the dev-context section points dev-story at the right files/patterns.
+# Overrides append to the skill's default persistent_facts.
+[workflow]
+persistent_facts = [
+  "file:{project-root}/docs/project-context.md",
+  "file:{project-root}/docs/index.md",
+  "file:{project-root}/docs/architecture-api.md",
+  "file:{project-root}/docs/architecture-web.md",
+  "file:{project-root}/docs/data-models.md",
+  "Moi story PHAI co dev-context tro den file/pattern cu the can mirror (vd: theo admin.controller.ts authorize() pattern, validate bang zod nhu admin endpoint hien co, doc scrapedData qua normalizeProduct).",
+  "AC phai cu the va testable (input -> expected output), bao gom ca case loi, khong chi happy path. Nhac cac invariant lien quan: trackingCode, HITL gate, admin auth, normalizeProduct, schemaConfig per-niche.",
+]

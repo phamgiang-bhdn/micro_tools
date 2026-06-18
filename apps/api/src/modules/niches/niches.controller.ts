@@ -25,6 +25,31 @@ export class NichesController {
     }
   }
 
+  // STORY 1-2: status-only meta cho MỌI niche tồn tại (kể cả INACTIVE) — phục vụ
+  // /coming-soon. Khai báo TRƯỚC @Get(":slug") để rõ ràng. HITL: chỉ select slug/name/status,
+  // tuyệt đối KHÔNG include products/scrapedData.
+  @Get(":slug/meta")
+  async getNicheMeta(@Param("slug") slug: string) {
+    try {
+      const niche = await this.prisma.niche.findUnique({
+        where: { slug },
+        select: { slug: true, name: true, status: true }
+      });
+
+      if (!niche) {
+        throw new HttpException("Niche not found", HttpStatus.NOT_FOUND);
+      }
+
+      return niche;
+    } catch (error: unknown) {
+      if (error instanceof HttpException) {
+        throw error;
+      }
+      this.logger.error(`Failed to fetch niche meta slug=${slug}`, error instanceof Error ? error.stack : String(error));
+      throw new HttpException("Failed to fetch niche meta", HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+  }
+
   @Get(":slug")
   async getNicheBySlug(@Param("slug") slug: string) {
     try {

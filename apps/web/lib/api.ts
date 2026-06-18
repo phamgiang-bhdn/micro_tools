@@ -117,6 +117,26 @@ export async function fetchNicheBySlug(slug: string): Promise<NicheDetail | null
   }
 }
 
+export interface NicheMeta {
+  slug: string;
+  name: string;
+  status: "ACTIVE" | "INACTIVE";
+}
+
+/**
+ * STORY 1-2: meta status-only cho MỌI niche tồn tại (kể cả INACTIVE) — phân biệt
+ * "niche chưa ra mắt" (→ coming-soon) với "không tồn tại" (→ 404). `/niches/:slug`
+ * thường vẫn 404 INACTIVE nên không dùng được cho việc này. Lỗi/404 → null.
+ */
+export async function fetchNicheMeta(slug: string): Promise<NicheMeta | null> {
+  try {
+    return await safeFetch<NicheMeta>(`/niches/${encodeURIComponent(slug)}/meta`);
+  } catch (error) {
+    console.error(`Failed to fetch niche meta slug=${slug}:`, error);
+    return null;
+  }
+}
+
 export type FlatProduct = ProductView & {
   slug?: string | null;
   nicheSlug: string;
@@ -180,6 +200,30 @@ export async function fetchCouponsByMerchant(
   } catch (error) {
     console.error(`Failed to fetch coupons merchantSlug=${merchantSlug}:`, error);
     return [];
+  }
+}
+
+export interface MerchantExists {
+  slug: string;
+  display: string | null;
+  exists: boolean;
+}
+
+/**
+ * STORY 1-2 (decision B): merchant có tồn tại không (đếm MỌI coupon, kể cả inactive/expired).
+ * Phân biệt "merchant thật đang hết mã" (exists:true → trang "chưa có mã") với "slug lạ"
+ * (exists:false → 404).
+ *
+ * Lỗi API (5xx/network) → trả `null` (KHÁC exists:false) để caller phân biệt "không xác định
+ * được" với "chắc chắn không tồn tại": lúc API chập chờn KHÔNG nên 404 một merchant có thể là
+ * thật (review #2) — caller degrade về trang "chưa có mã" thay vì 404.
+ */
+export async function fetchMerchantExists(slug: string): Promise<MerchantExists | null> {
+  try {
+    return await safeFetch<MerchantExists>(`/coupons/merchants/${encodeURIComponent(slug)}`);
+  } catch (error) {
+    console.error(`Failed to fetch merchant exists slug=${slug}:`, error);
+    return null;
   }
 }
 

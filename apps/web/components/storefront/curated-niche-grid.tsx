@@ -1,10 +1,6 @@
 import type React from "react";
 import Link from "next/link";
-import type { CuratedNiche } from "../../lib/curated-niches";
-
-export interface CuratedNicheTile extends CuratedNiche {
-  productCount: number;
-}
+import type { CuratedNicheTile } from "../../lib/curated-niches";
 
 interface Props {
   niches: CuratedNicheTile[];
@@ -20,7 +16,7 @@ export function CuratedNicheGrid({ niches }: Props): React.ReactElement {
       {niches.map((n) => (
         <Link
           key={n.slug}
-          href={`/categories/${n.slug}`}
+          href={n.href}
           className="group relative flex flex-col overflow-hidden rounded-2xl bg-surface ring-1 ring-border transition hover:ring-primary-300 hover:shadow-card-md"
         >
           <div className="relative aspect-[16/9] overflow-hidden bg-gradient-to-br from-primary-100 via-primary-50 to-canvas">

@@ -5,12 +5,40 @@
 // Image path `/public/niches/<slug>.jpg` — operator upload sau. Khi chưa có ảnh, component
 // fallback gradient + iconHint (xem [[curated-niche-grid]]).
 
+import type { NicheItem } from "./types";
+
 export interface CuratedNiche {
   slug: string;
   displayName: string;
   pitch: string;
   image: string;
   iconHint: string;
+}
+
+export interface CuratedNicheTile extends CuratedNiche {
+  productCount: number;
+  /**
+   * STORY 1-2: đích link theo trạng thái niche — ACTIVE → `/categories/<slug>`,
+   * chưa ra mắt (không nằm trong list ACTIVE) → `/coming-soon/<slug>` (tránh click ra 404).
+   */
+  href: string;
+}
+
+/**
+ * STORY 1-2: dựng tile curated từ list niche ACTIVE (kết quả `fetchNiches()`). Đây là CHỖ DUY
+ * NHẤT giữ quy tắc routing tile → mọi surface (home, niche-empty fallback, …) gọi hàm này,
+ * tránh copy-paste ternary ở nhiều page rồi lệch nhau khiến tile lại link ra 404.
+ */
+export function buildCuratedTiles(activeNiches: NicheItem[], excludeSlug?: string): CuratedNicheTile[] {
+  const activeBySlug = new Map(activeNiches.map((n) => [n.slug, n]));
+  return CURATED_NICHES.filter((c) => c.slug !== excludeSlug).map((curated) => {
+    const matched = activeBySlug.get(curated.slug);
+    return {
+      ...curated,
+      productCount: matched?._count?.products ?? 0,
+      href: matched ? `/categories/${curated.slug}` : `/coming-soon/${curated.slug}`
+    };
+  });
 }
 
 export const CURATED_NICHES: CuratedNiche[] = [

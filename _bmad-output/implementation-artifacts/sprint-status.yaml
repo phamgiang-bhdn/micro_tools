@@ -1,0 +1,39 @@
+# STATUS DEFINITIONS:
+# ==================
+# Epic Status:
+#   - backlog: Epic not yet started
+#   - in-progress: Epic actively being worked on
+#   - done: All stories in epic completed
+#
+# Story Status:
+#   - backlog: Story only exists in epic file
+#   - ready-for-dev: Story file created, ready for development
+#   - in-progress: Developer actively working on implementation
+#   - review: Implementation complete, ready for review
+#   - done: Story completed
+#
+# Retrospective Status:
+#   - optional: Can be completed but not required
+#   - done: Retrospective has been completed
+#
+# WORKFLOW NOTES:
+# ===============
+# - Mark epic as 'in-progress' when starting work on its first story
+# - Dev 1-2 trước (1-1 phụ thuộc fetchNicheMeta của 1-2); 1-3 và 1-4 song song bất kỳ lúc nào
+# - Dev moves story to 'review', then runs code-review (fresh context, ideally different LLM)
+
+generated: 2026-06-18
+last_updated: 2026-06-18T2
+project: micro tool
+project_key: DEALVAULT
+tracking_system: file-system
+story_location: "_bmad-output/implementation-artifacts"
+
+development_status:
+  epic-1: in-progress
+  # Dependency-ordered: 1-2 cung cấp fetchNicheMeta cho 1-1 → phải đứng trước.
+  1-2-coming-soon-reachability: review
+  1-1-trust-safe-states: review
+  1-3-buy-button-safe-redirect: ready-for-dev
+  1-4-distinguish-empty-vs-error: ready-for-dev
+  epic-1-retrospective: optional

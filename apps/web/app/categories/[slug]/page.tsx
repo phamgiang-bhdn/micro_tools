@@ -1,11 +1,12 @@
 import type React from "react";
 import type { Metadata } from "next";
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import {
   fetchArticles,
   fetchNicheBySlug,
   fetchNicheFaqFromArticle,
+  fetchNicheMeta,
   fetchNiches
 } from "../../../lib/api";
 import { formatMoney, formatNumber, normalizeProduct } from "../../../lib/format";
@@ -29,7 +30,8 @@ import {
 import { NicheFaq } from "../../../components/storefront/niche-faq";
 import { CuratedNicheGrid } from "../../../components/storefront/curated-niche-grid";
 import { ArticleCard } from "../../../components/storefront/article-card";
-import { CURATED_NICHES } from "../../../lib/curated-niches";
+import { buildCuratedTiles } from "../../../lib/curated-niches";
+import { logDeadEnd } from "../../../lib/dead-end";
 
 const API_BASE_URL = process.env.API_BASE_URL ?? "http://localhost:4000/api/v1";
 
@@ -90,7 +92,17 @@ export default async function NicheDetailPage({
     fetchNicheFaqFromArticle(slug),
     fetchToolForNiche(slug)
   ]);
-  if (!niche) notFound();
+  // STORY 1-1: niche null = INACTIVE hoặc không tồn tại (API 404 cả hai). Chỉ khi miss mới
+  // gọi thêm meta (Cascading mitigation: 1 call phụ trên đường miss). INACTIVE → coming-soon;
+  // không tồn tại → 404 thật.
+  if (!niche) {
+    const meta = await fetchNicheMeta(slug);
+    if (meta && meta.status === "INACTIVE") {
+      logDeadEnd("niche-inactive", { slug });
+      redirect(`/coming-soon/${slug}`);
+    }
+    notFound();
+  }
 
   const productsAll = niche.products.map((p, idx) => ({
     ...normalizeProduct(p),
@@ -116,10 +128,8 @@ export default async function NicheDetailPage({
   const h1 = buildNicheTitle(niche, productsAll.length);
 
   // Empty niche fallback: render curated grid của 6 niche đang có data, link sang chỗ khác.
-  const curatedTiles = CURATED_NICHES.filter((c) => c.slug !== niche.slug).map((curated) => {
-    const matched = (nichesList.niches ?? []).find((n) => n.slug === curated.slug);
-    return { ...curated, productCount: matched?._count?.products ?? 0 };
-  });
+  // STORY 1-2: routing tile (ACTIVE→/categories, chưa ra mắt→/coming-soon) gom ở buildCuratedTiles.
+  const curatedTiles = buildCuratedTiles(nichesList.niches ?? [], niche.slug);
 
   const itemListLd = sorted.length > 0
     ? {

@@ -8,7 +8,7 @@ import { ProductGrid } from "../components/storefront/product-grid";
 import { SortControl } from "../components/storefront/sort-control";
 import { AiAssistant } from "../components/storefront/ai-assistant";
 import { CuratedNicheGrid } from "../components/storefront/curated-niche-grid";
-import { CURATED_NICHES } from "../lib/curated-niches";
+import { buildCuratedTiles } from "../lib/curated-niches";
 
 export const revalidate = 300;
 
@@ -32,10 +32,7 @@ export default async function HomePage({ searchParams }: HomeProps): Promise<Rea
   }
   const sorted = sortProducts(filtered, sort);
 
-  const curatedTiles = CURATED_NICHES.map((curated) => {
-    const niche = niches.find((n) => n.slug === curated.slug);
-    return { ...curated, productCount: niche?._count?.products ?? 0 };
-  });
+  const curatedTiles = buildCuratedTiles(niches);
 
   const activeNiche = activeSlug ? niches.find((c) => c.slug === activeSlug) : undefined;
   const listingTitle = activeNiche?.name ?? (query ? "Kết quả tìm kiếm" : "Tất cả deal");

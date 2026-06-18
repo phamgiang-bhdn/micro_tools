@@ -3,6 +3,8 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { fetchToolBySlug, fetchToolSession } from "../../../../../lib/api";
 import { normalizeProduct } from "../../../../../lib/format";
+import { ExpiredSessionNotice } from "../../../../../components/storefront/expired-session-notice";
+import { logDeadEnd } from "../../../../../lib/dead-end";
 import { ResultCards, type ResultCardsProps } from "./result-cards";
 
 export const dynamic = "force-dynamic";
@@ -25,7 +27,13 @@ export default async function ResultPage({ params }: PageProps): Promise<React.R
   const { slug, sessionId } = await params;
   const session = await fetchToolSession(sessionId);
 
-  if (!session || session.tool.slug !== slug) {
+  // STORY 1-1: session không còn → "phiên hết hạn" (CTA làm lại quiz) thay vì 404 generic.
+  if (!session) {
+    logDeadEnd("session-expired", { session: sessionId });
+    return <ExpiredSessionNotice toolSlug={slug} />;
+  }
+  // slug không khớp tool của session = URL bị sửa/sai → 404 thật.
+  if (session.tool.slug !== slug) {
     notFound();
   }
 

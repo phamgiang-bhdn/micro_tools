@@ -1,8 +1,12 @@
+import { cache } from "react";
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
-import { fetchNicheBySlug } from "../../../lib/api";
+import { fetchNicheMeta } from "../../../lib/api";
 import { WaitlistForm } from "./waitlist-form";
+
+// STORY 1-1 (review #5): dedup fetchNicheMeta giữa generateMetadata + body trong 1 request.
+const getNicheMetaCached = cache((slug: string) => fetchNicheMeta(slug));
 
 interface PageProps {
   params: Promise<{ slug: string }>;
@@ -18,11 +22,14 @@ const SURVEY_OPTIONS_BY_NICHE: Record<string, string[]> = {
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { slug } = await params;
-  const niche = await fetchNicheBySlug(slug);
+  const niche = await getNicheMetaCached(slug);
   const name = niche?.name ?? "sản phẩm";
   return {
     title: `Sắp ra mắt: AI chọn ${name} — DealVault`,
     description: `Đăng ký để được thông báo khi AI tool giúp chọn ${name.toLowerCase()} phù hợp ra mắt. Không spam, có nút unsubscribe.`,
+    // STORY 1-1 (review #3): trang waitlist mỏng + nhiều niche gần trùng nhau → noindex để tránh
+    // duplicate/thin-content. Vẫn vào được qua link trực tiếp + curated grid.
+    robots: { index: false },
     openGraph: {
       title: `🤖 AI chọn ${name} sắp ra mắt — DealVault`,
       description: `Mô tả nhu cầu — AI gợi ý 3 sản phẩm phù hợp nhất trong 60 giây.`,
@@ -42,10 +49,15 @@ export default async function ComingSoonPage({
 }: PageProps): Promise<React.ReactElement> {
   const { slug } = await params;
   const { source } = await searchParams;
-  const niche = await fetchNicheBySlug(slug);
+  const niche = await getNicheMetaCached(slug);
 
+  // STORY 1-2: slug không tồn tại → 404; niche đã ACTIVE (ra mắt rồi) → đưa thẳng vào
+  // trang thật thay vì kẹt ở coming-soon; còn lại (INACTIVE) → render trang chờ.
   if (!niche) {
     notFound();
+  }
+  if (niche.status === "ACTIVE") {
+    redirect(`/categories/${slug}`);
   }
 
   const surveyOptions = SURVEY_OPTIONS_BY_NICHE[slug] ?? [];

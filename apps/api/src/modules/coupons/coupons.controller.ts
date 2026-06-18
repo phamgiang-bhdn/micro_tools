@@ -1,10 +1,25 @@
-import { Controller, Get, Query } from "@nestjs/common";
+import { Controller, Get, Param, Query } from "@nestjs/common";
 import { Prisma } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 
 @Controller("coupons")
 export class CouponsController {
   constructor(private readonly prisma: PrismaService) {}
+
+  // STORY 1-2 (decision B): tồn tại merchant tính trên MỌI coupon — KHÔNG lọc
+  // isActive/expiresAt. Nếu lọc active sẽ báo "không tồn tại" nhầm cho merchant thật
+  // đang tạm hết mã → story 1-1 sẽ 404 oan thay vì hiện "chưa có mã".
+  @Get("merchants/:slug")
+  async getMerchantExists(@Param("slug") slug: string) {
+    // orderBy merchantDisplay nulls:last → display deterministic + ưu tiên row có tên (review #7),
+    // tránh trả null trong khi row khác cùng merchant có tên thật.
+    const row = await this.prisma.coupon.findFirst({
+      where: { merchantSlug: slug },
+      select: { merchantDisplay: true },
+      orderBy: { merchantDisplay: { sort: "asc", nulls: "last" } }
+    });
+    return { slug, display: row?.merchantDisplay ?? null, exists: row !== null };
+  }
 
   @Get()
   async list(

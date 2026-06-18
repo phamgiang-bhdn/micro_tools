@@ -1,0 +1,14 @@
+# Team override for bmad-quick-dev — same repo-convention binding as dev-story.
+# Overrides append to the skill's default persistent_facts.
+[workflow]
+persistent_facts = [
+  "file:{project-root}/docs/project-context.md",
+  "file:{project-root}/CLAUDE.md",
+  "file:{project-root}/apps/api/CLAUDE.md",
+  "file:{project-root}/apps/web/CLAUDE.md",
+  "file:{project-root}/docs/architecture-api.md",
+  "file:{project-root}/docs/architecture-web.md",
+  "Mirror existing patterns: doc file lan can truoc khi viet; KHONG tu che pattern moi khi repo da co. Rule trong CLAUDE.md/project-context.md thang convention generic cua BMAD.",
+  "Giu invariants: trackingCode 32-char round-trip; HITL gate (ProductExtraction/Article/Coupon, khong auto-publish); admin shared-secret header + authorize() per-method; doc scrapedData chi qua normalizeProduct; schemaConfig per-niche dong; sua schema.prisma thi npm run db:migrate.",
+  "Truoc khi bao done: npm run lint:web + npm run test:api + npm run build.",
+]
