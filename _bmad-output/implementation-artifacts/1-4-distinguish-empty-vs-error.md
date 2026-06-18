@@ -1,6 +1,9 @@
+---
+baseline_commit: 545e62e05b979a858c685952198df6ce361e8e24
+---
 # Story 1.4: Distinguish empty vs error (rỗng-vì-đang-xây ≠ rỗng-vì-lỗi-tải)
 
-Status: ready-for-dev
+Status: review
 
 ## Story
 
@@ -34,10 +37,10 @@ so that **tôi quyết định đúng: chờ quay lại hay refresh/thử lại 
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: mở rộng helper trả `{ data, loadError }` cho các nguồn AI-result/deal-hot/coupon (mirror `FetchNichesResult`) (AC #4).
-- [ ] Task 2: AI result 3-state (AC #1).
-- [ ] Task 3: deal-hot 2-state (AC #2).
-- [ ] Task 4: coupon index 2-state (AC #3).
+- [x] Task 1: helper trả `{ data, loadError }` — `fetchAllCoupons` → `{coupons,loadError}`, `fetchAllProductsFlat` → `{products,loadError}` (mirror `FetchNichesResult`); cập nhật mọi caller (home, deal-hot, khuyen-mai) (AC #4).
+- [x] Task 2: AI result 3-state — track `productFetchFailed`; lỗi tải vs no-match vs có data (AC #1).
+- [x] Task 3: deal-hot 2-state — `LoadErrorState` (niches/products fetch fail) vs `EmptyState` (chưa có deal) (AC #2).
+- [x] Task 4: coupon index 2-state — `LoadErrorState` vs `EmptyState` (AC #3).
 
 ## Dev Notes
 
@@ -55,5 +58,22 @@ so that **tôi quyết định đúng: chờ quay lại hay refresh/thử lại 
 
 ## Dev Agent Record
 ### Agent Model Used
+claude-opus-4-8[1m]
 ### Completion Notes List
+- `lib/api.ts`: `fetchAllCoupons` → `{coupons,loadError}` (FetchCouponsResult); `fetchAllProductsFlat` → `{products,loadError}` (FetchAllProductsResult). Quy ước partial-failure: chỉ loadError khi CÓ niche nhưng TẤT CẢ fetch null (đều lỗi); một phần lỗi mà còn data → tha.
+- AI result: `productFetchFailed` set ở `!res.ok`/catch (KHÔNG set khi `find()` không thấy id = no-match) → 3 state: lỗi tải / chưa khớp / có data.
+- deal-hot: `loadError = nichesError ?? productsError` → `LoadErrorState` (thử lại) vs `EmptyState` (chờ 6h).
+- coupon index: `LoadErrorState` vs `EmptyState`.
+- Callers cập nhật hết: home (`(await fetchAllProductsFlat).products`, giữ behavior), deal-hot, khuyen-mai.
+- Copy lỗi generic ("Không tải được…, thử lại"), KHÔNG render error.message kỹ thuật (theo edge-case).
+- Gate: `npm run lint:web` ✓. API không đụng. Web không có test suite (API-only theo story-ready) → verify lint + manual.
 ### File List
+- apps/web/lib/api.ts (M)
+- apps/web/app/page.tsx (M — adapt shape, behavior giữ nguyên)
+- apps/web/app/deal-hot/[date]/page.tsx (M)
+- apps/web/app/khuyen-mai/page.tsx (M)
+- apps/web/app/ai/[slug]/result/[sessionId]/page.tsx (M)
+
+### Change Log
+- 2026-06-18: Implement story 1-4 (helper `{data,loadError}` + tách empty-vs-error ở AI result / deal-hot / coupon index). Status → review.
+- 2026-06-18: Apply code-review (high-effort, --fix): **#1** khuyen-mai lỗi tải → early-return chỉ render lỗi (bỏ CouponHero rỗng "0 mã" mâu thuẫn). **#2** home tiêu thụ `productsResult.loadError` → nhất quán empty-vs-error với các trang khác. **#3** reuse `EmptyState tone="error"` (atom) ở khuyen-mai + AI result thay markup tự dựng. **#4** AI result fetch niche 1 lần (thay N lần cùng endpoint) → `productFetchFailed` rõ ràng + tiết kiệm. Skip: deal-hot giữ LoadErrorState bespoke (visual mobile, cùng cặp với EmptyState của nó); heuristic all-null của fetchAllProductsFlat (by-design). Lint ✓.

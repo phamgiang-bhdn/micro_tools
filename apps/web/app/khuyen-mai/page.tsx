@@ -4,6 +4,7 @@ import Link from "next/link";
 import { fetchAllCoupons, type PublicCoupon } from "../../lib/api";
 import { CouponCardV2 } from "../../components/storefront/coupon-card";
 import { CouponHero } from "../../components/storefront/coupon-hero";
+import { EmptyState as UiEmptyState } from "../../components/ui/empty-state";
 
 export const revalidate = 300;
 
@@ -23,7 +24,30 @@ interface PageProps {
 
 export default async function CouponsIndexPage({ searchParams }: PageProps): Promise<React.ReactElement> {
   const { merchant } = await searchParams;
-  const all = await fetchAllCoupons(100);
+  const { coupons: all, loadError } = await fetchAllCoupons(100);
+
+  // STORY 1-4: lỗi tải → chỉ render trạng thái lỗi (KHÔNG render CouponHero với [] — sẽ hiện
+  // "0 mã đang còn dùng" mâu thuẫn với banner lỗi). Reuse atom EmptyState tone="error".
+  if (loadError) {
+    return (
+      <main className="mx-auto max-w-6xl px-4 py-12 sm:px-6">
+        <UiEmptyState
+          tone="error"
+          title="Không tải được mã giảm giá"
+          description={
+            <p>
+              Có lỗi khi lấy dữ liệu từ máy chủ. Vui lòng{" "}
+              <Link href="/khuyen-mai" className="font-medium text-primary-700 hover:underline">
+                thử lại
+              </Link>{" "}
+              sau giây lát.
+            </p>
+          }
+        />
+      </main>
+    );
+  }
+
   const active = all.filter((c) => !c.expiresAt || new Date(c.expiresAt).getTime() > Date.now());
   const filtered = merchant ? active.filter((c) => c.merchantSlug === merchant) : active;
   const merchants = countByMerchant(active);

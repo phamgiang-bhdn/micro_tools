@@ -40,8 +40,10 @@ export default async function DealHotPage({ params }: PageProps): Promise<React.
   const resolved = resolveDate(date);
   if (!resolved) notFound();
 
-  const { niches } = await fetchNiches();
-  const products = await fetchAllProductsFlat(niches);
+  const { niches, loadError: nichesError } = await fetchNiches();
+  const { products, loadError: productsError } = await fetchAllProductsFlat(niches);
+  // STORY 1-4: phân biệt "lỗi tải" (niches hoặc products fetch fail) với "chưa có deal".
+  const loadError = nichesError ?? productsError;
   const top = products
     .filter((p) => p.price && p.discountPercent)
     .sort((a, b) => (b.discountPercent ?? 0) - (a.discountPercent ?? 0))
@@ -72,7 +74,7 @@ export default async function DealHotPage({ params }: PageProps): Promise<React.
       </section>
 
       {top.length === 0 ? (
-        <EmptyState date={resolved.date} />
+        loadError ? <LoadErrorState date={resolved.date} /> : <EmptyState date={resolved.date} />
       ) : (
         <section className="space-y-3 px-4 py-5">
           {top.map((p, idx) => (
@@ -203,6 +205,33 @@ function SubscribeCta(): React.ReactElement {
           Đăng ký
         </button>
       </form>
+    </section>
+  );
+}
+
+// STORY 1-4: trạng thái LỖI TẢI (khác "chưa có deal") — user nên thử lại, không phải chờ 6h.
+function LoadErrorState({ date }: { date: string }): React.ReactElement {
+  return (
+    <section className="space-y-3 px-4 py-10 text-center">
+      <p className="text-3xl">⚠️</p>
+      <p className="text-base font-semibold text-ink">Không tải được deal lúc này</p>
+      <p className="text-sm text-ink-soft">
+        Có lỗi khi lấy dữ liệu từ máy chủ. Vui lòng thử lại sau giây lát.
+      </p>
+      <div className="flex justify-center gap-3 pt-3">
+        <Link
+          href={`/deal-hot/${date}`}
+          className="rounded-full bg-primary-600 px-4 py-2 text-sm font-semibold text-white hover:bg-primary-700"
+        >
+          Thử lại
+        </Link>
+        <Link
+          href="/"
+          className="rounded-full border border-line bg-card px-4 py-2 text-sm font-semibold text-ink-soft hover:border-primary-300"
+        >
+          Về trang chủ
+        </Link>
+      </div>
     </section>
   );
 }

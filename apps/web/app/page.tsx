@@ -18,8 +18,13 @@ interface HomeProps {
 
 export default async function HomePage({ searchParams }: HomeProps): Promise<React.ReactElement> {
   const { category: activeSlug, sort = "top", q = "" } = await searchParams;
-  const { niches, loadError } = await fetchNiches();
-  const allProducts = loadError ? [] : await fetchAllProductsFlat(niches);
+  const { niches, loadError: nichesError } = await fetchNiches();
+  const productsResult = nichesError ? { products: [], loadError: null } : await fetchAllProductsFlat(niches);
+  const allProducts = productsResult.products;
+  // STORY 1-4: home cũng phân biệt lỗi-tải với rỗng — niches lỗi, HOẶC niches OK nhưng toàn bộ
+  // product fetch fail (allProducts rỗng + productsResult.loadError). Tránh hiện "đang cập nhật"
+  // khi thực ra backend product đang sập.
+  const loadError = nichesError ?? (allProducts.length === 0 ? productsResult.loadError : null);
 
   const query = q.trim().toLowerCase();
   let filtered = activeSlug ? allProducts.filter((p) => p.nicheSlug === activeSlug) : allProducts;

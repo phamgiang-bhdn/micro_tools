@@ -4,6 +4,7 @@ import Link from "next/link";
 import { fetchToolBySlug, fetchToolSession } from "../../../../../lib/api";
 import { normalizeProduct } from "../../../../../lib/format";
 import { ExpiredSessionNotice } from "../../../../../components/storefront/expired-session-notice";
+import { EmptyState } from "../../../../../components/ui/empty-state";
 import { logDeadEnd } from "../../../../../lib/dead-end";
 import { ResultCards, type ResultCardsProps } from "./result-cards";
 
@@ -37,23 +38,27 @@ export default async function ResultPage({ params }: PageProps): Promise<React.R
     notFound();
   }
 
-  // Fetch product detail cho recommended IDs
+  // Fetch product detail cho recommended IDs.
+  // STORY 1-4 (+review): fetch niche MỘT lần (trước đây map N id → N fetch cùng 1 endpoint) →
+  // tiết kiệm + làm `productFetchFailed` KHÔNG mơ hồ (1 fetch: lỗi hay không). null do find()
+  // không thấy id = no-match, KHÔNG phải lỗi tải.
   const apiBase = process.env.API_BASE_URL ?? "http://localhost:4000/api/v1";
-  const productPromises = session.recommendedProductIds.map(async (id) => {
-    try {
-      const res = await fetch(`${apiBase}/niches/${session.tool.niche.slug}`, { cache: "no-store" });
-      if (!res.ok) return null;
-      const niche = (await res.json()) as { products: unknown[] };
-      const products = (niche.products ?? []) as { id: string; [k: string]: unknown }[];
-      return products.find((p) => p.id === id) ?? null;
-    } catch {
-      return null;
+  let productFetchFailed = false;
+  let nicheProducts: Array<{ id: string; [k: string]: unknown }> = [];
+  try {
+    const res = await fetch(`${apiBase}/niches/${session.tool.niche.slug}`, { cache: "no-store" });
+    if (!res.ok) {
+      productFetchFailed = true;
+    } else {
+      const niche = (await res.json()) as { products?: unknown[] };
+      nicheProducts = (niche.products ?? []) as Array<{ id: string; [k: string]: unknown }>;
     }
-  });
-  const productList = (await Promise.all(productPromises)).filter(Boolean) as Array<{
-    id: string;
-    [k: string]: unknown;
-  }>;
+  } catch {
+    productFetchFailed = true;
+  }
+  const productList = session.recommendedProductIds
+    .map((id) => nicheProducts.find((p) => p.id === id) ?? null)
+    .filter(Boolean) as Array<{ id: string; [k: string]: unknown }>;
 
   // Dedupe + normalize
   const seen = new Set<string>();
@@ -104,14 +109,38 @@ export default async function ResultPage({ params }: PageProps): Promise<React.R
         </div>
 
         {normalized.length === 0 ? (
-          <div className="mt-10 rounded-2xl border border-line bg-white p-8 text-center">
-            <p className="text-base text-ink">
-              Không tìm thấy sản phẩm phù hợp.{" "}
-              <Link href={`/ai/${slug}`} className="font-semibold text-primary-600 hover:underline">
-                Thử lại với nhu cầu khác →
-              </Link>
-            </p>
-          </div>
+          productFetchFailed ? (
+            // STORY 1-4: LỖI TẢI — reuse atom EmptyState tone="error" (cùng họ với các trạng thái khác).
+            <div className="mt-10">
+              <EmptyState
+                tone="error"
+                title="Không tải được gợi ý"
+                description={
+                  <p>
+                    Có lỗi khi lấy dữ liệu sản phẩm.{" "}
+                    <Link href={`/ai/${slug}/result/${sessionId}`} className="font-semibold text-primary-600 hover:underline">
+                      Thử lại
+                    </Link>{" "}
+                    hoặc{" "}
+                    <Link href={`/ai/${slug}`} className="font-semibold text-primary-600 hover:underline">
+                      làm lại quiz
+                    </Link>
+                    .
+                  </p>
+                }
+              />
+            </div>
+          ) : (
+            // STORY 1-4: KHÔNG khớp (fetch OK, quiz không ra sản phẩm) — khác hẳn lỗi tải.
+            <div className="mt-10 rounded-2xl border border-line bg-white p-8 text-center">
+              <p className="text-base text-ink">
+                Chưa có sản phẩm khớp nhu cầu của bạn.{" "}
+                <Link href={`/ai/${slug}`} className="font-semibold text-primary-600 hover:underline">
+                  Thử lại với nhu cầu khác →
+                </Link>
+              </p>
+            </div>
+          )
         ) : (
           <ResultCards
             products={normalized}

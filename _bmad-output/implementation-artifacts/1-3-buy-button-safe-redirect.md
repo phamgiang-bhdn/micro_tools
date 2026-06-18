@@ -1,6 +1,9 @@
+---
+baseline_commit: 11672ea13c77654381031c7a0b62be07adf65720
+---
 # Story 1.3: Buy-button safe redirect (đường tiền không im lặng thất bại)
 
-Status: ready-for-dev
+Status: review
 
 ## Story
 
@@ -30,10 +33,10 @@ so that **tôi không bị kẹt im lặng (bấm xong không có gì xảy ra) 
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: guard `finalUrl` rỗng trong `buyAction` (AC #1, #4).
-- [ ] Task 2: cơ chế báo lỗi cho user (banner qua searchParam hoặc trang lỗi nhẹ) (AC #1).
-- [ ] Task 3: (tùy chọn) làm rõ tín hiệu lỗi ở `createTrackingRedirect` mà không phá `TrackingResult` (AC #3) — nếu làm, sửa cả `trackAndRedirectAction`.
-- [ ] Task 4: kiểm tra không hồi quy round-trip trackingCode (AC #2).
+- [x] Task 1: guard `finalUrl` rỗng trong `buyAction` (AC #1, #4) — sticky CTA dùng chung `buyAction` nên tự hưởng.
+- [x] Task 2: cơ chế báo lỗi cho user (redirect `?buy=error` → banner `role="alert"` trong ProductDetailView) (AC #1).
+- [x] Task 3: thêm guard whitespace ở `createTrackingRedirect` (`!affiliateUrl.trim()`) — GIỮ shape `TrackingResult` (`finalUrl:""` là tín hiệu), `trackAndRedirectAction` không phải sửa (đã guard sẵn) (AC #3).
+- [x] Task 4: round-trip trackingCode không đổi — chỉ thêm guard, happy path nguyên vẹn (AC #2).
 
 ## Dev Notes
 
@@ -52,5 +55,19 @@ so that **tôi không bị kẹt im lặng (bấm xong không có gì xảy ra) 
 
 ## Dev Agent Record
 ### Agent Model Used
+claude-opus-4-8[1m]
 ### Completion Notes List
+- `buyAction` (product-detail-view.tsx): khi `tracked.finalUrl` rỗng → `redirect("/categories/<niche.slug>/<slug ?? id>?buy=error")` thay vì `redirect("")`. Sticky mobile CTA dùng chung `buyAction` → đồng bộ.
+- Banner `role="alert"` "Link mua đang lỗi" render khi `buyError` (page đọc `?buy=error` từ searchParams → prop `buyError`).
+- `createTrackingRedirect`: guard `!input.affiliateUrl.trim()` (bắt cả whitespace-only). Shape `TrackingResult` giữ nguyên; `trackAndRedirectAction` đã guard sẵn nên không đổi.
+- Invariant trackingCode (32 hex dashless + utm_source/sub1 round-trip) KHÔNG đổi — chỉ thêm guard, happy path nguyên.
+- Gate: `npm run lint:web` ✓. API không đụng. Web không có test suite (chọn API-only ở story-ready); buyAction là server action inline khó unit-test không có framework → verify bằng lint + manual.
 ### File List
+- apps/web/components/product-detail-view.tsx (M)
+- apps/web/app/categories/[slug]/[productSlug]/page.tsx (M)
+- apps/web/app/actions/tracking.ts (M)
+- apps/web/components/storefront/buy-error-banner.tsx (A, code-review #1/#3/#4)
+
+### Change Log
+- 2026-06-18: Implement story 1-3 (guard buyAction finalUrl rỗng → ?buy=error banner; whitespace guard ở createTrackingRedirect). Status → review.
+- 2026-06-18: Apply code-review (high-effort, --fix): **#1** banner đọc `?buy=error` bằng client component `<BuyErrorBanner>` dưới `<Suspense>` thay vì server page đọc `searchParams` → KHÔI PHỤC ISR cho product page (Next 15: đọc searchParams ở server ép dynamic, mất ISR — vi phạm apps/web/CLAUDE.md). **#2** `createTrackingRedirect` validate `isHttpUrl()` tại nguồn → bắt cả malformed-non-rỗng (không chỉ rỗng/whitespace). **#3** tách banner thành component cùng họ. **#4** dùng tone `warning` (lỗi tạm thời) thay `danger`. Lint ✓.

@@ -71,7 +71,10 @@ const TRACKING_TIMEOUT_MS = 4000;
  * chỉ mất attribution row, KHÔNG vỡ outbound.
  */
 export async function createTrackingRedirect(input: TrackingInput): Promise<TrackingResult> {
-  if (!input.affiliateUrl) {
+  // STORY 1-3: validate URL hợp lệ NGAY tại nguồn — bắt rỗng, whitespace-only ("  ") LẪN
+  // malformed-non-rỗng ("not a url"). Nếu không, các nhánh fallback bên dưới sẽ trả lại chuỗi
+  // rác → buyAction redirect rác (cùng lớp lỗi story muốn diệt). finalUrl="" là tín hiệu cho caller.
+  if (!isHttpUrl(input.affiliateUrl)) {
     return { trackingCode: "", finalUrl: "" };
   }
 
@@ -151,6 +154,16 @@ export async function createTrackingRedirect(input: TrackingInput): Promise<Trac
     return { trackingCode, finalUrl: parsedUrl.toString() };
   } catch {
     return { trackingCode, finalUrl: input.affiliateUrl };
+  }
+}
+
+/** STORY 1-3: URL hợp lệ = parse được + protocol http/https. Chặn rỗng/whitespace/malformed. */
+function isHttpUrl(value: string): boolean {
+  try {
+    const u = new URL(value);
+    return u.protocol === "http:" || u.protocol === "https:";
+  } catch {
+    return false;
   }
 }
 

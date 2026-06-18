@@ -259,7 +259,7 @@ describe(ReconciliationService.name, () => {
 
       const result = await service.runReconcileCycle("manual");
 
-      expect(result).toEqual({ fetched: 1, matched: 1, updated: 1, unmatched: 0 });
+      expect(result).toEqual({ fetched: 1, matched: 1, updated: 1, unmatched: 0, orderProductsFetched: 0 });
       const updated = prisma.webhooks.get(webhook.id);
       expect(updated?.atOrderId).toBe("ord-xyz");
       expect(updated?.source).toBe("both");
@@ -273,7 +273,7 @@ describe(ReconciliationService.name, () => {
 
       const result = await service.runReconcileCycle();
 
-      expect(result).toEqual({ fetched: 1, matched: 0, updated: 0, unmatched: 1 });
+      expect(result).toEqual({ fetched: 1, matched: 0, updated: 0, unmatched: 1, orderProductsFetched: 0 });
       expect(prisma.webhooks.size).toBe(0);
       expect(prisma.conversionWebhook.update).not.toHaveBeenCalled();
     });
@@ -382,7 +382,7 @@ describe(ReconciliationService.name, () => {
       const rows = [...prisma.webhooks.values()];
       expect(rows.length).toBe(1);
       expect(rows[0].atOrderId).toBe("ord-xyz");
-      expect(second).toEqual({ fetched: 1, matched: 1, updated: 1, unmatched: 0 });
+      expect(second).toEqual({ fetched: 1, matched: 1, updated: 1, unmatched: 0, orderProductsFetched: 0 });
     });
 
     it("falls back to atOrderId match when utm_source is missing", async () => {

@@ -227,13 +227,24 @@ export async function fetchMerchantExists(slug: string): Promise<MerchantExists 
   }
 }
 
-export async function fetchAllCoupons(limit = 100): Promise<PublicCoupon[]> {
+export interface FetchCouponsResult {
+  coupons: PublicCoupon[];
+  loadError: string | null;
+}
+
+/**
+ * STORY 1-4: trả `{ coupons, loadError }` (mirror `FetchNichesResult`) để trang phân biệt
+ * "rỗng vì chưa có mã" (loadError=null) với "rỗng vì lỗi tải" (loadError != null) — thay vì
+ * nuốt lỗi thành `[]` giống hệt trường hợp không có data.
+ */
+export async function fetchAllCoupons(limit = 100): Promise<FetchCouponsResult> {
   try {
     const qs = new URLSearchParams({ limit: String(limit), sort: "expiresAt:asc" });
-    return await safeFetch<PublicCoupon[]>(`/coupons?${qs.toString()}`);
+    const coupons = await safeFetch<PublicCoupon[]>(`/coupons?${qs.toString()}`);
+    return { coupons, loadError: null };
   } catch (error) {
     console.error("Failed to fetch all coupons:", error);
-    return [];
+    return { coupons: [], loadError: error instanceof Error ? error.message : String(error) };
   }
 }
 
@@ -335,17 +346,29 @@ export async function fetchPriceHistory(productId: string, days = 90): Promise<P
   }
 }
 
-export async function fetchAllProductsFlat(niches: NicheItem[]): Promise<FlatProduct[]> {
-  if (niches.length === 0) return [];
+export interface FetchAllProductsResult {
+  products: FlatProduct[];
+  loadError: string | null;
+}
+
+/**
+ * STORY 1-4: trả `{ products, loadError }`. `fetchNicheBySlug` trả null KHI fetch lỗi (API/non-ok)
+ * — một niche hợp lệ luôn có data (products có thể rỗng). Quy ước phân biệt empty-vs-error:
+ * nếu CÓ niche để fetch nhưng TẤT CẢ đều null (đều lỗi) → loadError; nếu chỉ một phần lỗi mà
+ * vẫn còn ≥1 niche OK → tha (partial failure, trả phần có được, loadError=null).
+ */
+export async function fetchAllProductsFlat(niches: NicheItem[]): Promise<FetchAllProductsResult> {
+  if (niches.length === 0) return { products: [], loadError: null };
   const details = await Promise.all(niches.map((niche) => fetchNicheBySlug(niche.slug)));
-  return details
-    .filter((niche): niche is NicheDetail => niche !== null)
-    .flatMap((niche) =>
-      niche.products.map((product) => ({
-        ...normalizeProduct(product),
-        slug: product.slug ?? undefined,
-        nicheSlug: niche.slug,
-        nicheName: niche.name
-      }))
-    );
+  const ok = details.filter((niche): niche is NicheDetail => niche !== null);
+  const loadError = ok.length === 0 ? "Không tải được sản phẩm" : null;
+  const products = ok.flatMap((niche) =>
+    niche.products.map((product) => ({
+      ...normalizeProduct(product),
+      slug: product.slug ?? undefined,
+      nicheSlug: niche.slug,
+      nicheName: niche.name
+    }))
+  );
+  return { products, loadError };
 }

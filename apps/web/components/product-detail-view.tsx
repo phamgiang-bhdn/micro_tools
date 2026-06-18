@@ -1,8 +1,10 @@
 import type React from "react";
+import { Suspense } from "react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { formatMoney, formatNumber, normalizeProduct } from "../lib/format";
 import { createTrackingRedirect } from "../app/actions/tracking";
+import { BuyErrorBanner } from "./storefront/buy-error-banner";
 import { Breadcrumb } from "./ui/breadcrumb";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
@@ -59,6 +61,11 @@ export function ProductDetailView({
       productId: product.id,
       affiliateUrl: productRaw.affiliateUrl
     });
+    // STORY 1-3: affiliateUrl rỗng/lỗi → finalUrl="". KHÔNG redirect("") (crash). Quay lại
+    // trang sản phẩm với ?buy=error để render banner — user thấy lý do thay vì im lặng.
+    if (!tracked.finalUrl) {
+      redirect(`/categories/${niche.slug}/${productRaw.slug ?? product.id}?buy=error`);
+    }
     redirect(tracked.finalUrl);
   };
 
@@ -79,6 +86,12 @@ export function ProductDetailView({
             Đóng tab và Approve trong Refinery để go-live.
           </p>
         </div>
+      ) : null}
+
+      {!previewMode ? (
+        <Suspense fallback={null}>
+          <BuyErrorBanner />
+        </Suspense>
       ) : null}
 
       <Breadcrumb
