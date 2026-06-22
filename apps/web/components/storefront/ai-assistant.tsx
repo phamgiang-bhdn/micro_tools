@@ -118,7 +118,17 @@ export function AiAssistant(): React.ReactElement {
         <div className="mt-8">
           {status === "thinking" ? <ThinkingBlock step={step} /> : null}
           {status === "error" ? (
-            <p className="rounded-xl bg-danger-soft px-4 py-3 text-sm text-danger-ink">{errorMsg}</p>
+            <div role="alert" className="rounded-xl bg-warning-soft px-4 py-3 text-sm text-warning-ink">
+              <p className="font-semibold">Hệ thống đang bận một chút</p>
+              <p className="mt-1">
+                Thử lại sau ít phút, hoặc xem{" "}
+                <Link href="/blog" className="font-semibold underline">
+                  cẩm nang chọn mua
+                </Link>{" "}
+                trong lúc chờ.
+              </p>
+              {errorMsg ? <p className="mt-1 text-xs text-warning-ink/70">{errorMsg}</p> : null}
+            </div>
           ) : null}
           {status === "done" && answer ? <AnswerBlock answer={answer} onFollowup={askFollowup} /> : null}
         </div>

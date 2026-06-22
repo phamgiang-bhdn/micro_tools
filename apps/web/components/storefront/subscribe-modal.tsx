@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { Mail } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { getCookie, incrementCookie, setCookie } from "../../lib/cookies";
+import { SubscribeForm } from "./subscribe-form";
 
 const POPULAR_NICHES = [
   { slug: "laptop", label: "Laptop" },
@@ -17,8 +18,6 @@ const POPULAR_NICHES = [
 export function SubscribeModal(): React.ReactElement | null {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
-  const [message, setMessage] = useState<{ kind: "ok" | "error"; text: string } | null>(null);
   const [picked, setPicked] = useState<string[]>([]);
 
   useEffect(() => {
@@ -53,32 +52,6 @@ export function SubscribeModal(): React.ReactElement | null {
     if (reason === "dismiss") setCookie("dv_modal_dismissed", "1", 30);
   }
 
-  async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    const fd = new FormData(e.currentTarget);
-    const email = String(fd.get("email") ?? "").trim();
-    if (!email) return;
-    setSubmitting(true);
-    try {
-      const res = await fetch(`/api/subscribe`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, source: "modal_home", preferredNiches: picked })
-      });
-      if (!res.ok) throw new Error("subscribe failed");
-      setCookie("dv_subscribed", "1", 365);
-      setMessage({
-        kind: "ok",
-        text: `Đã gửi link xác nhận tới ${email}. Mở email để confirm đăng ký.`
-      });
-      setTimeout(() => close("ok"), 2500);
-    } catch {
-      setMessage({ kind: "error", text: "Đăng ký không thành công. Vui lòng thử lại." });
-    } finally {
-      setSubmitting(false);
-    }
-  }
-
   return (
     <div
       role="dialog"
@@ -110,15 +83,12 @@ export function SubscribeModal(): React.ReactElement | null {
           Mỗi 7:00 sáng, chúng tôi gửi top 5 deal hot + mã giảm còn dùng trong 24h. Không spam, huỷ bất kỳ lúc nào.
         </p>
 
-        <form onSubmit={onSubmit} className="mt-4 space-y-3">
-          <input
-            type="email"
-            name="email"
-            required
-            placeholder="vidu@gmail.com"
-            className="h-11 w-full rounded-full border border-line bg-canvas px-4 text-sm"
-          />
-
+        <SubscribeForm
+          source="modal_home"
+          preferredNiches={picked}
+          onSuccess={() => setTimeout(() => close("ok"), 2500)}
+          className="mt-4 space-y-3"
+        >
           <div>
             <p className="text-xs font-semibold text-ink-soft">Quan tâm danh mục: (tối đa 3)</p>
             <div className="mt-2 flex flex-wrap gap-2">
@@ -141,20 +111,6 @@ export function SubscribeModal(): React.ReactElement | null {
             </div>
           </div>
 
-          <button
-            type="submit"
-            disabled={submitting}
-            className="inline-flex h-11 w-full items-center justify-center rounded-full bg-primary-600 text-sm font-semibold text-white shadow-sm transition hover:bg-primary-700 disabled:opacity-60"
-          >
-            {submitting ? "Đang gửi…" : "Đăng ký nhận deal"}
-          </button>
-
-          {message ? (
-            <p className={`text-xs ${message.kind === "ok" ? "text-emerald-700" : "text-rose-700"}`}>
-              {message.text}
-            </p>
-          ) : null}
-
           <p className="text-micro text-ink-mute">
             Bằng việc đăng ký, bạn đồng ý với{" "}
             <a href="/chinh-sach-bao-mat" className="underline">
@@ -162,7 +118,7 @@ export function SubscribeModal(): React.ReactElement | null {
             </a>
             .
           </p>
-        </form>
+        </SubscribeForm>
       </div>
     </div>
   );

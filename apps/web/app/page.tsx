@@ -1,5 +1,6 @@
 import type React from "react";
 import Link from "next/link";
+import { Mail } from "lucide-react";
 import { fetchAllProductsFlat, fetchNiches } from "../lib/api";
 import { EmptyState } from "../components/ui/empty-state";
 import { PageSection, SectionHeading } from "../components/ui/section";
@@ -7,6 +8,8 @@ import { FilterChip, FilterChipRow } from "../components/ui/filter-chip";
 import { ProductGrid } from "../components/storefront/product-grid";
 import { SortControl } from "../components/storefront/sort-control";
 import { AiAssistant } from "../components/storefront/ai-assistant";
+import { TrustStrip } from "../components/storefront/trust-strip";
+import { SubscribeForm } from "../components/storefront/subscribe-form";
 import { CuratedNicheGrid } from "../components/storefront/curated-niche-grid";
 import { buildCuratedTiles } from "../lib/curated-niches";
 
@@ -51,23 +54,10 @@ export default async function HomePage({ searchParams }: HomeProps): Promise<Rea
     <div>
       <AiAssistant />
 
-      {loadError ? (
-        <PageSection padding="default">
-          <EmptyState
-            tone="warning"
-            title="Hệ thống đang bảo trì"
-            description={
-              <p>
-                Chúng tôi đang cập nhật danh sách deal. Vui lòng quay lại sau ít phút, hoặc xem{" "}
-                <Link href="/blog" className="font-medium text-primary-700 hover:underline">
-                  cẩm nang chọn mua
-                </Link>{" "}
-                trong lúc chờ.
-              </p>
-            }
-          />
-        </PageSection>
-      ) : null}
+      {/* Dải bằng chứng (moat) — luôn hiện, ngoài nhánh loadError, lấp khoảng trắng dưới hero. */}
+      <PageSection padding="tight">
+        <TrustStrip />
+      </PageSection>
 
       <PageSection padding="default" width="wide" className="bg-canvas">
         <SectionHeading
@@ -122,21 +112,56 @@ export default async function HomePage({ searchParams }: HomeProps): Promise<Rea
           </div>
         ) : null}
 
-        {!loadError && sorted.length === 0 ? (
+        {/* AC1+AC5: lỗi TẢI nằm gọn trong khu grid (đúng nơi bị ảnh hưởng), KHÔNG banner top-level.
+            Tách bạch với "rỗng hợp lệ" bên dưới — invariant story 1-4. */}
+        {loadError ? (
           <EmptyState
             tone="warning"
-            title={query ? "Không có kết quả phù hợp" : "Đang cập nhật deal mới"}
+            title="Không tải được deal lúc này"
             description={
-              query ? (
-                <p>Thử bỏ bớt từ khoá hoặc chọn danh mục khác.</p>
-              ) : (
-                <p>
-                  Team dealvault đang đối chiếu deal mới từ các sàn. Vui lòng quay lại sau ít phút,
-                  hoặc xem <Link href="/blog" className="font-medium text-primary-700 hover:underline">cẩm nang chọn mua</Link>.
-                </p>
-              )
+              <p>
+                Hệ thống đang bận, chúng tôi đang khắc phục. Vui lòng thử lại sau ít phút, hoặc xem{" "}
+                <Link href="/blog" className="font-medium text-primary-700 hover:underline">
+                  cẩm nang chọn mua
+                </Link>{" "}
+                trong lúc chờ.
+              </p>
             }
           />
+        ) : null}
+
+        {!loadError && sorted.length === 0 ? (
+          <div className="space-y-6">
+            <EmptyState
+              tone="warning"
+              title={query ? "Không có kết quả phù hợp" : "Đang cập nhật deal mới"}
+              description={
+                query ? (
+                  <p>Thử bỏ bớt từ khoá hoặc chọn danh mục khác.</p>
+                ) : (
+                  <p>
+                    Team dealvault đang đối chiếu deal mới từ các sàn. Vui lòng quay lại sau ít phút,
+                    hoặc xem <Link href="/blog" className="font-medium text-primary-700 hover:underline">cẩm nang chọn mua</Link>.
+                  </p>
+                )
+              }
+            />
+
+            {/* AC1+AC2 (3-2): lead-capture CHỈ ở pre-launch empty (không query, không error) →
+                biến ngõ cụt "chưa có deal" thành điểm thu email. */}
+            {!query ? (
+              <div className="mx-auto max-w-md rounded-2xl border border-border bg-surface p-5 text-center shadow-card">
+                <p className="flex items-center justify-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-primary-600">
+                  <Mail className="size-3.5" aria-hidden /> Nhận deal sớm
+                </p>
+                <h3 className="mt-1 text-title font-bold text-ink">Đăng ký nhận deal đầu tiên</h3>
+                <p className="mt-1 text-sm text-ink-soft">
+                  Để lại email — chúng tôi báo bạn ngay khi có deal đầu tiên. Không spam.
+                </p>
+                <SubscribeForm source="home_empty" submitLabel="Đăng ký" className="mt-4 space-y-3 text-left" />
+              </div>
+            ) : null}
+          </div>
         ) : null}
 
         {sorted.length > 0 ? (

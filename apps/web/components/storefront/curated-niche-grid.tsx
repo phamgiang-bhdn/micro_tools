@@ -31,7 +31,7 @@ export function CuratedNicheGrid({ niches }: Props): React.ReactElement {
               {n.displayName}
             </span>
             <span className="text-micro font-medium text-ink-mute">
-              {n.productCount > 0 ? `${n.productCount} deal đang sống` : "Đang cập nhật"}
+              {n.productCount > 0 ? `${n.productCount} deal đang sống` : "Sắp lên kệ"}
             </span>
           </span>
         </Link>

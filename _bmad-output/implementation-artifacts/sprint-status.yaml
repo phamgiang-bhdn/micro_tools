@@ -23,7 +23,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, ideally different LLM)
 
 generated: 2026-06-18
-last_updated: 2026-06-18T4
+last_updated: 2026-06-18T11
 project: micro tool
 project_key: DEALVAULT
 tracking_system: file-system
@@ -41,3 +41,9 @@ development_status:
   epic-2: in-progress
   2-1-design-system-trust-polish: review
   epic-2-retrospective: optional
+  # Epic 3 — Trang chủ AI-first (định vị AI-advisor, party-mode 2026-06-18).
+  epic-3: in-progress
+  3-1-home-ai-first: review
+  # 3-2 lead-capture: phụ thuộc nền empty-state của 3-1. Reframe "Sắp lên kệ" của 3-1 cần 3-2 để hết là băng dán.
+  3-2-home-lead-capture: review
+  epic-3-retrospective: optional
